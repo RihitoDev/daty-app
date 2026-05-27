@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'dart:math';
 
@@ -102,7 +101,7 @@ class GroupProvider extends ChangeNotifier {
   // ==========================================
   Future<Map<String, dynamic>?> startExpedition(String groupCode) async {
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('adventures').get();
+            final snapshot = await FirebaseFirestore.instance.collection('adventures').where('type', isEqualTo: 'grupo').get();
       if (snapshot.docs.isEmpty) return null;
 
       final randomIndex = Random().nextInt(snapshot.docs.length);

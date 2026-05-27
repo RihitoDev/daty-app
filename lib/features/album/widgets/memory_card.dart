@@ -9,8 +9,9 @@ class MemoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color typeColor;
-    if (memory.type == 'Solo') typeColor = const Color(0xFF1976D2);
-    else if (memory.type == 'Pareja') typeColor = const Color(0xFFC2185B);
+    if (memory.type == 'Solo') {
+      typeColor = const Color(0xFF1976D2);
+    } else if (memory.type == 'Pareja') typeColor = const Color(0xFFC2185B);
     else typeColor = const Color(0xFF8E24AA);
 
     String formattedDate = "${memory.date.day.toString().padLeft(2, '0')}/${memory.date.month.toString().padLeft(2, '0')}/${memory.date.year}";
@@ -21,8 +22,8 @@ class MemoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: typeColor.withOpacity(0.3), width: 1.5),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: typeColor.withValues(alpha: 0.3), width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,7 +43,7 @@ class MemoryCard extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: typeColor.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: typeColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
                           child: Text(memory.type, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: typeColor)),
                         ),
                         const SizedBox(width: 8),

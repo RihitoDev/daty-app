@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../core/services/image_upload_service.dart';
 import '../../home/screens/home_screen.dart';
 
 class GroupMemoryBoardScreen extends StatelessWidget {
@@ -71,7 +70,7 @@ class GroupMemoryBoardScreen extends StatelessWidget {
                         final userData = userSnap.data?.data() as Map<String, dynamic>?;
                         final name = userData?['username'] ?? 'Aventurero';
                         return Container(
-                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFF8E24AA).withOpacity(0.3))),
+                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFF8E24AA).withValues(alpha: 0.3))),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [

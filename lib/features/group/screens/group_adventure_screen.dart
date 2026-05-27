@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import '../../auth/providers/auth_provider.dart';
-import '../providers/group_provider.dart';
 import 'group_photo_upload_screen.dart';
 
 class GroupAdventureScreen extends StatefulWidget {
@@ -123,7 +120,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
               child: Container(
                 key: ValueKey<int>(_currentTipIndex),
                 padding: const EdgeInsets.all(25),
-                decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFF8E24AA).withOpacity(0.5))),
+                decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFF8E24AA).withValues(alpha: 0.5))),
                 child: Column(children: [
                   const Icon(Icons.lightbulb_outline, color: Colors.amber, size: 30),
                   const SizedBox(height: 15),

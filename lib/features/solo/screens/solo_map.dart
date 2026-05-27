@@ -75,7 +75,7 @@ class _SoloMapState extends State<SoloMap> {
         }
       });
 
-      final snapshot = await FirebaseFirestore.instance.collection('adventures').get();
+      final snapshot = await FirebaseFirestore.instance.collection('adventures').where('type', isEqualTo: 'solo').get();
       for (var doc in snapshot.docs) {
         final data = doc.data();
         if (data.containsKey('number')) {
@@ -284,7 +284,7 @@ class _SoloMapState extends State<SoloMap> {
   Widget build(BuildContext context) {
     final double mapWidth = MediaQuery.of(context).size.width;
     final pathPoints = _generatePathPoints(mapWidth);
-    final decoPoints = _generateDecorationPoints(pathPoints, mapWidth); 
+    final decoPoints = _generateDecorationPoints(pathPoints, mapWidth);
     final ambientPoints = _generateAmbientDecor(mapWidth);
     
     double mapProgress = _adventurePath.isEmpty ? 0.0 : _adventurePath.length / totalNodes;

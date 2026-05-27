@@ -5,6 +5,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../models/album_memory.dart';
 import '../services/album_service.dart';
 import '../widgets/memory_card.dart';
+import '../../shared/widgets/empty_state_widget.dart';
 
 class AlbumScreen extends StatelessWidget {
   const AlbumScreen({super.key});
@@ -112,16 +113,12 @@ class _AllAlbumListState extends State<_AllAlbumList> with AutomaticKeepAliveCli
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
         
         if (snapshot.hasError) {
-          debugPrint('ALL ALBUM ERROR: ${snapshot.error}');
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Text('Error al cargar los recuerdos:\n${snapshot.error}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
-            ),
-          );
+          return EmptyStateWidget(icon: Icons.error_outline, message: 'Error al cargar recuerdos.', onRetry: _refresh);
         }
 
-        if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text('Aún no tienes recuerdos guardados', style: TextStyle(color: Colors.grey)));
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const EmptyStateWidget(icon: Icons.auto_stories, message: 'Aún no tienes recuerdos guardados.\n¡Completa una aventura!');
+        }
         
         return RefreshIndicator(
           onRefresh: _refresh,
@@ -155,7 +152,9 @@ class _SoloAlbumListState extends State<_SoloAlbumList> with AutomaticKeepAliveC
       stream: FirebaseFirestore.instance.collection('solo_memories').where('userId', isEqualTo: myUid).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFF1976D2)));
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('Aún no tienes aventuras solitarias', style: TextStyle(color: Colors.grey)));
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const EmptyStateWidget(icon: Icons.backpack_outlined, message: 'Aún no tienes aventuras solitarias.\n¡Explora por tu cuenta!');
+        }
         
         List<AlbumMemory> memories = snapshot.data!.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
@@ -224,7 +223,9 @@ class _CoupleAlbumListState extends State<_CoupleAlbumList> with AutomaticKeepAl
     final myUid = authProvider.user!.uid;
     final partnerId = authProvider.userData?['partnerId'];
 
-    if (partnerId == null) return const Center(child: Text('Vincúlate con alguien para ver el álbum', style: TextStyle(color: Colors.grey)));
+    if (partnerId == null) {
+      return const EmptyStateWidget(icon: Icons.favorite_border, message: 'Vincúlate con alguien para ver el álbum de pareja.');
+    }
     
     String coupleDocId = _isUser1 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
     String user1Name = _isUser1 ? _myName : _partnerName;
@@ -234,7 +235,9 @@ class _CoupleAlbumListState extends State<_CoupleAlbumList> with AutomaticKeepAl
       stream: FirebaseFirestore.instance.collection('memories').where('coupleDocId', isEqualTo: coupleDocId).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFFC2185B)));
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('Aún no tienen aventuras juntos', style: TextStyle(color: Colors.grey)));
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const EmptyStateWidget(icon: Icons.favorite_outline, message: 'Aún no tienen aventuras juntos.\n¡Planeen una cita!');
+        }
         
         List<AlbumMemory> memories = snapshot.data!.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
@@ -282,7 +285,9 @@ class _GroupAlbumListState extends State<_GroupAlbumList> with AutomaticKeepAliv
       stream: FirebaseFirestore.instance.collection('group_memories').where('members', arrayContains: myUid).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('Aún no hay expediciones grupales', style: TextStyle(color: Colors.grey)));
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const EmptyStateWidget(icon: Icons.groups_outlined, message: 'Aún no hay expediciones grupales.\n¡Arma un grupo!');
+        }
         
         List<AlbumMemory> memories = snapshot.data!.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;

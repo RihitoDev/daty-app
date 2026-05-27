@@ -87,7 +87,7 @@ class _CoupleMapState extends State<CoupleMap> {
         }
       });
 
-      final snapshot = await FirebaseFirestore.instance.collection('adventures').get();
+      final snapshot = await FirebaseFirestore.instance.collection('adventures').where('type', isEqualTo: 'pareja').get();
       for (var doc in snapshot.docs) {
         final data = doc.data();
         if (data.containsKey('number')) {
