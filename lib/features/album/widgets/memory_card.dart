@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/album_memory.dart';
 import '../../shared/widgets/full_screen_image_viewer.dart';
 
@@ -12,7 +13,7 @@ class MemoryCard extends StatelessWidget {
       case 'Solo': return const Color(0xFF1976D2);
       case 'Pareja': return const Color(0xFFC2185B);
       case 'Grupo': return const Color(0xFF8E24AA);
-      default: return const Color(0xFF9C27B0); // Default por si acaso
+      default: return const Color(0xFF9C27B0);
     }
   }
 
@@ -21,7 +22,7 @@ class MemoryCard extends StatelessWidget {
       case 'Solo': return Icons.backpack_outlined;
       case 'Pareja': return Icons.favorite_outline;
       case 'Grupo': return Icons.groups_outlined;
-      default: return Icons.auto_stories; // CORRECCIÓN 1: Añadido caso default
+      default: return Icons.auto_stories;
     }
   }
 
@@ -36,11 +37,7 @@ class MemoryCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -54,19 +51,13 @@ class MemoryCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: typeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  decoration: BoxDecoration(color: typeColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(_getTypeIcon(), size: 14, color: typeColor),
                       const SizedBox(width: 5),
-                      Text(
-                        memory.type.toUpperCase(),
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: typeColor),
-                      ),
+                      Text(memory.type.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: typeColor)),
                     ],
                   ),
                 ),
@@ -85,10 +76,7 @@ class MemoryCard extends StatelessWidget {
           if (memory.title.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Text(
-                '${memory.emoji} ${memory.title}',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF2C2C2C)),
-              ),
+              child: Text('${memory.emoji} ${memory.title}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF2C2C2C))),
             ),
 
           // RESEÑAS
@@ -101,11 +89,7 @@ class MemoryCard extends StatelessWidget {
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
+                  decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
                   child: Text(review, style: TextStyle(fontSize: 13.5, color: Colors.grey.shade800, height: 1.4)),
                 )).toList(),
               ),
@@ -113,10 +97,10 @@ class MemoryCard extends StatelessWidget {
           
           const SizedBox(height: 10),
 
-          // FOTOS: CORRECCIÓN 2 -> Pasamos el context a la función
+          // FOTOS
           if (memory.photoUrls.isNotEmpty) _buildPhotoGrid(context),
           
-          // Mensaje si no hay fotos
+          // Sin fotos
           if (memory.photoUrls.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -138,14 +122,12 @@ class MemoryCard extends StatelessWidget {
     );
   }
 
-  // CORRECCIÓN 2 -> Recibimos el BuildContext context
   Widget _buildPhotoGrid(BuildContext context) {
     int photoCount = memory.photoUrls.length;
     
     if (photoCount == 1) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        // Pasamos context al item
         child: _buildPhotoItem(context, memory.photoUrls[0], borderRadius: BorderRadius.circular(16)),
       );
     }
@@ -168,12 +150,7 @@ class MemoryCard extends StatelessWidget {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
-          childAspectRatio: 1.2,
-        ),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 2, mainAxisSpacing: 2, childAspectRatio: 1.2),
         itemCount: photoCount > 4 ? 4 : photoCount,
         itemBuilder: (context, index) {
           if (index == 3 && photoCount > 4) {
@@ -183,9 +160,7 @@ class MemoryCard extends StatelessWidget {
                 _buildPhotoItem(context, memory.photoUrls[index], borderRadius: BorderRadius.circular(8)),
                 Container(
                   decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-                  child: Center(
-                    child: Text('+${photoCount - 3}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  ),
+                  child: Center(child: Text('+${photoCount - 3}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))),
                 ),
               ],
             );
@@ -196,32 +171,21 @@ class MemoryCard extends StatelessWidget {
     );
   }
 
-  // CORRECCIÓN 2 -> Recibimos el BuildContext context aquí también
   Widget _buildPhotoItem(BuildContext context, String url, {required BorderRadius borderRadius}) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context, // ¡Aquí usamos el context que pasamos por parámetro!
-          MaterialPageRoute(builder: (_) => FullScreenImageViewer(imageUrl: url)),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImageViewer(imageUrl: url)));
       },
       child: Container(
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          color: Colors.grey.shade200,
-        ),
+        decoration: BoxDecoration(borderRadius: borderRadius, color: Colors.grey.shade200),
         child: ClipRRect(
           borderRadius: borderRadius,
-          child: Image.network(
-            url,
+          // CACHÉ DE IMÁGENES IMPLEMENTADO
+          child: CachedNetworkImage(
+            imageUrl: url,
             fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.grey.shade400)),
-              );
-            },
-            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.grey),
+            placeholder: (context, url) => Center(child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.grey.shade400))),
+            errorWidget: (context, url, error) => const Icon(Icons.broken_image_outlined, color: Colors.grey),
           ),
         ),
       ),

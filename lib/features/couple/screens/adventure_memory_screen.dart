@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -65,25 +66,9 @@ class AdventureMemoryScreen extends StatelessWidget {
                 const Text('✨ Cita Completada ✨', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
                 const SizedBox(height: 30),
                 
-                _buildReviewCard(
-                  context, 
-                  title: 'Mi experiencia', 
-                  rating: myRating, 
-                  review: myReview, 
-                  photos: myPhotos,
-                  isMe: true
-                ),
-                
+                _buildReviewCard(context, title: 'Mi experiencia', rating: myRating, review: myReview, photos: myPhotos, isMe: true),
                 const SizedBox(height: 20),
-
-                _buildReviewCard(
-                  context, 
-                  title: 'Experiencia de tu pareja', 
-                  rating: partnerRating, 
-                  review: partnerReview, 
-                  photos: partnerPhotos,
-                  isMe: false
-                ),
+                _buildReviewCard(context, title: 'Experiencia de tu pareja', rating: partnerRating, review: partnerReview, photos: partnerPhotos, isMe: false),
               ],
             ),
           );
@@ -107,12 +92,7 @@ class AdventureMemoryScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFFC2185B))),
-              Row(
-                children: List.generate(5, (index) => Icon(
-                  index < rating ? Icons.star : Icons.star_border, 
-                  color: Colors.amber, size: 20
-                )),
-              ),
+              Row(children: List.generate(5, (index) => Icon(index < rating ? Icons.star : Icons.star_border, color: Colors.amber, size: 20))),
             ],
           ),
           const SizedBox(height: 15),
@@ -122,7 +102,6 @@ class AdventureMemoryScreen extends StatelessWidget {
             const Text('Sin comentario', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
           
           const SizedBox(height: 20),
-          
           const Text('📸 Recuerdos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 10),
           Row(
@@ -142,15 +121,12 @@ class AdventureMemoryScreen extends StatelessWidget {
       child: AspectRatio(
         aspectRatio: 1,
         child: Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid)
-          ),
+          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.shade300)),
           child: photoUrl != null && photoUrl.isNotEmpty
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(15),
-                child: Image.network(photoUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildPhotoPlaceholder())
+                // CAMBIO: Caché de imágenes
+                child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, placeholder: (_, __) => const Center(child: CircularProgressIndicator()), errorWidget: (_, __, ___) => _buildPhotoPlaceholder())
               )
             : _buildPhotoPlaceholder(),
         ),

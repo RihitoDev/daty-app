@@ -4,18 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'adventure_review_screen.dart';
-import '../../solo/screens/solo_adventure_review_screen.dart'; // NUEVO IMPORT
 
 class AdventureInProgressScreen extends StatefulWidget {
   final Map<String, dynamic> adventureData; 
   final List<int> availableAdventuresIds; 
-  final bool isSoloMode; // NUEVO: Para saber si es modo pareja o solitario
+  final void Function(BuildContext)? onSoloFinish; 
 
   const AdventureInProgressScreen({
     super.key, 
     required this.adventureData, 
     required this.availableAdventuresIds, 
-    this.isSoloMode = false, // Por defecto es modo pareja
+    this.onSoloFinish, 
   });
 
   @override
@@ -45,8 +44,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   void initState() {
     super.initState();
     _startTipTimer();
-    // Solo escuchamos a la pareja si NO es modo solitario
-    if (!widget.isSoloMode) {
+    // Solo escuchamos a la pareja si NO es modo solitario (onSoloFinish es null)
+    if (widget.onSoloFinish == null) {
       _listenForPartnerReview();
     }
   }
@@ -93,12 +92,11 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
     _partnerReviewListener?.cancel(); 
     
     // NAVEGACIÓN CONDICIONAL
-    if (widget.isSoloMode) {
-      Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(builder: (_) => SoloAdventureReviewScreen(adventureData: widget.adventureData, availableAdventuresIds: widget.availableAdventuresIds))
-      );
+    if (widget.onSoloFinish != null) {
+      // Modo Solitario
+      widget.onSoloFinish!(context);
     } else {
+      // Modo Pareja
       Navigator.pushReplacement(
         context, 
         MaterialPageRoute(builder: (_) => AdventureReviewScreen(adventureData: widget.adventureData, availableAdventuresIds: widget.availableAdventuresIds))
@@ -117,7 +115,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   Widget build(BuildContext context) {
     final String adventureTitle = (widget.adventureData['title'] ?? 'CITA').toUpperCase();
     final String adventureEmoji = widget.adventureData['emoji'] ?? '📍';
-    final Color themeColor = widget.isSoloMode ? const Color(0xFF1976D2) : const Color(0xFFC2185B); // Azul si es solo, Rosa si es pareja
+    final bool isSolo = widget.onSoloFinish != null;
+    final Color themeColor = isSolo ? const Color(0xFF1976D2) : const Color(0xFFC2185B);
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -166,7 +165,7 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                 onPressed: _goToReviewScreen,
                 style: ElevatedButton.styleFrom(backgroundColor: themeColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
                 icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                label: const Text('Finalizar Cita', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                label: Text(isSolo ? 'Finalizar Aventura' : 'Finalizar Cita', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 20),

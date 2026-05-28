@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/screens/adventure_map.dart';
+import '../../couple/screens/adventure_in_progress_screen.dart'; // Import necesario
+import '../screens/solo_adventure_review_screen.dart'; // Import necesario
+import '../screens/solo_adventure_memory_screen.dart'; // Import necesario
 
 class SoloContractDialog extends StatefulWidget {
   const SoloContractDialog({super.key});
@@ -28,12 +31,26 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
       
       if (mounted) {
         Navigator.pop(context); 
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const AdventureMap(
+        
+        // Navegamos al mapa inyectando las rutas de Solo
+        Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMap(
           mode: 'solo',
-          themeColor: Color(0xFF1976D2),
-          pathColor: Color(0xFF64B5F6),
+          themeColor: const Color(0xFF1976D2),
+          pathColor: const Color(0xFF64B5F6),
           totalNodes: 30,
           headerTitle: 'Mi Camino',
+          onNavigateToProgress: (adventureData, availableIds) => AdventureInProgressScreen(
+            adventureData: adventureData, 
+            availableAdventuresIds: availableIds, 
+            onSoloFinish: (ctx) {
+              Navigator.pushReplacement(ctx, MaterialPageRoute(builder: (_) => SoloAdventureReviewScreen(adventureData: adventureData, availableAdventuresIds: availableIds)));
+            },
+          ),
+          onNavigateToMemory: (adventureId, adventureData) => SoloAdventureMemoryScreen(
+            myUid: myUid, 
+            adventureId: adventureId, 
+            adventureData: adventureData
+          ),
         )));
       }
     } catch (e) {

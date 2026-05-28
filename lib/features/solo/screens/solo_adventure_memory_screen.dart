@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -80,7 +81,6 @@ class SoloAdventureMemoryScreen extends StatelessWidget {
                         const Text('Sin comentario', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                       
                       const SizedBox(height: 20),
-                      
                       const Text('📸 Mis Fotos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(height: 10),
                       Row(
@@ -114,7 +114,13 @@ class SoloAdventureMemoryScreen extends StatelessWidget {
           child: photoUrl != null && photoUrl.isNotEmpty
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(15),
-                child: Image.network(photoUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildPhotoPlaceholder())
+                // CAMBIO: Caché de imágenes
+                child: CachedNetworkImage(
+                  imageUrl: photoUrl, 
+                  fit: BoxFit.cover, 
+                  placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
+                  errorWidget: (_, __, ___) => _buildPhotoPlaceholder()
+                )
               )
             : _buildPhotoPlaceholder(),
         ),

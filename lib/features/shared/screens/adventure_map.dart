@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../couple/widgets/candy_path_painter.dart';
-import '../../couple/screens/adventure_in_progress_screen.dart';
-import '../../solo/screens/solo_adventure_memory_screen.dart';
-import '../../couple/screens/adventure_memory_screen.dart';
+import '../../couple/widgets/candy_path_painter.dart'; // Correcto: pertenece a couple, pero el mapa lo pinta
 
 class AdventureMap extends StatefulWidget {
   final String mode;
@@ -15,6 +13,10 @@ class AdventureMap extends StatefulWidget {
   final Color pathColor;
   final int totalNodes;
   final String headerTitle;
+  
+  // NUEVO: Callbacks para desacoplar la navegación
+  final Widget Function(Map<String, dynamic> adventureData, List<int> availableIds) onNavigateToProgress;
+  final Widget Function(int adventureId, Map<String, dynamic> adventureData) onNavigateToMemory;
 
   const AdventureMap({
     super.key,
@@ -23,6 +25,8 @@ class AdventureMap extends StatefulWidget {
     required this.pathColor,
     required this.totalNodes,
     required this.headerTitle,
+    required this.onNavigateToProgress, // Obligatorio
+    required this.onNavigateToMemory,   // Obligatorio
   });
 
   @override
@@ -45,7 +49,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
   Map<int, double> _adventureRatings = {}; 
   bool _isLoadingData = true;
   StreamSubscription? _progressSubscription;
-  bool _isFetchingRatings = false; // Protección contra llamadas simultáneas
+  bool _isFetchingRatings = false; 
 
   late AnimationController _pulseController;
 
@@ -73,7 +77,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
   }
 
   void _scrollToCurrentNode() {
-    // ESCUDO ANTI-CRASH: Esperamos al siguiente frame para asegurarnos de que el contexto es válido
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       
@@ -134,9 +137,8 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
               _scrollToCurrentNode();
             }
           },
-          // ESCUDO ANTI-CRASH 1: Capturar errores de Internet/Permisos del Stream
           onError: (error) => debugPrint("Error en Stream Solo: $error"),
-          cancelOnError: false, // Evita que el stream se cierre permanentemente tras un error
+          cancelOnError: false, 
         );
       } else if (_coupleDocId != null) {
         _progressSubscription = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!).snapshots().listen(
@@ -187,7 +189,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
   }
 
   Future<void> _fetchRatings({String? myUid, String? coupleDocId}) async {
-    if (_adventurePath.isEmpty || _isFetchingRatings) return; // ESCUDO ANTI-CRASH 2: Evitar llamadas simultáneas
+    if (_adventurePath.isEmpty || _isFetchingRatings) return; 
     _isFetchingRatings = true;
 
     Map<int, double> tempRatings = {};
@@ -395,7 +397,8 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                         Navigator.pop(dialogContext); 
                         bool success = await _setAdventureStatus(adventure['number'], true); 
                         if (success && mounted) {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureInProgressScreen(adventureData: adventure, availableAdventuresIds: availableIds, isSoloMode: widget.mode == 'solo')));
+                          // CAMBIO: Usar el callback inyectado en vez de la importación directa
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventure, availableIds)));
                         }
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.black87),
@@ -411,7 +414,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     );
   }
 
-  // ESCUDO ANTI-CRASH 3: Lógica Segura de Borrado/Actualización
   Future<bool> _setAdventureStatus(int adventureNumber, bool isActive) async {
     try {
       final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
@@ -421,7 +423,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         if (isActive) {
           await docRef.set({'activeAdventureNumber': adventureNumber}, SetOptions(merge: true));
         } else {
-          // Si lo vamos a borrar, usamos update. Si el doc no existe, simplemente ignoramos el error.
           await docRef.update({'activeAdventureNumber': FieldValue.delete()}).catchError((e) => null);
         }
       } else if (_coupleDocId != null) {
@@ -554,7 +555,30 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
 
   Widget _buildStaticDecoration(double x, double y, int index) {
     List<String> placeholderImages = ['https://cdn-icons-png.flaticon.com/128/2909/2909875.png', 'https://cdn-icons-png.flaticon.com/128/2909/2909878.png', 'https://cdn-icons-png.flaticon.com/128/616/616408.png', 'https://cdn-icons-png.flaticon.com/128/201/201614.png', 'https://cdn-icons-png.flaticon.com/128/2909/2909881.png', 'https://cdn-icons-png.flaticon.com/128/3191/3191118.png'];
-    return Positioned(left: x - 35, top: y - 35, child: Container(width: 70, height: 70, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.6), border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(2, 2))]), child: ClipOval(child: Padding(padding: const EdgeInsets.all(8.0), child: Image.network(placeholderImages[index % placeholderImages.length], fit: BoxFit.contain, errorBuilder: (context, error, stackTrace) => const Icon(Icons.nature, color: Colors.green, size: 30))))));
+    
+    return Positioned(
+      left: x - 35, top: y - 35, 
+      child: Container(
+        width: 70, height: 70, 
+        decoration: BoxDecoration(
+          shape: BoxShape.circle, 
+          color: Colors.white.withValues(alpha: 0.6), 
+          border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2), 
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(2, 2))]
+        ), 
+        child: ClipOval(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0), 
+            // CAMBIO: Caché de imágenes para decoraciones
+            child: CachedNetworkImage(
+              imageUrl: placeholderImages[index % placeholderImages.length], 
+              fit: BoxFit.contain, 
+              errorWidget: (_, __, ___) => const Icon(Icons.nature, color: Colors.green, size: 30)
+            )
+          )
+        )
+      )
+    );
   }
 
   Widget _buildGameNode(double x, double y, int displayNumber, int adventureId, Map<String, dynamic>? adventureData, bool isUnlocked, String myUid) {
@@ -564,7 +588,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     bool isCompleted = isUnlocked && _adventureRatings.containsKey(adventureId) && !isInProgress;
     bool isNextStep = isUnlocked && !isCompleted && !isInProgress;
 
-    //final authProvider = Provider.of<AuthProvider>(context, listen: false);
     bool isUser1 = _partnerId != null && myUid.compareTo(_partnerId!) < 0;
     
     bool iReviewed = false;
@@ -615,10 +638,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     );
 
     if (isNextStep || isInProgress || isWaitingForPartner) {
-      nodeCircle = ScaleTransition(
-        scale: _pulseController,
-        child: nodeCircle,
-      );
+      nodeCircle = ScaleTransition(scale: _pulseController, child: nodeCircle);
     }
 
     return Positioned(
@@ -630,13 +650,11 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ya calificaste. ¡Esperando a tu pareja!')));
           } else if (isInProgress) {
             List<int> availableIds = _adventuresCache.keys.where((id) => !_adventurePath.contains(id)).toList();
-            Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureInProgressScreen(adventureData: adventureData, availableAdventuresIds: availableIds, isSoloMode: widget.mode == 'solo')));
+            // CAMBIO: Usar callback inyectado
+            Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventureData, availableIds)));
           } else if (isCompleted) {
-            if (widget.mode == 'solo') {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => SoloAdventureMemoryScreen(myUid: myUid, adventureId: adventureId, adventureData: adventureData)));
-            } else {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMemoryScreen(coupleDocId: _coupleDocId!, adventureId: adventureId, adventureData: adventureData)));
-            }
+            // CAMBIO: Usar callback inyectado
+            Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToMemory(adventureId, adventureData)));
           } else if (isNextStep) {
             _showAdventureDetail(adventureData, arrayIndex);
           }

@@ -27,7 +27,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _handleRegister() async {
-    // Validaciones mejoradas en la UI
     if (_usernameController.text.trim().isEmpty || _emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, completa todos los campos'), backgroundColor: Colors.redAccent));
       return;
@@ -43,18 +42,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
-    String? errorMessage = await authProvider.register(
+    final errorCode = await authProvider.register(
       _emailController.text, 
       _passwordController.text, 
       _usernameController.text
     );
 
     if (mounted) {
-      if (errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage), backgroundColor: Colors.redAccent));
+      if (errorCode != null) {
+        // Manejo mejorado de errores de Firebase
+        String message = 'Ocurrió un error inesperado.';
+        if (errorCode == 'weak-password') message = 'La contraseña es muy debil (mínimo 6 caracteres).';
+        if (errorCode == 'email-already-in-use') message = 'El correo ya esta registrado.';
+        if (errorCode.contains('perfil en la base de datos')) message = errorCode; // Error custom nuestro
+        
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
       } else {
-        // ¡CORRECCIÓN AQUÍ! Al registrarse con éxito, cerramos la pantalla de registro 
-        // para revelar el HomeScreen que el AuthWrapper ya está mostrando debajo.
+        // Éxito: cerramos hasta la raíz
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     }
@@ -172,6 +176,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       )
                     ),
                   ),
+                  const SizedBox(height: 40), // Espacio extra para teclado
                 ],
               ),
             ),

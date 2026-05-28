@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class FullScreenImageViewer extends StatelessWidget {
@@ -17,7 +18,13 @@ class FullScreenImageViewer extends StatelessWidget {
         child: InteractiveViewer(
           minScale: 0.5,
           maxScale: 4.0,
-          child: Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 50)),
+          // CAMBIO: Caché aplicado al visor
+          child: CachedNetworkImage(
+            imageUrl: imageUrl, 
+            fit: BoxFit.contain, 
+            placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+            errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 50)
+          ),
         ),
       ),
     );

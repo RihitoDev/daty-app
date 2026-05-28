@@ -220,7 +220,7 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
                 const Column(
                   mainAxisAlignment: MainAxisAlignment.center, 
                   children: [
-                    Icon(Icons.add_a_photo_outlined, color: Colors.grey, size: 40), 
+                    Icon(Icons.add_a_photo_outlined, color: Color(0xFF1976D2), size: 40), 
                     SizedBox(height: 5), 
                     Text('Foto', style: TextStyle(color: Colors.grey))
                   ]

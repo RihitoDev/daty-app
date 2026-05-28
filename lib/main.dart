@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'features/album/providers/album_provider.dart';
+import 'features/couple/providers/couple_provider.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -20,6 +22,8 @@ void main() async {
         ChangeNotifierProvider(
           create: (context) => ProfileProvider(context.read<AuthProvider>()),
         ),
+        ChangeNotifierProvider(create: (context) => AlbumProvider(context.read<AuthProvider>())),
+        ChangeNotifierProvider(create: (context) => CoupleProvider(context.read<AuthProvider>())), 
       ],
       child: const DatyApp(),
     ),

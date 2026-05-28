@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/screens/adventure_map.dart';
+import '../../couple/screens/adventure_in_progress_screen.dart'; // Import necesario
+import '../screens/solo_adventure_review_screen.dart'; // Import necesario
+import '../screens/solo_adventure_memory_screen.dart'; // Import necesario
 import 'solo_contract_dialog.dart';
 
 class SoloAdventureCard extends StatelessWidget {
@@ -40,12 +43,25 @@ class SoloAdventureCard extends StatelessWidget {
           subtitle: 'Mi camino personal', 
           gradientColors: const [Color(0xFF64B5F6), Color(0xFF1976D2)],
           icon: Icons.backpack_rounded, 
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdventureMap(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMap(
             mode: 'solo',
-            themeColor: Color(0xFF1976D2),
-            pathColor: Color(0xFF64B5F6),
+            themeColor: const Color(0xFF1976D2),
+            pathColor: const Color(0xFF64B5F6),
             totalNodes: 30,
             headerTitle: 'Mi Camino',
+            // NUEVOS CALLBACKS DE NAVEGACIÓN (Desacoplando el mapa)
+            onNavigateToProgress: (adventureData, availableIds) => AdventureInProgressScreen(
+              adventureData: adventureData, 
+              availableAdventuresIds: availableIds, 
+              onSoloFinish: (ctx) { // Recibimos el context de AdventureInProgressScreen
+                Navigator.pushReplacement(ctx, MaterialPageRoute(builder: (_) => SoloAdventureReviewScreen(adventureData: adventureData, availableAdventuresIds: availableIds)));
+              },
+            ),
+            onNavigateToMemory: (adventureId, adventureData) => SoloAdventureMemoryScreen(
+              myUid: myUid, 
+              adventureId: adventureId, 
+              adventureData: adventureData
+            ),
           )))
         );
       },

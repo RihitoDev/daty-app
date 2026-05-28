@@ -1,192 +1,52 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:magic_dates/features/couple/screens/adventure_in_progress_screen.dart';
+import 'package:magic_dates/features/couple/screens/adventure_memory_screen.dart';
 import 'package:provider/provider.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../providers/couple_provider.dart'; 
 import 'pairing_dialog.dart';
 import 'contract_dialog.dart';
 import '../../shared/screens/adventure_map.dart';
 
-class CoupleAdventureCard extends StatefulWidget {
+class CoupleAdventureCard extends StatelessWidget {
   const CoupleAdventureCard({super.key});
 
   @override
-  State<CoupleAdventureCard> createState() => _CoupleAdventureCardState();
-}
-
-class _CoupleAdventureCardState extends State<CoupleAdventureCard> {
-  Map<String, dynamic>? _coupleData;
-  String _partnerName = 'tu pareja';
-  bool _isLoading = true;
-  StreamSubscription? _coupleSub;
-  StreamSubscription? _partnerSub;
-  bool _hasShownContractDialog = false;
-  String? _currentPartnerId; // Para detectar cuando cambia el partner
-
-  @override
-  void initState() {
-    super.initState();
-    // La configuración inicial se hará en didChangeDependencies
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userData = authProvider.userData;
-    final newPartnerId = userData?['partnerId'] as String?;
-
-    // Si el partnerId cambió (ej. se acaba de vincular), reiniciamos los listeners
-    if (newPartnerId != _currentPartnerId) {
-      _currentPartnerId = newPartnerId;
-      _cancelSubscriptions(); // Limpiamos listeners viejos
-
-      if (_currentPartnerId != null) {
-        _setupListeners(authProvider.user!.uid, _currentPartnerId!);
-      } else {
-        // Si no tiene pareja, aseguramos que deje de cargar
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _coupleData = null;
-          });
-        }
-      }
-    }
-  }
-
-  void _cancelSubscriptions() {
-    _coupleSub?.cancel();
-    _partnerSub?.cancel();
-    _coupleSub = null;
-    _partnerSub = null;
-  }
-
-  void _setupListeners(String myUid, String partnerId) {
-    if (!mounted) return;
-    setState(() => _isLoading = true); // Mostramos carga mientras busca el nuevo doc
-
-    String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
-
-    // Escuchar cambios en el documento de la pareja
-    _coupleSub = FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId).snapshots().listen(
-      (snapshot) {
-        if (snapshot.exists && mounted) {
-          setState(() {
-            _coupleData = snapshot.data()!;
-            _isLoading = false;
-          });
-          _checkContractStatus(myUid, partnerId, coupleDocId);
-        } else if (!snapshot.exists && mounted) {
-          // El documento aún no se crea o fue borrado
-          setState(() {
-            _coupleData = null;
-            _isLoading = false;
-          });
-        }
-      },
-      onError: (error) {
-        debugPrint("🔥 Error leyendo couples_progress: $error");
-        if (mounted) setState(() => _isLoading = false);
-      }
-    );
-
-    // Escuchar nombre de la pareja
-    _partnerSub = FirebaseFirestore.instance.collection('users').doc(partnerId).snapshots().listen(
-      (snapshot) {
-        if (snapshot.exists && mounted) {
-          setState(() {
-            _partnerName = snapshot.data()?['username'] ?? 'tu pareja';
-          });
-        }
-      },
-      onError: (error) {
-        debugPrint("🔥 Error leyendo partner data: $error");
-      }
-    );
-  }
-
-  void _checkContractStatus(String myUid, String partnerId, String coupleDocId) {
-    if (_coupleData == null) return;
-    
-    bool isUser1 = myUid.compareTo(partnerId) < 0;
-    bool iSigned = isUser1 ? (_coupleData?['contractSignedUser1'] ?? false) : (_coupleData?['contractSignedUser2'] ?? false);
-
-    if (!iSigned && !_hasShownContractDialog) {
-      _showContractDialog(myUid, partnerId, coupleDocId);
-    }
-  }
-
-  void _showContractDialog(String myUid, String partnerUid, String coupleDocId) {
-    if (_hasShownContractDialog) return;
-    _hasShownContractDialog = true;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => ContractDialog(myUid: myUid, partnerUid: partnerUid, coupleDocId: coupleDocId),
-    ).then((_) {
-      _hasShownContractDialog = false;
-    });
-  }
-
-  @override
-  void dispose() {
-    _cancelSubscriptions();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final userData = authProvider.userData;
-    final bool hasPartner = userData != null && userData.containsKey('partnerId') && userData['partnerId'] != null;
+    final coupleProvider = context.watch<CoupleProvider>();
 
-    if (!hasPartner) {
+    if (!coupleProvider.hasPartner) {
       return _buildPremiumCard(
         title: 'Aventura en pareja', 
         subtitle: 'Vincúlate con alguien', 
         gradientColors: const [Color(0xFFF48FB1), Color(0xFFD81B60)], 
         icon: Icons.favorite_border_rounded, 
-        onTap: () {
-          if (authProvider.user != null) {
-            showDialog(context: context, builder: (context) => PairingDialog(myUid: authProvider.user!.uid));
-          }
-        }
+        onTap: () => showDialog(context: context, builder: (context) => PairingDialog(myUid: coupleProvider.myUid)),
       );
     }
 
-    if (_isLoading || _coupleData == null) {
-      return _buildPremiumCard(title: 'Cargando...', subtitle: '', gradientColors: [Colors.grey, Colors.grey.shade700], icon: Icons.hourglass_empty, onTap: () {});
+    if (coupleProvider.isLoading || coupleProvider.coupleData == null) {
+      return _buildPremiumCard(title: 'Cargando...', subtitle: '', gradientColors: [Colors.grey, Colors.grey.shade700], icon: Icons.hourglass_empty, onTap: null);
     }
 
-    final String myUid = authProvider.user!.uid;
-    final String partnerId = userData['partnerId'];
-    String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
-
-    bool isUser1 = myUid.compareTo(partnerId) < 0;
-    bool iSigned = isUser1 ? (_coupleData?['contractSignedUser1'] ?? false) : (_coupleData?['contractSignedUser2'] ?? false);
-    bool partnerSigned = isUser1 ? (_coupleData?['contractSignedUser2'] ?? false) : (_coupleData?['contractSignedUser1'] ?? false);
-
-    if (!iSigned) {
+    if (!coupleProvider.iSigned) {
       return _buildPremiumCard(
         title: 'Aventura en pareja', 
-        subtitle: 'Firma el contrato con $_partnerName', 
+        subtitle: 'Firma el contrato con ${coupleProvider.partnerName}', 
         gradientColors: const [Color(0xFFFFB74D), Color(0xFFF57C00)], 
         icon: Icons.history_edu, 
-        onTap: () => _showContractDialog(myUid, partnerId, coupleDocId),
+        onTap: () => _showContractDialog(context, coupleProvider),
       );
     }
 
-    if (iSigned && !partnerSigned) {
+    if (coupleProvider.iSigned && !coupleProvider.partnerSigned) {
       return _buildPremiumCard(
         title: 'Aventura en pareja', 
-        subtitle: 'Esperando firma de $_partnerName', 
+        subtitle: 'Esperando firma de ${coupleProvider.partnerName}', 
         gradientColors: const [Color(0xFF90A4AE), Color(0xFF546E7A)], 
         icon: Icons.hourglass_top, 
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Esperando que $_partnerName firme el contrato...')),
+            SnackBar(content: Text('Esperando que ${coupleProvider.partnerName} firme el contrato...')),
           );
         },
       );
@@ -195,16 +55,38 @@ class _CoupleAdventureCardState extends State<CoupleAdventureCard> {
     // ¡Vinculados y listos!
     return _buildPremiumCard(
       title: 'Aventura en pareja', 
-      subtitle: 'Nuestra aventura junto a $_partnerName', 
+      subtitle: 'Nuestra aventura junto a ${coupleProvider.partnerName}', 
       gradientColors: const [Color(0xFFF06292), Color(0xFFC2185B)], 
       icon: Icons.favorite, 
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdventureMap(
-                    mode: 'couple',
-                    themeColor: Color(0xFFC2185B),
-                    pathColor: Color(0xFFF48FB1),
-                    totalNodes: 50,
-                    headerTitle: 'Nuestro Viaje',
-                  )))
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMap(
+        mode: 'couple',
+        themeColor: const Color(0xFFC2185B),
+        pathColor: const Color(0xFFF48FB1),
+        totalNodes: 50,
+        headerTitle: 'Nuestro Viaje',
+        onNavigateToProgress: (adventureData, availableIds) => AdventureInProgressScreen(
+          adventureData: adventureData, 
+          availableAdventuresIds: availableIds, 
+          onSoloFinish: null, 
+        ),
+        onNavigateToMemory: (adventureId, adventureData) => AdventureMemoryScreen(
+          coupleDocId: coupleProvider.coupleDocId!, 
+          adventureId: adventureId, 
+          adventureData: adventureData,
+        ),
+      )))
+    );
+  }
+
+  void _showContractDialog(BuildContext context, CoupleProvider coupleProvider) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ContractDialog(
+        myUid: coupleProvider.myUid, 
+        partnerUid: coupleProvider.partnerId!, 
+        coupleDocId: coupleProvider.coupleDocId! // Asumimos que existe ya que tiene pareja
+      ),
     );
   }
 
@@ -213,7 +95,7 @@ class _CoupleAdventureCardState extends State<CoupleAdventureCard> {
     required String subtitle, 
     required List<Color> gradientColors, 
     required IconData icon, 
-    required VoidCallback onTap
+    required VoidCallback? onTap, // Nullable para el loading
   }) {
     return GestureDetector(
       onTap: onTap,

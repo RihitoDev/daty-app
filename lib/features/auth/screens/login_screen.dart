@@ -24,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
-    // NUEVO: Validación básica
     if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos'), backgroundColor: Colors.redAccent),
@@ -33,31 +32,35 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    bool success = await authProvider.signIn(_emailController.text, _passwordController.text);
+    // Ahora signIn devuelve un String?
+    final errorCode = await authProvider.signIn(_emailController.text, _passwordController.text);
 
-    if (mounted) {
-      if (!success) {
-        // NUEVO: Feedback visual al usuario
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Correo o contraseña incorrectos'), backgroundColor: Colors.redAccent),
-        );
-      }
+    if (mounted && errorCode != null) {
+      String message = 'Correo o contraseña incorrectos';
+      if (errorCode == 'user-not-found') message = 'No existe una cuenta con este correo';
+      if (errorCode == 'wrong-password') message = 'La contraseña es incorrecta';
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      );
     }
   }
 
   void _handleGoogleLogin() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    bool success = await authProvider.signInWithGoogle();
+    final result = await authProvider.signInWithGoogle();
 
-    if (mounted && !success) {
-      // Solo mostramos error si no fue cancelado por el usuario (el provider ya maneja el null)
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al iniciar sesión con Google'), backgroundColor: Colors.redAccent),
-      );
+    if (mounted && result != null) {
+      // Si no fue 'cancelled', mostramos error real
+      if (result != 'cancelled') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al iniciar sesión con Google'), backgroundColor: Colors.redAccent),
+        );
+      }
+      // Si fue 'cancelled', no hacemos nada, silenciosamente ignoramos
     }
   }
 
-  // NUEVO: Diálogo para recuperar contraseña
   void _showResetPasswordDialog() {
     final TextEditingController resetEmailController = TextEditingController();
     showDialog(
@@ -77,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 final authProvider = Provider.of<AuthProvider>(context, listen: false);
                 final error = await authProvider.resetPassword(resetEmailController.text.trim());
                 if (context.mounted) {
-                  Navigator.pop(context); // Cierra el diálogo
+                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(error ?? 'Se ha enviado un correo de recuperación a tu dirección.'),
@@ -99,7 +102,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final isLoading = Provider.of<AuthProvider>(context).isLoading;
 
     return Scaffold(
-      resizeToAvoidBottomInset: false, 
+      // CAMBIO: true para que el teclado empuje el contenido hacia arriba
+      resizeToAvoidBottomInset: true, 
       body: Stack(
         children: [
           Container(
@@ -113,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           _buildBackgroundDecorations(),
           SafeArea(
-            child: SingleChildScrollView(
+            child: SingleChildScrollView( // Permite scroll si el teclado tapa
               padding: const EdgeInsets.symmetric(horizontal: 25.0),
               child: Column(
                 children: [
@@ -183,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 15),
                             Center(child: TextButton(
-                              onPressed: _showResetPasswordDialog, // NUEVO: Enlazado al diálogo
+                              onPressed: _showResetPasswordDialog,
                               child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(color: Colors.white, fontStyle: FontStyle.italic, decoration: TextDecoration.underline, decorationColor: Colors.white))
                             )),
                           ],
@@ -197,14 +201,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: RichText(text: const TextSpan(style: TextStyle(color: Colors.white, fontSize: 16), children: [TextSpan(text: '¿No tienes cuenta? '), TextSpan(text: '¡Regístrate!', style: TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline))])),
                   ),
                   GestureDetector(
-                    onTap: isLoading ? null : _handleGoogleLogin, // Prevenir taps múltiples
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 5, spreadRadius: 1)]),
-                      child: Image.network('https://img.icons8.com/color/48/000000/google-logo.png', height: 30, width: 30, errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.blue, size: 35)),
+                    // CAMBIO: Desactivamos el tap visualmente si está cargando
+                    onTap: isLoading ? null : _handleGoogleLogin, 
+                    child: Opacity(
+                      opacity: isLoading ? 0.5 : 1.0,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 5, spreadRadius: 1)]),
+                        child: Image.network('https://img.icons8.com/color/48/000000/google-logo.png', height: 30, width: 30, errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.blue, size: 35)),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 40), // Espacio extra para el teclado
                 ],
               ),
             ),

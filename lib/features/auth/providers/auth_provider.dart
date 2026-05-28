@@ -11,12 +11,12 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   Map<String, dynamic>? _userData;
   bool _isLoading = false;
-  bool _isInitializing = true; // NUEVO: Para evitar el parpadeo al arrancar
+  bool _isInitializing = true;
 
   User? get user => _user;
   Map<String, dynamic>? get userData => _userData;
   bool get isLoading => _isLoading;
-  bool get isInitializing => _isInitializing; // NUEVO GETTER
+  bool get isInitializing => _isInitializing;
 
   AuthProvider() {
     _auth.authStateChanges().listen((User? u) {
@@ -26,7 +26,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _userData = null;
       }
-      _isInitializing = false; // Firebase terminó de revisar la sesión
+      _isInitializing = false;
       notifyListeners();
     });
   }
@@ -40,20 +40,40 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  Future<bool> signIn(String email, String password) async {
+  // NUEVO: Método centralizado para crear el documento en Firestore
+  Future<void> _createUserDocument(User user, {String? usernameOverride}) async {
+    final userDoc = _firestore.collection('users').doc(user.uid);
+    final docSnapshot = await userDoc.get();
+
+    // Solo lo creamos si no existe (evita sobrescribir si el usuario ya existía)
+    if (!docSnapshot.exists) {
+      await userDoc.set({
+        "username": usernameOverride ?? user.displayName ?? "Aventurero",
+        "email": user.email ?? "",
+        "photoUrl": user.photoURL,
+        "partnerId": null,         
+        "exp": 0,                  
+        "soloDatesCompleted": 0,   
+        "groupOutingsCompleted": 0,
+        "equippedPins": [],        
+        "rachaDias": 0,           
+        "fechaRegistro": FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  Future<String?> signIn(String email, String password) async {
     _setLoading(true);
     try {
       await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
       _setLoading(false);
-      return true;
+      return null; // Éxito
     } on FirebaseAuthException catch (e) {
       _setLoading(false);
-      // Devolvemos false, pero podrías lanzar el error para mostrar mensajes específicos en la UI
-      debugPrint('Error de login: ${e.code}');
-      return false; 
+      return e.code; // Devolvemos el código de error para que la UI lo interprete
     } catch (e) {
       _setLoading(false);
-      return false;
+      return 'unknown-error';
     }
   }
 
@@ -66,21 +86,9 @@ class AuthProvider extends ChangeNotifier {
       
       if (credential.user != null) {
         await credential.user!.updateDisplayName(username.trim());
-        
         try {
-          await _firestore.collection('users').doc(credential.user!.uid).set({
-            "username": username.trim(),
-            "email": email.trim(),
-            "photoUrl": null,
-            "partnerId": null,         
-            "exp": 0,                  
-            "soloDatesCompleted": 0,   
-            "groupOutingsCompleted": 0,
-            "equippedPins": [],        
-            "rachaDias": 0,           
-            "fechaRegistro": FieldValue.serverTimestamp(),
-            // ELIMINADOS nivelJugador y xpTotal para evitar desincronización con profile_screen
-          });
+          // Usamos el método centralizado
+          await _createUserDocument(credential.user!, usernameOverride: username.trim());
         } catch (firestoreError) {
           _setLoading(false);
           return 'Error al crear tu perfil en la base de datos. Inténtalo de nuevo.'; 
@@ -91,22 +99,21 @@ class AuthProvider extends ChangeNotifier {
       return null; // Éxito
     } on FirebaseAuthException catch (e) {
       _setLoading(false);
-      if (e.code == 'weak-password') return 'La contraseña es muy debil (mínimo 6 caracteres).';
-      if (e.code == 'email-already-in-use') return 'El correo ya esta registrado.';
-      return 'Error de autenticación. Verifica tus datos.';
+      return e.code; // 'weak-password', 'email-already-in-use', etc.
     } catch (e) {
       _setLoading(false);
-      return 'Ocurrio un error inesperado al guardar tu perfil.';
+      return 'unknown-error';
     }
   }
 
-  Future<bool> signInWithGoogle() async {
+  // CAMBIO: Ahora devuelve String? en vez de bool para diferenciar cancelación de error
+  Future<String?> signInWithGoogle() async {
     _setLoading(true);
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         _setLoading(false);
-        return false; 
+        return 'cancelled'; // El usuario cerró el popup
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -117,37 +124,22 @@ class AuthProvider extends ChangeNotifier {
       UserCredential userCredential = await _auth.signInWithCredential(credential);
 
       if (userCredential.user != null) {
-        final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
-        
-        if (!userDoc.exists) {
-          await _firestore.collection('users').doc(userCredential.user!.uid).set({
-            "username": userCredential.user!.displayName ?? "Aventurero", 
-            "email": userCredential.user!.email ?? "",
-            "photoUrl": userCredential.user!.photoURL,
-            "partnerId": null,
-            "exp": 0,
-            "soloDatesCompleted": 0,
-            "groupOutingsCompleted": 0,
-            "equippedPins": [],
-            "rachaDias": 0,
-            "fechaRegistro": FieldValue.serverTimestamp(),
-          });
-        }
+        // Usamos el método centralizado
+        await _createUserDocument(userCredential.user!);
       }
 
       _setLoading(false);
-      return true; 
+      return null; // Éxito
     } catch (e) {
       _setLoading(false);
-      return false;
+      return 'error'; // Error real
     }
   }
 
-  // NUEVO: Recuperar contraseña
   Future<String?> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
-      return null; // Éxito
+      return null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') return 'No existe una cuenta con este correo.';
       return 'Error al enviar el correo de recuperación.';
