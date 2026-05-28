@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../screens/solo_map.dart'; // NUEVO IMPORT
+import '../../shared/screens/adventure_map.dart';
 
 class SoloContractDialog extends StatefulWidget {
   const SoloContractDialog({super.key});
@@ -27,9 +27,14 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
       }, SetOptions(merge: true));
       
       if (mounted) {
-        // ✅ CAMBIO CLAVE: Cerramos el diálogo Y navegamos al mapa de una vez
         Navigator.pop(context); 
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const SoloMap()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const AdventureMap(
+          mode: 'solo',
+          themeColor: Color(0xFF1976D2),
+          pathColor: Color(0xFF64B5F6),
+          totalNodes: 30,
+          headerTitle: 'Mi Camino',
+        )));
       }
     } catch (e) {
       debugPrint('Error al firmar contrato solitario: $e');

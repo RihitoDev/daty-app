@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import '../../profile/screens/profile_screen.dart'; 
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -13,7 +14,6 @@ class SettingsScreen extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, _) {
 
-          // ✅ LEEMOS EL ESTADO DE AUTENTICACIÓN PARA SABER SI TIENE PAREJA
           final authProvider = Provider.of<AuthProvider>(context);
           final bool hasPartner = authProvider.userData != null && authProvider.userData!['partnerId'] != null;
 
@@ -37,12 +37,15 @@ class SettingsScreen extends StatelessWidget {
                       title: const Text('Mi Perfil'),
                       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                       onTap: () {
-                        // Navegar al perfil si lo deseas
+                        // ✅ NAVEGACIÓN AÑADIDA AQUÍ
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                        );
                       },
                     ),
                   ]),
                   
-                  // ✅ CONDICIONAL: Solo mostramos esta sección si tiene pareja
                   if (hasPartner) ...[
                     const SizedBox(height: 25),
                     _buildSectionTitle('Pareja'),
@@ -138,9 +141,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // ==========================================
-  // DIÁLOGOS DE CONFIRMACIÓN
-  // ==========================================
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
@@ -175,7 +175,7 @@ class SettingsScreen extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
             onPressed: () async {
-              Navigator.pop(dialogContext); // Cerramos diálogo de confirmación
+              Navigator.pop(dialogContext);
               final error = await provider.unlinkPartner();
               
               if (context.mounted) {
@@ -183,8 +183,6 @@ class SettingsScreen extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.redAccent));
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Se ha roto el vínculo exitosamente'), backgroundColor: Colors.green));
-                  // ¡La magia reactiva! Al borrar el partnerId en Firestore, 
-                  // el AuthProvider se actualiza y el Home cambiará solo.
                 }
               }
             },

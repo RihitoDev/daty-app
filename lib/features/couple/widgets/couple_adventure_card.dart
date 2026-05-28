@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../screens/couple_map.dart';
 import 'pairing_dialog.dart';
 import 'contract_dialog.dart';
+import '../../shared/screens/adventure_map.dart';
 
 class CoupleAdventureCard extends StatefulWidget {
   const CoupleAdventureCard({super.key});
@@ -198,7 +198,13 @@ class _CoupleAdventureCardState extends State<CoupleAdventureCard> {
       subtitle: 'Nuestra aventura junto a $_partnerName', 
       gradientColors: const [Color(0xFFF06292), Color(0xFFC2185B)], 
       icon: Icons.favorite, 
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CoupleMap()))
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdventureMap(
+                    mode: 'couple',
+                    themeColor: Color(0xFFC2185B),
+                    pathColor: Color(0xFFF48FB1),
+                    totalNodes: 50,
+                    headerTitle: 'Nuestro Viaje',
+                  )))
     );
   }
 

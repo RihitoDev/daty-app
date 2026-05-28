@@ -1,117 +1,229 @@
 import 'package:flutter/material.dart';
 import '../models/album_memory.dart';
+import '../../shared/widgets/full_screen_image_viewer.dart';
 
 class MemoryCard extends StatelessWidget {
   final AlbumMemory memory;
 
   const MemoryCard({super.key, required this.memory});
 
+  Color _getTypeColor() {
+    switch (memory.type) {
+      case 'Solo': return const Color(0xFF1976D2);
+      case 'Pareja': return const Color(0xFFC2185B);
+      case 'Grupo': return const Color(0xFF8E24AA);
+      default: return const Color(0xFF9C27B0); // Default por si acaso
+    }
+  }
+
+  IconData _getTypeIcon() {
+    switch (memory.type) {
+      case 'Solo': return Icons.backpack_outlined;
+      case 'Pareja': return Icons.favorite_outline;
+      case 'Grupo': return Icons.groups_outlined;
+      default: return Icons.auto_stories; // CORRECCIÓN 1: Añadido caso default
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    Color typeColor;
-    if (memory.type == 'Solo') {
-      typeColor = const Color(0xFF1976D2);
-    } else if (memory.type == 'Pareja') typeColor = const Color(0xFFC2185B);
-    else typeColor = const Color(0xFF8E24AA);
-
-    String formattedDate = "${memory.date.day.toString().padLeft(2, '0')}/${memory.date.month.toString().padLeft(2, '0')}/${memory.date.year}";
+    final typeColor = _getTypeColor();
+    final formattedDate = "${memory.date.day.toString().padLeft(2, '0')}/${memory.date.month.toString().padLeft(2, '0')}/${memory.date.year}";
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: typeColor.withValues(alpha: 0.3), width: 1.5),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(memory.emoji, style: const TextStyle(fontSize: 35)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // CABECERA
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: typeColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_getTypeIcon(), size: 14, color: typeColor),
+                      const SizedBox(width: 5),
+                      Text(
+                        memory.type.toUpperCase(),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: typeColor),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
                   children: [
-                    Text(memory.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: typeColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                          child: Text(memory.type, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: typeColor)),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text(formattedDate, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
+                    Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey.shade400),
+                    const SizedBox(width: 4),
+                    Text(formattedDate, style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
                   ],
                 ),
-              )
-            ],
+              ],
+            ),
           ),
           
-          if (memory.reviews.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.all(10),
-              width: double.infinity,
-              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: memory.reviews.map((review) => Padding(
-                  padding: const EdgeInsets.only(bottom: 2.0),
-                  child: Text(review, style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.black54, fontSize: 13)),
-                )).toList(),
+          // TÍTULO
+          if (memory.title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                '${memory.emoji} ${memory.title}',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF2C2C2C)),
               ),
             ),
 
-          if (memory.photoUrls.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Text('📸 Recuerdos:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 90,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: memory.photoUrls.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    width: 90,
-                    height: 90,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        memory.photoUrls[index], 
-                        fit: BoxFit.cover, 
-                        errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image, color: Colors.grey)),
-                      ),
-                    ),
-                  );
-                },
+          // RESEÑAS
+          if (memory.reviews.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: memory.reviews.map((review) => Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Text(review, style: TextStyle(fontSize: 13.5, color: Colors.grey.shade800, height: 1.4)),
+                )).toList(),
               ),
             ),
-          ] else ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.sentiment_dissatisfied, color: Colors.grey, size: 16), SizedBox(width: 6), Text('Sin fotos guardadas', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontSize: 12))]),
+          
+          const SizedBox(height: 10),
+
+          // FOTOS: CORRECCIÓN 2 -> Pasamos el context a la función
+          if (memory.photoUrls.isNotEmpty) _buildPhotoGrid(context),
+          
+          // Mensaje si no hay fotos
+          if (memory.photoUrls.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.sentiment_dissatisfied_outlined, color: Colors.grey, size: 16),
+                    SizedBox(width: 8),
+                    Text('Sin fotos guardadas', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontSize: 12)),
+                  ],
+                ),
+              ),
             )
-          ]
         ],
+      ),
+    );
+  }
+
+  // CORRECCIÓN 2 -> Recibimos el BuildContext context
+  Widget _buildPhotoGrid(BuildContext context) {
+    int photoCount = memory.photoUrls.length;
+    
+    if (photoCount == 1) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        // Pasamos context al item
+        child: _buildPhotoItem(context, memory.photoUrls[0], borderRadius: BorderRadius.circular(16)),
+      );
+    }
+
+    if (photoCount == 2) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Row(
+          children: [
+            Expanded(child: _buildPhotoItem(context, memory.photoUrls[0], borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)))),
+            const SizedBox(width: 2),
+            Expanded(child: _buildPhotoItem(context, memory.photoUrls[1], borderRadius: const BorderRadius.only(topRight: Radius.circular(16), bottomRight: Radius.circular(16)))),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+          childAspectRatio: 1.2,
+        ),
+        itemCount: photoCount > 4 ? 4 : photoCount,
+        itemBuilder: (context, index) {
+          if (index == 3 && photoCount > 4) {
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildPhotoItem(context, memory.photoUrls[index], borderRadius: BorderRadius.circular(8)),
+                Container(
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+                  child: Center(
+                    child: Text('+${photoCount - 3}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            );
+          }
+          return _buildPhotoItem(context, memory.photoUrls[index], borderRadius: BorderRadius.circular(8));
+        },
+      ),
+    );
+  }
+
+  // CORRECCIÓN 2 -> Recibimos el BuildContext context aquí también
+  Widget _buildPhotoItem(BuildContext context, String url, {required BorderRadius borderRadius}) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context, // ¡Aquí usamos el context que pasamos por parámetro!
+          MaterialPageRoute(builder: (_) => FullScreenImageViewer(imageUrl: url)),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          color: Colors.grey.shade200,
+        ),
+        child: ClipRRect(
+          borderRadius: borderRadius,
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.grey.shade400)),
+              );
+            },
+            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.grey),
+          ),
+        ),
       ),
     );
   }

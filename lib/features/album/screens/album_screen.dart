@@ -15,20 +15,33 @@ class AlbumScreen extends StatelessWidget {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
         appBar: AppBar(
-          title: const Text('Álbum de Recuerdos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Álbum de Recuerdos', 
+            style: TextStyle(
+              color: Colors.white, 
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+            ),
+          ),
           backgroundColor: const Color(0xFF9C27B0),
+          centerTitle: true,
+          elevation: 0,
           iconTheme: const IconThemeData(color: Colors.white),
           bottom: const TabBar(
             labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            isScrollable: true,
+            unselectedLabelColor: Colors.white60,
+            indicatorColor: Colors.amberAccent,
+            indicatorWeight: 3,
+            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: 11),
+            isScrollable: false, // Las obliga a ocupar todo el ancho
             tabs: [
-              Tab(text: 'Todos', icon: Icon(Icons.auto_stories)),
-              Tab(text: 'Solo', icon: Icon(Icons.backpack_outlined)),
-              Tab(text: 'Pareja', icon: Icon(Icons.favorite_outline)),
-              Tab(text: 'Grupo', icon: Icon(Icons.groups_outlined)),
+              Tab(text: 'TODOS', icon: Icon(Icons.auto_stories, size: 18)),
+              Tab(text: 'SOLO', icon: Icon(Icons.backpack_outlined, size: 18)),
+              Tab(text: 'PAREJA', icon: Icon(Icons.favorite_outline, size: 18)),
+              Tab(text: 'GRUPO', icon: Icon(Icons.groups_outlined, size: 18)),
             ],
           ),
         ),
@@ -94,7 +107,7 @@ class _AllAlbumListState extends State<_AllAlbumList> with AutomaticKeepAliveCli
       myName: myName, 
       partnerId: partnerId, 
       partnerName: partnerName, 
-      isUser1: isUser1
+      isUser1: isUser1,
     );
   }
 
@@ -110,7 +123,9 @@ class _AllAlbumListState extends State<_AllAlbumList> with AutomaticKeepAliveCli
     return FutureBuilder<List<AlbumMemory>>(
       future: _dataFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
+        }
         
         if (snapshot.hasError) {
           return EmptyStateWidget(icon: Icons.error_outline, message: 'Error al cargar recuerdos.', onRetry: _refresh);
@@ -122,8 +137,9 @@ class _AllAlbumListState extends State<_AllAlbumList> with AutomaticKeepAliveCli
         
         return RefreshIndicator(
           onRefresh: _refresh,
+          color: const Color(0xFF9C27B0),
           child: ListView.builder(
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.only(top: 10, bottom: 20),
             itemCount: snapshot.data!.length,
             itemBuilder: (context, index) => MemoryCard(memory: snapshot.data![index]),
           ),
@@ -151,7 +167,10 @@ class _SoloAlbumListState extends State<_SoloAlbumList> with AutomaticKeepAliveC
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('solo_memories').where('userId', isEqualTo: myUid).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFF1976D2)));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF1976D2)));
+        }
+        
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const EmptyStateWidget(icon: Icons.backpack_outlined, message: 'Aún no tienes aventuras solitarias.\n¡Explora por tu cuenta!');
         }
@@ -169,7 +188,7 @@ class _SoloAlbumListState extends State<_SoloAlbumList> with AutomaticKeepAliveC
         memories.sort((a, b) => b.date.compareTo(a.date));
         
         return ListView.builder(
-          padding: const EdgeInsets.all(15),
+          padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: memories.length,
           itemBuilder: (context, index) => MemoryCard(memory: memories[index]),
         );
@@ -234,7 +253,10 @@ class _CoupleAlbumListState extends State<_CoupleAlbumList> with AutomaticKeepAl
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('memories').where('coupleDocId', isEqualTo: coupleDocId).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFFC2185B)));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFC2185B)));
+        }
+        
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const EmptyStateWidget(icon: Icons.favorite_outline, message: 'Aún no tienen aventuras juntos.\n¡Planeen una cita!');
         }
@@ -247,6 +269,7 @@ class _CoupleAlbumListState extends State<_CoupleAlbumList> with AutomaticKeepAl
           if (data['user2_review'] != null && data['user2_review'].toString().isNotEmpty) reviews.add('$user2Name: ${data['user2_review']}');
           photos.addAll(List<String>.from(data['user1_photos'] ?? []));
           photos.addAll(List<String>.from(data['user2_photos'] ?? []));
+          
           return AlbumMemory(
             type: 'Pareja', title: data['adventure_title'] ?? 'Cita', emoji: '❤️',
             date: AlbumService.parseDate(data['timestamp']),
@@ -257,7 +280,7 @@ class _CoupleAlbumListState extends State<_CoupleAlbumList> with AutomaticKeepAl
         memories.sort((a, b) => b.date.compareTo(a.date));
         
         return ListView.builder(
-          padding: const EdgeInsets.all(15),
+          padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: memories.length,
           itemBuilder: (context, index) => MemoryCard(memory: memories[index]),
         );
@@ -273,6 +296,7 @@ class _GroupAlbumList extends StatefulWidget {
   State<_GroupAlbumList> createState() => _GroupAlbumListState();
 }
 
+// CORRECCIÓN: Aquí decía 'extends Widget', debe decir 'extends State<_GroupAlbumList>'
 class _GroupAlbumListState extends State<_GroupAlbumList> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
@@ -284,7 +308,10 @@ class _GroupAlbumListState extends State<_GroupAlbumList> with AutomaticKeepAliv
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('group_memories').where('members', arrayContains: myUid).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
+        }
+        
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const EmptyStateWidget(icon: Icons.groups_outlined, message: 'Aún no hay expediciones grupales.\n¡Arma un grupo!');
         }
@@ -302,7 +329,7 @@ class _GroupAlbumListState extends State<_GroupAlbumList> with AutomaticKeepAliv
         memories.sort((a, b) => b.date.compareTo(a.date));
         
         return ListView.builder(
-          padding: const EdgeInsets.all(15),
+          padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: memories.length,
           itemBuilder: (context, index) => MemoryCard(memory: memories[index]),
         );

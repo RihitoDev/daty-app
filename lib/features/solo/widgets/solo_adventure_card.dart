@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../screens/solo_map.dart';
+import '../../shared/screens/adventure_map.dart';
 import 'solo_contract_dialog.dart';
 
 class SoloAdventureCard extends StatelessWidget {
@@ -16,19 +16,11 @@ class SoloAdventureCard extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('solo_progress').doc(myUid).snapshots(),
       builder: (context, snapshot) {
-        // Si está cargando, mostramos la tarjeta en gris
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildCard(
-            title: 'Aventura en solitario', 
-            subtitle: 'Cargando...', 
-            gradientColors: [Colors.grey, Colors.grey.shade700],
-            icon: Icons.hourglass_empty, 
-            onTap: null
-          );
+          return _buildCard(title: 'Aventura en solitario', subtitle: 'Cargando...', gradientColors: [Colors.grey, Colors.grey.shade700], icon: Icons.hourglass_empty, onTap: null);
         }
 
         bool contractAccepted = false;
-        
         if (snapshot.hasData && snapshot.data!.exists) {
           contractAccepted = snapshot.data!['contractAccepted'] ?? false;
         }
@@ -43,13 +35,18 @@ class SoloAdventureCard extends StatelessWidget {
           );
         }
 
-        // Si ya firmó, va directo al mapa
         return _buildCard(
           title: 'Aventura en solitario', 
           subtitle: 'Mi camino personal', 
           gradientColors: const [Color(0xFF64B5F6), Color(0xFF1976D2)],
           icon: Icons.backpack_rounded, 
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SoloMap()))
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdventureMap(
+            mode: 'solo',
+            themeColor: Color(0xFF1976D2),
+            pathColor: Color(0xFF64B5F6),
+            totalNodes: 30,
+            headerTitle: 'Mi Camino',
+          )))
         );
       },
     );
@@ -68,22 +65,9 @@ class SoloAdventureCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(14), 
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), shape: BoxShape.circle), 
-              child: Icon(icon, size: 40, color: Colors.white)
-            ),
+            Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), shape: BoxShape.circle), child: Icon(icon, size: 40, color: Colors.white)),
             const SizedBox(width: 25),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, 
-                children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))])), 
-                  const SizedBox(height: 6), 
-                  Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600))
-                ]
-              )
-            ),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))])), const SizedBox(height: 6), Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600))])),
             const Icon(Icons.chevron_right, color: Colors.white70, size: 28)
           ],
         ),

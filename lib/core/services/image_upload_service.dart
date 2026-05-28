@@ -5,20 +5,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ImageUploadService {
-  // ⚠️ PEGA AQUÍ TU API KEY DE IMGBB (Es gratis)
   static const String _apiKey = '9677a20efb9ed88209fe3e3d233ac361'; 
 
-  /// Selecciona una imagen de la galería
   static Future<XFile?> pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     return image;
   }
 
-  /// Sube la imagen a ImgBB y devuelve la URL pública
   static Future<String?> uploadImage(XFile image) async {
-    if (_apiKey == 'TU_API_KEY_AQUI') {
-      print('⚠️ ERROR: No has configurado tu API Key de ImgBB en image_upload_service.dart');
+    if (_apiKey == '9677a20efb9ed88209fe3e3d233ac361') {
       return null;
     }
 
@@ -45,11 +41,9 @@ class ImageUploadService {
         final responseData = jsonDecode(response.body);
         return responseData['data']['url']; // ¡URL pública devuelta!
       } else {
-        print('Error al subir imagen: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('Excepción subiendo imagen: $e');
       return null;
     }
   }
