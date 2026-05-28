@@ -37,9 +37,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
   void _startTipTimer() {
     _tipTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted) {
-        setState(() {
-          _currentTipIndex = (_currentTipIndex + 1) % _groupTips.length;
-        });
+        setState(() => _currentTipIndex = (_currentTipIndex + 1) % _groupTips.length);
       }
     });
   }
@@ -49,30 +47,43 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      int expEarned = widget.adventureData['xpBase'] ?? 50;
-      WriteBatch batch = FirebaseFirestore.instance.batch();
-
-      for (String uid in widget.members) {
-        DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-        batch.update(userRef, {'exp': FieldValue.increment(expEarned), 'groupOutingsCompleted': FieldValue.increment(1)});
-      }
-
-      String memoryDocId = '${widget.groupCode}_${widget.adventureData['number']}';
-      DocumentReference memoryRef = FirebaseFirestore.instance.collection('group_memories').doc(memoryDocId);
+      final groupRef = FirebaseFirestore.instance.collection('groups').doc(widget.groupCode);
       
-      batch.set(memoryRef, {
-        'adventure_title': widget.adventureData['title'],
-        'emoji': widget.adventureData['emoji'] ?? '👥',
-        'id_adventure': widget.adventureData['number'].toString(),
-        'members': widget.members,
-        'timestamp': FieldValue.serverTimestamp(),
-        'photos': {},
+      // CAMBIO CRÍTICO: Usamos transacción para evitar dar XP multiple veces
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final groupSnap = await transaction.get(groupRef);
+        
+        if (!groupSnap.exists) return; // El grupo ya fue eliminado
+        
+        final status = groupSnap.data()!['status'];
+
+        // Si el grupo ya fue marcado como completado por otro usuario, solo navegamos
+        if (status == 'completed') return;
+
+        int expEarned = widget.adventureData['xpBase'] ?? 50;
+
+        // Dar XP a todos los miembros
+        for (String uid in widget.members) {
+          DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+          transaction.update(userRef, {'exp': FieldValue.increment(expEarned), 'groupOutingsCompleted': FieldValue.increment(1)});
+        }
+
+        // Crear documento de memoria grupal
+        String memoryDocId = '${widget.groupCode}_${widget.adventureData['number']}';
+        DocumentReference memoryRef = FirebaseFirestore.instance.collection('group_memories').doc(memoryDocId);
+        
+        transaction.set(memoryRef, {
+          'adventure_title': widget.adventureData['title'],
+          'emoji': widget.adventureData['emoji'] ?? '👥',
+          'id_adventure': widget.adventureData['number'].toString(),
+          'members': widget.members,
+          'timestamp': FieldValue.serverTimestamp(),
+          'photos': {},
+        });
+
+        // Marcar grupo como completado en vez de borrarlo
+        transaction.update(groupRef, {'status': 'completed'});
       });
-
-      DocumentReference groupRef = FirebaseFirestore.instance.collection('groups').doc(widget.groupCode);
-      batch.delete(groupRef);
-
-      await batch.commit();
 
       if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GroupPhotoUploadScreen(

@@ -16,9 +16,6 @@ class GroupProvider extends ChangeNotifier {
 
   GroupProvider(this._authProvider);
 
-  // ==========================================
-  // CREAR LOBBY GRUPAL (Límite 12 por defecto)
-  // ==========================================
   Future<String?> createGroup() async {
     _isLoading = true;
     notifyListeners();
@@ -31,7 +28,7 @@ class GroupProvider extends ChangeNotifier {
         'code': code,
         'creatorId': myUid,
         'members': [myUid],
-        'maxMembers': 12, // ✅ CAMBIO: Límite por defecto ahora es 12
+        'maxMembers': 12,
         'status': 'waiting',
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -48,9 +45,6 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  // ==========================================
-  // UNIRSE A LOBBY GRUPAL
-  // ==========================================
   Future<String?> joinGroup(String code) async {
     _isLoading = true;
     notifyListeners();
@@ -64,7 +58,7 @@ class GroupProvider extends ChangeNotifier {
       if (docSnap.data()!['status'] != 'waiting') return 'La partida ya comenzó';
 
       List<dynamic> members = docSnap.data()!['members'] ?? [];
-      int maxMembers = docSnap.data()!['maxMembers'] ?? 12; // ✅ CAMBIO: Lee 12 por defecto
+      int maxMembers = docSnap.data()!['maxMembers'] ?? 12;
       
       if (members.contains(myUid)) return 'Ya estás en este grupo';
       if (members.length >= maxMembers) return 'El grupo está lleno (Máx. $maxMembers)';
@@ -83,25 +77,17 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  // ==========================================
-  // ACTUALIZAR LÍMITE DE MIEMBROS
-  // ==========================================
   Future<void> updateMaxMembers(String groupCode, int newMax) async {
     try {
-      await FirebaseFirestore.instance.collection('groups').doc(groupCode).update({
-        'maxMembers': newMax,
-      });
+      await FirebaseFirestore.instance.collection('groups').doc(groupCode).update({'maxMembers': newMax});
     } catch (e) {
       debugPrint('Error al actualizar límite: $e');
     }
   }
 
-  // ==========================================
-  // INICIAR EXPEDICIÓN (Aleatoria)
-  // ==========================================
   Future<Map<String, dynamic>?> startExpedition(String groupCode) async {
     try {
-            final snapshot = await FirebaseFirestore.instance.collection('adventures').where('type', isEqualTo: 'grupo').get();
+      final snapshot = await FirebaseFirestore.instance.collection('adventures').where('type', isEqualTo: 'grupo').get();
       if (snapshot.docs.isEmpty) return null;
 
       final randomIndex = Random().nextInt(snapshot.docs.length);
@@ -119,9 +105,6 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  // ==========================================
-  // SALIRSE DEL LOBBY
-  // ==========================================
   Future<void> leaveGroup() async {
     if (_currentGroupCode == null) return;
     final myUid = _authProvider.user!.uid;
@@ -149,21 +132,14 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  // ✅ CAMBIO: Generador de 3 letras y 3 números (Ej: ABC123)
   String _generateGroupCode() {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
     final rnd = Random();
     
     String code = '';
-    // 3 letras
-    for (int i = 0; i < 3; i++) {
-      code += letters[rnd.nextInt(letters.length)];
-    }
-    // 3 números
-    for (int i = 0; i < 3; i++) {
-      code += numbers[rnd.nextInt(numbers.length)];
-    }
+    for (int i = 0; i < 3; i++) { code += letters[rnd.nextInt(letters.length)]; }
+    for (int i = 0; i < 3; i++) { code += numbers[rnd.nextInt(numbers.length)]; }
     
     return code;
   }

@@ -5,13 +5,13 @@ import '../../auth/providers/auth_provider.dart';
 class SettingsProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
 
-  bool _isUnlinking = false;
-  bool get isUnlinking => _isUnlinking;
+  bool _isProcessing = false; // CAMBIO: Renombrado para cubrir ambas acciones
+  bool get isProcessing => _isProcessing;
 
   SettingsProvider(this._authProvider);
 
   Future<String?> resetSoloProgress() async {
-    _isUnlinking = true; // Reutilizamos el loader
+    _isProcessing = true;
     notifyListeners();
 
     try {
@@ -23,28 +23,30 @@ class SettingsProvider extends ChangeNotifier {
       // 2. Borramos todos los recuerdos solitarios de este usuario
       final memoriesQuery = await FirebaseFirestore.instance
           .collection('solo_memories')
-          .where('userId', isEqualTo: myUid) // Aseguraremos guardar esto en la review
+          .where('userId', isEqualTo: myUid)
           .get();
 
-      WriteBatch batch = FirebaseFirestore.instance.batch();
-      for (var doc in memoriesQuery.docs) {
-        batch.delete(doc.reference);
+      if (memoriesQuery.docs.isNotEmpty) {
+        WriteBatch batch = FirebaseFirestore.instance.batch();
+        for (var doc in memoriesQuery.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
       }
-      await batch.commit();
 
-      _isUnlinking = false;
+      _isProcessing = false;
       notifyListeners();
       return null; // Éxito
     } catch (e) {
       debugPrint('Error al borrar progreso solitario: $e');
-      _isUnlinking = false;
+      _isProcessing = false;
       notifyListeners();
       return 'Error al reiniciar progreso. Inténtalo de nuevo.';
     }
   }
 
   Future<String?> unlinkPartner() async {
-    _isUnlinking = true;
+    _isProcessing = true;
     notifyListeners();
 
     try {
@@ -59,31 +61,39 @@ class SettingsProvider extends ChangeNotifier {
           ? '${myUid}_$partnerId' 
           : '${partnerId}_$myUid';
 
-      // Transacción para borrar todo rastro del vínculo
+      // 1. Eliminar los documentos de recuerdos de pareja (Memories)
+      final memoriesQuery = await FirebaseFirestore.instance
+          .collection('memories')
+          .where('coupleDocId', isEqualTo: coupleDocId)
+          .get();
+
+      if (memoriesQuery.docs.isNotEmpty) {
+        WriteBatch memoriesBatch = FirebaseFirestore.instance.batch();
+        for (var doc in memoriesQuery.docs) {
+          memoriesBatch.delete(doc.reference);
+        }
+        await memoriesBatch.commit();
+      }
+
+      // 2. Transacción para borrar el vínculo y el progreso
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final myRef = FirebaseFirestore.instance.collection('users').doc(myUid);
         final partnerRef = FirebaseFirestore.instance.collection('users').doc(partnerId);
         final coupleRef = FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId);
 
-        // 1. Eliminar partnerId de mi usuario
         transaction.update(myRef, {'partnerId': FieldValue.delete()});
-        
-        // 2. Eliminar partnerId del usuario de mi pareja
         transaction.update(partnerRef, {'partnerId': FieldValue.delete()});
-        
-        // 3. Eliminar el documento de progreso de pareja
         transaction.delete(coupleRef);
       });
 
-      _isUnlinking = false;
+      _isProcessing = false;
       notifyListeners();
       return null; // Éxito
     } catch (e) {
       debugPrint('Error al desvincular: $e');
-      _isUnlinking = false;
+      _isProcessing = false;
       notifyListeners();
       return 'Error al desvincular. Inténtalo de nuevo.';
     }
   }
-  
 }

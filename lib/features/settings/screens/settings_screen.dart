@@ -7,7 +7,7 @@ import '../../profile/screens/profile_screen.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-    @override
+  @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (context) => SettingsProvider(Provider.of<AuthProvider>(context, listen: false)),
@@ -37,11 +37,7 @@ class SettingsScreen extends StatelessWidget {
                       title: const Text('Mi Perfil'),
                       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                       onTap: () {
-                        // ✅ NAVEGACIÓN AÑADIDA AQUÍ
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
                       },
                     ),
                   ]),
@@ -53,16 +49,16 @@ class SettingsScreen extends StatelessWidget {
                       ListTile(
                         leading: const Icon(Icons.link_off, color: Colors.redAccent),
                         title: const Text('Desvincular Pareja', style: TextStyle(color: Colors.redAccent)),
-                        subtitle: const Text('Se eliminará el progreso y mapa compartido'),
-                        trailing: settingsProvider.isUnlinking 
+                        subtitle: const Text('Se eliminará el progreso, mapa y recuerdos compartidos'),
+                        // CAMBIO: Usar isProcessing
+                        trailing: settingsProvider.isProcessing 
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.chevron_right, color: Colors.grey),
-                        onTap: settingsProvider.isUnlinking ? null : () => _showUnlinkConfirmation(context, settingsProvider),
+                        onTap: settingsProvider.isProcessing ? null : () => _showUnlinkConfirmation(context, settingsProvider),
                       ),
                     ]),
                   ],
 
-                   // Sección Solitario (Siempre visible)
                   const SizedBox(height: 25),
                   _buildSectionTitle('Aventura en Solitario'),
                   _buildSettingsCard([
@@ -70,18 +66,20 @@ class SettingsScreen extends StatelessWidget {
                       leading: const Icon(Icons.refresh, color: Color(0xFF1976D2)),
                       title: const Text('Reiniciar Progreso Solo', style: TextStyle(color: Color(0xFF1976D2))),
                       subtitle: const Text('Borra tu mapa y recuerdos individuales'),
-                      trailing: settingsProvider.isUnlinking 
+                      // CAMBIO: Usar isProcessing
+                      trailing: settingsProvider.isProcessing 
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.chevron_right, color: Colors.grey),
-                      onTap: settingsProvider.isUnlinking ? null : () async {
+                      onTap: settingsProvider.isProcessing ? null : () async {
                          final confirm = await showDialog<bool>(
                            context: context,
-                           builder: (_) => AlertDialog(
+                           // CAMBIO: Dar nombre al contexto del diálogo
+                           builder: (dialogContext) => AlertDialog(
                              title: const Text('¿Reiniciar progreso?'),
                              content: const Text('Se borrarán todas tus aventuras y fotos en solitario. Esta acción no se puede deshacer.'),
                              actions: [
-                               TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Cancelar')),
-                               ElevatedButton(onPressed: () => Navigator.pop(_, true), child: const Text('Borrar')),
+                               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+                               ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Borrar')),
                              ],
                            )
                          );

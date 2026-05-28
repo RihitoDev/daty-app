@@ -22,7 +22,6 @@ class ProfileProvider extends ChangeNotifier {
   List<String> _equippedPins = [];
   
   String? _photoUrl;
-  XFile? _selectedImage;
   Uint8List? _selectedImageBytes;
   bool _isUploadingPhoto = false;
 
@@ -39,19 +38,23 @@ class ProfileProvider extends ChangeNotifier {
   bool get isLinked => _isLinked;
   List<String> get equippedPins => _equippedPins;
   String? get photoUrl => _photoUrl;
-  XFile? get selectedImage => _selectedImage;
   Uint8List? get selectedImageBytes => _selectedImageBytes;
   bool get isUploadingPhoto => _isUploadingPhoto;
 
   ProfileProvider(this._authProvider) {
-    _loadInitialData();
+    // Escuchamos los cambios de AuthProvider (que ya escucha Firestore en tiempo real)
+    _authProvider.addListener(_onAuthDataChanged);
+    _onAuthDataChanged(); // Carga inicial
   }
 
-  Future<void> _loadInitialData() async {
-    final myUid = _authProvider.user!.uid;
-    final String? partnerId = _authProvider.userData?['partnerId'];
+  void _onAuthDataChanged() {
+    if (_authProvider.userData == null || _authProvider.user == null) return;
 
-    _userName = _authProvider.userData?['username'] ?? _authProvider.user?.displayName ?? 'Aventurero';
+    final userData = _authProvider.userData!;
+    final myUid = _authProvider.user!.uid;
+    final String? partnerId = userData['partnerId'];
+
+    _userName = userData['username'] ?? _authProvider.user?.displayName ?? 'Aventurero';
     _isLinked = partnerId != null;
 
     if (_userName.isNotEmpty) {
@@ -63,34 +66,43 @@ class ProfileProvider extends ChangeNotifier {
       }
     }
 
-    try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(myUid).get();
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        _exp = userData['exp'] ?? 0;
-        _soloDates = userData['soloDatesCompleted'] ?? 0;
-        _groupOutings = userData['groupOutingsCompleted'] ?? 0;
-        _equippedPins = List<String>.from(userData['equippedPins'] ?? []);
-        _photoUrl = userData['photoUrl'];
-        
-        _level = (_exp / 100).floor() + 1;
-        _progress = (_exp % 100) / 100.0;
-        _nextExp = ((_exp ~/ 100) + 1) * 100;
-      }
+    // Extraer datos directos del cache de AuthProvider (0 lecturas extra en Firestore)
+    _exp = userData['exp'] ?? 0;
+    _soloDates = userData['soloDatesCompleted'] ?? 0;
+    _groupOutings = userData['groupOutingsCompleted'] ?? 0;
+    _equippedPins = List<String>.from(userData['equippedPins'] ?? []);
+    _photoUrl = userData['photoUrl'];
 
-      if (_isLinked && partnerId != null) {
-        String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
-        final coupleDoc = await FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId).get();
-        if (coupleDoc.exists) {
-          _coupleDates = List<int>.from(coupleDoc.data()!['adventurePath'] ?? []).length;
-        }
-      }
-    } catch (e) {
-      debugPrint('$e');
+    _calculateLevel();
+
+    // Cargar fechas de pareja si está vinculado
+    if (_isLinked && partnerId != null) {
+      _fetchCoupleData(myUid, partnerId);
+    } else {
+      _coupleDates = 0;
     }
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _calculateLevel() {
+    _level = (_exp / 100).floor() + 1;
+    _progress = (_exp % 100) / 100.0;
+    _nextExp = ((_exp ~/ 100) + 1) * 100;
+  }
+
+  Future<void> _fetchCoupleData(String myUid, String partnerId) async {
+    try {
+      String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
+      final coupleDoc = await FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId).get();
+      if (coupleDoc.exists) {
+        _coupleDates = List<int>.from(coupleDoc.data()!['adventurePath'] ?? []).length;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching couple data for profile: $e');
+    }
   }
 
   int getCurrentValue(AchievementDefinition ach) {
@@ -132,7 +144,6 @@ class ProfileProvider extends ChangeNotifier {
     final XFile? image = await ImageUploadService.pickImage();
     if (image == null) return;
 
-    _selectedImage = image;
     _selectedImageBytes = await image.readAsBytes();
     _isUploadingPhoto = true;
     notifyListeners();
@@ -144,15 +155,16 @@ class ProfileProvider extends ChangeNotifier {
       await FirebaseFirestore.instance.collection('users').doc(myUid).update({
         'photoUrl': imageUrl,
       });
+    } 
+    
+    _selectedImageBytes = null;
+    _isUploadingPhoto = false;
+    notifyListeners();
+  }
 
-      _photoUrl = imageUrl;
-      _isUploadingPhoto = false;
-      notifyListeners();
-    } else {
-      _selectedImage = null;
-      _selectedImageBytes = null;
-      _isUploadingPhoto = false;
-      notifyListeners();
-    }
+  @override
+  void dispose() {
+    _authProvider.removeListener(_onAuthDataChanged);
+    super.dispose();
   }
 }

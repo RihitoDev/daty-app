@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -93,8 +94,18 @@ class HomeContent extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 25, 
                   backgroundColor: const Color(0xFF81D4FA),
+                  // CAMBIO: Caché aplicado al Avatar del usuario
                   child: photoUrl != null && photoUrl.isNotEmpty
-                    ? ClipOval(child: Image.network(photoUrl, fit: BoxFit.cover, width: 50, height: 50, errorBuilder: (context, error, stackTrace) => Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))))
+                    ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: photoUrl, 
+                          fit: BoxFit.cover, 
+                          width: 50, 
+                          height: 50, 
+                          placeholder: (_, __) => Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                          errorWidget: (_, __, ___) => Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                        )
+                      )
                     : Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))
                 ),
               ),
@@ -110,9 +121,7 @@ class HomeContent extends StatelessWidget {
                 Text('Hola, $userName', style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 30),
                 
-                // ✅ TARJETA SOLO ACTUALIZADA (Reactiva al contrato)
                 const SoloAdventureCard(),
-                
                 const CoupleAdventureCard(),
                 
                 _buildAdventureCard(
@@ -168,6 +177,31 @@ class HomeContent extends StatelessWidget {
   }
 
   Widget _buildPolaroidPhoto(String imageUrl) {
-    return Container(width: 100, height: 120, padding: const EdgeInsets.all(5), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 3))]), child: ClipRRect(borderRadius: BorderRadius.circular(5), child: Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey.shade200, child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 40)))));
+    return Container(
+      width: 100, 
+      height: 120, 
+      padding: const EdgeInsets.all(5), 
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(10), 
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 3))]
+      ), 
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(5), 
+        // CAMBIO: Caché aplicado a fotos decorativas
+        child: CachedNetworkImage(
+          imageUrl: imageUrl, 
+          fit: BoxFit.cover, 
+          placeholder: (_, __) => Container(
+            color: Colors.grey.shade200, 
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          ),
+          errorWidget: (_, __, ___) => Container(
+            color: Colors.grey.shade200, 
+            child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 40)
+          ),
+        )
+      )
+    );
   }
 }

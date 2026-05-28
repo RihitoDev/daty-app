@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
@@ -8,12 +9,6 @@ import '../widgets/achievements_list.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
-
-  ImageProvider? _getImage(ProfileProvider provider) {
-    if (provider.selectedImageBytes != null) return MemoryImage(provider.selectedImageBytes!);
-    if (provider.photoUrl != null) return NetworkImage(provider.photoUrl!);
-    return null;
-  }
 
   AchievementDefinition? _getAchById(String id) {
     for (var mode in AchievementMode.values) {
@@ -29,18 +24,17 @@ class ProfileScreen extends StatelessWidget {
     final provider = Provider.of<ProfileProvider>(context);
 
     if (provider.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF1976D2))));
+      return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0))));
     }
-
-    final backgroundImage = _getImage(provider);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Mi Perfil', style: TextStyle(color: Color(0xFF1976D2), fontWeight: FontWeight.bold)),
+        title: const Text('Mi Perfil', style: TextStyle(color: Color(0xFF9C27B0), fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF9C27B0)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -62,11 +56,25 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         CircleAvatar(
                           radius: 55,
-                          backgroundColor: const Color(0xFF1976D2),
-                          backgroundImage: backgroundImage,
-                          child: backgroundImage == null
-                              ? Text(provider.initials, style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold))
-                              : null,
+                          backgroundColor: const Color(0xFF9C27B0),
+                          // CAMBIO: Lógica de Avatar con CachedNetworkImage
+                          backgroundImage: provider.selectedImageBytes != null 
+                            ? MemoryImage(provider.selectedImageBytes!) 
+                            : (provider.photoUrl != null ? null : null), // Se maneja abajo
+                          child: provider.selectedImageBytes != null 
+                            ? null 
+                            : provider.photoUrl != null
+                              ? ClipOval(
+                                  child: CachedNetworkImage(
+                                    imageUrl: provider.photoUrl!,
+                                    fit: BoxFit.cover,
+                                    width: 110,
+                                    height: 110,
+                                    placeholder: (_, __) => Text(provider.initials, style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold)),
+                                    errorWidget: (_, __, ___) => Text(provider.initials, style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold)),
+                                  )
+                                )
+                              : Text(provider.initials, style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                         if (provider.isUploadingPhoto)
                           Container(
@@ -82,7 +90,7 @@ class ProfileScreen extends StatelessWidget {
                             decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                             child: Container(
                               padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(color: Color(0xFF1976D2), shape: BoxShape.circle),
+                              decoration: const BoxDecoration(color: Color(0xFF9C27B0), shape: BoxShape.circle),
                               child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                             ),
                           )
@@ -91,14 +99,14 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  Text(provider.userName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1976D2))),
+                  Text(provider.userName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
                   Text('Nivel ${provider.level}', style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 15),
                   LinearProgressIndicator(
                     value: provider.progress,
                     minHeight: 10,
                     backgroundColor: Colors.grey.shade200,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1976D2)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF9C27B0)),
                     borderRadius: BorderRadius.circular(5),
                   ),
                   const SizedBox(height: 5),
@@ -170,8 +178,9 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
             
+            // CAMBIO: Añadido el tab de Grupo (length: 4)
             DefaultTabController(
-              length: 3,
+              length: 4,
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -184,13 +193,15 @@ class ProfileScreen extends StatelessWidget {
                     Material(
                       borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
                       child: TabBar(
-                        labelColor: Color(0xFF1976D2),
+                        labelColor: Color(0xFF9C27B0),
                         unselectedLabelColor: Colors.grey,
-                        indicatorColor: Color(0xFF1976D2),
+                        indicatorColor: Color(0xFF9C27B0),
+                        isScrollable: true, // Para que quepan 4 tabs en pantallas pequeñas
                         tabs: [
                           Tab(text: 'General'),
                           Tab(text: 'Solitario'),
                           Tab(text: 'Pareja'),
+                          Tab(text: 'Grupo'), // NUEVO
                         ],
                       ),
                     ),
@@ -201,6 +212,7 @@ class ProfileScreen extends StatelessWidget {
                           AchievementsList(mode: AchievementMode.general),
                           AchievementsList(mode: AchievementMode.solo),
                           AchievementsList(mode: AchievementMode.couple),
+                          AchievementsList(mode: AchievementMode.group), // NUEVO
                         ],
                       ),
                     ),

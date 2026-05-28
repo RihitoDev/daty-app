@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -78,7 +79,16 @@ class GroupMemoryBoardScreen extends StatelessWidget {
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: photoUrl != null
-                                      ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(photoUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white30, size: 50)))
+                                      // CAMBIO: Caché de imágenes
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(10), 
+                                          child: CachedNetworkImage(
+                                            imageUrl: photoUrl, 
+                                            fit: BoxFit.cover, 
+                                            placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA))),
+                                            errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white30, size: 50)
+                                          )
+                                        )
                                       : const Icon(Icons.sentiment_very_dissatisfied, color: Colors.white30, size: 60),
                                 ),
                               ),
