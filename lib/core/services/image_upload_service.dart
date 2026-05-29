@@ -2,10 +2,13 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ImageUploadService {
-  static const String _apiKey = '9677a20efb9ed88209fe3e3d233ac361'; 
+  
+  // LEEMOS LA VARIABLE DE ENTORNO
+  static String get _apiKey => dotenv.env['IMGBB_API_KEY'] ?? '';
 
   static Future<XFile?> pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -14,7 +17,9 @@ class ImageUploadService {
   }
 
   static Future<String?> uploadImage(XFile image) async {
-    if (_apiKey == '9677a20efb9ed88209fe3e3d233ac361') {
+    // Pequeña validación por si acaso no cargó el .env
+    if (_apiKey.isEmpty) {
+      debugPrint('ERROR: La API Key de ImgBB no está configurada en el archivo .env');
       return null;
     }
 
@@ -39,11 +44,13 @@ class ImageUploadService {
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        return responseData['data']['url']; // ¡URL pública devuelta!
+        return responseData['data']['url']; 
       } else {
+        debugPrint('Error ImgBB: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
+      debugPrint('Excepción subiendo a ImgBB: $e');
       return null;
     }
   }

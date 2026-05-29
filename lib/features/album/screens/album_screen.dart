@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../providers/album_provider.dart';
 import '../models/album_memory.dart';
 import '../widgets/memory_card.dart';

@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../couple/widgets/candy_path_painter.dart'; // Correcto: pertenece a couple, pero el mapa lo pinta
+import '../../couple/widgets/candy_path_painter.dart';
 
 class AdventureMap extends StatefulWidget {
   final String mode;
@@ -14,7 +13,7 @@ class AdventureMap extends StatefulWidget {
   final int totalNodes;
   final String headerTitle;
   
-  // NUEVO: Callbacks para desacoplar la navegación
+  // Callbacks para desacoplar la navegación
   final Widget Function(Map<String, dynamic> adventureData, List<int> availableIds) onNavigateToProgress;
   final Widget Function(int adventureId, Map<String, dynamic> adventureData) onNavigateToMemory;
 
@@ -25,8 +24,8 @@ class AdventureMap extends StatefulWidget {
     required this.pathColor,
     required this.totalNodes,
     required this.headerTitle,
-    required this.onNavigateToProgress, // Obligatorio
-    required this.onNavigateToMemory,   // Obligatorio
+    required this.onNavigateToProgress,
+    required this.onNavigateToMemory,
   });
 
   @override
@@ -53,6 +52,10 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
 
   late AnimationController _pulseController;
 
+  // Variables para decoraciones aleatorias
+  late List<String> _shuffledDecorationImages;
+  late List<double> _shuffledDecorationSizes;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +67,23 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       lowerBound: 0.9,
       upperBound: 1.1,
     )..repeat(reverse: true);
+
+    final List<String> allDecoImages = [
+      'assets/images/deco_cristo.png',
+      'assets/images/deco_palacio.png',
+      'assets/images/deco_teleferico.png',
+      'assets/images/deco_catedral.png',
+      'assets/images/deco_cancha.png',
+      'assets/images/deco_laguna.png',
+      'assets/images/deco_espana.png',
+      'assets/images/deco_turquesa.png',
+      'assets/images/deco_recoleta.png',
+    ];
+    
+    final List<double> possibleSizes = [200.0, 210.0, 230.0, 220.0, 205.0];
+
+    _shuffledDecorationImages = List.from(allDecoImages)..shuffle();
+    _shuffledDecorationSizes = List.from(possibleSizes)..shuffle();
 
     _fetchAdventures();
   }
@@ -271,9 +291,8 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     double y = mapHeight - 150; double stepY = -100.0; 
     for (int i = 0; i < widget.totalNodes; i++) {
       double x;
-      if (i % 4 == 0) {
-        x = mapWidth * 0.15;
-      } else if (i % 4 == 1){ x = mapWidth * 0.5;}  
+      if (i % 4 == 0) { x = mapWidth * 0.15; }
+      else if (i % 4 == 1){ x = mapWidth * 0.5;}  
       else if (i % 4 == 2){ x = mapWidth * 0.85;} 
       else {x = mapWidth * 0.5; }
       points.add(Offset(x, y));
@@ -397,7 +416,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                         Navigator.pop(dialogContext); 
                         bool success = await _setAdventureStatus(adventure['number'], true); 
                         if (success && mounted) {
-                          // CAMBIO: Usar el callback inyectado en vez de la importación directa
                           Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventure, availableIds)));
                         }
                       },
@@ -554,27 +572,22 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
   }
 
   Widget _buildStaticDecoration(double x, double y, int index) {
-    List<String> placeholderImages = ['https://cdn-icons-png.flaticon.com/128/2909/2909875.png', 'https://cdn-icons-png.flaticon.com/128/2909/2909878.png', 'https://cdn-icons-png.flaticon.com/128/616/616408.png', 'https://cdn-icons-png.flaticon.com/128/201/201614.png', 'https://cdn-icons-png.flaticon.com/128/2909/2909881.png', 'https://cdn-icons-png.flaticon.com/128/3191/3191118.png'];
-    
+    final String imagePath = _shuffledDecorationImages[index % _shuffledDecorationImages.length];
+    final double size = _shuffledDecorationSizes[index % _shuffledDecorationSizes.length];
+
     return Positioned(
-      left: x - 35, top: y - 35, 
-      child: Container(
-        width: 70, height: 70, 
-        decoration: BoxDecoration(
-          shape: BoxShape.circle, 
-          color: Colors.white.withValues(alpha: 0.6), 
-          border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2), 
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(2, 2))]
-        ), 
-        child: ClipOval(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0), 
-            // CAMBIO: Caché de imágenes para decoraciones
-            child: CachedNetworkImage(
-              imageUrl: placeholderImages[index % placeholderImages.length], 
-              fit: BoxFit.contain, 
-              errorWidget: (_, __, ___) => const Icon(Icons.nature, color: Colors.green, size: 30)
-            )
+      left: x - (size / 2), 
+      top: y - (size / 2), 
+      child: SizedBox(
+        width: size, 
+        height: size, 
+        child: Image.asset(
+          imagePath, 
+          fit: BoxFit.contain, // Contain respeta la forma original del PNG
+          errorBuilder: (context, error, stackTrace) => Icon(
+            Icons.location_city, 
+            color: const Color(0xFF9C27B0), 
+            size: size * 0.5
           )
         )
       )
@@ -650,10 +663,8 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ya calificaste. ¡Esperando a tu pareja!')));
           } else if (isInProgress) {
             List<int> availableIds = _adventuresCache.keys.where((id) => !_adventurePath.contains(id)).toList();
-            // CAMBIO: Usar callback inyectado
             Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventureData, availableIds)));
           } else if (isCompleted) {
-            // CAMBIO: Usar callback inyectado
             Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToMemory(adventureId, adventureData)));
           } else if (isNextStep) {
             _showAdventureDetail(adventureData, arrayIndex);
