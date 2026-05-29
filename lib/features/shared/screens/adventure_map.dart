@@ -68,6 +68,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       upperBound: 1.1,
     )..repeat(reverse: true);
 
+    // LISTA DE IMÁGENES Y RANDOMIZACIÓN
     final List<String> allDecoImages = [
       'assets/images/deco_cristo.png',
       'assets/images/deco_palacio.png',
@@ -80,7 +81,8 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       'assets/images/deco_recoleta.png',
     ];
     
-    final List<double> possibleSizes = [200.0, 210.0, 230.0, 220.0, 205.0];
+    // Tamaños variables para los stickers
+    final List<double> possibleSizes = [110.0, 120.0, 140.0, 130.0, 115.0];
 
     _shuffledDecorationImages = List.from(allDecoImages)..shuffle();
     _shuffledDecorationSizes = List.from(possibleSizes)..shuffle();
@@ -318,73 +320,180 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     return List.generate(widget.mode == 'solo' ? 30 : 40, (i) => Offset(mapWidth * (0.05 + (i * 0.23) % 0.9), mapHeight - (i * 187) % mapHeight));
   }
 
-  void _showAdventureDetail(Map<String, dynamic> adventure, int nodeIndex) {
-    List<int> availableIds = _adventuresCache.keys.where((id) => !_adventurePath.contains(id)).toList();
+  // ====================================================================================
+  // SISTEMA DE RE-ROLL (TIEMPO REAL PARA PAREJAS)
+  // ====================================================================================
+
+  Future<void> _rerollAdventure(int nodeIndex, int currentAdventureId) async {
+    DocumentReference docRef;
+    if (widget.mode == 'solo') {
+      final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
+      docRef = FirebaseFirestore.instance.collection('solo_progress').doc(myUid);
+    } else if (_coupleDocId != null) {
+      docRef = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!);
+    } else {
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(docRef);
+        if (!snapshot.exists) return;
+
+        final data = snapshot.data() as Map<String, dynamic>;
+        int rerollsUsed = data['rerollsUsed'] ?? 0;
+        List<dynamic> skipped = List.from(data['skippedAdventures'] ?? []);
+        List<dynamic> path = List.from(data['adventurePath'] ?? []);
+
+        if (rerollsUsed >= 2) return;
+
+        List<int> allIds = _adventuresCache.keys.toList();
+        List<int> availableIds = allIds.where((id) => 
+            !path.contains(id) || id == currentAdventureId
+        ).toList();
+        availableIds.removeWhere((id) => skipped.contains(id));
+
+        if (availableIds.isEmpty) return;
+
+        final random = Random();
+        int newAdventureId = availableIds[random.nextInt(availableIds.length)];
+
+        path[nodeIndex] = newAdventureId;
+        skipped.add(currentAdventureId);
+        
+        transaction.update(docRef, {
+          'adventurePath': path,
+          'rerollsUsed': rerollsUsed + 1,
+          'skippedAdventures': skipped,
+        });
+      });
+    } catch (e) {
+      debugPrint("Error re-rolling adventure: $e");
+    }
+  }
+
+  // ====================================================================================
+  // MODAL DE DETALLE DE AVENTURA (CON STREAM BUILDER TIEMPO REAL)
+  // ====================================================================================
+
+  void _showAdventureDetail(int nodeIndex) {
+    DocumentReference docRef;
+    if (widget.mode == 'solo') {
+      final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
+      docRef = FirebaseFirestore.instance.collection('solo_progress').doc(myUid);
+    } else if (_coupleDocId != null) {
+      docRef = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!);
+    } else {
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (bottomSheetContext) { 
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))),
-          child: Column(
-            children: [
-              Container(margin: const EdgeInsets.symmetric(vertical: 12), width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(child: ClipRRect(borderRadius: BorderRadius.circular(20), child: Container(height: 180, width: double.infinity, color: Colors.grey.shade200, child: Image.asset('assets/images/adventures/${adventure['number']}.png', fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.image_not_supported_outlined, size: 50, color: Colors.grey))))),
-                      const SizedBox(height: 15),
-                      Center(child: Text(adventure['title'] ?? '', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: widget.themeColor))),
-                      const SizedBox(height: 15),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+      builder: (BuildContext bc) {
+        return StreamBuilder<DocumentSnapshot>(
+          stream: docRef.snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || !snapshot.data!.exists) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            List<dynamic> path = List.from(data['adventurePath'] ?? []);
+            int rerollsUsed = data['rerollsUsed'] ?? 0;
+            int rerollsLeft = 2 - rerollsUsed;
+
+            int currentAdventureId = (nodeIndex < path.length) ? path[nodeIndex] : -1;
+            Map<String, dynamic>? adventure = _adventuresCache[currentAdventureId];
+
+            if (adventure == null) {
+              return const Center(child: Text("Error cargando aventura"));
+            }
+
+            List<int> availableIds = _adventuresCache.keys.where((id) => !path.contains(id)).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))),
+              child: Column(
+                children: [
+                  Container(margin: const EdgeInsets.symmetric(vertical: 12), width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildInfoChip(Icons.category, adventure['category'] ?? 'General'),
-                          const SizedBox(width: 10),
-                          _buildInfoChip(Icons.timer, adventure['estimatedTime'] ?? '1 hora'),
-                          const SizedBox(width: 10),
-                          _buildInfoChip(Icons.attach_money, 'Nivel \$${adventure['costLevel'] ?? 1}'),
+                          Center(child: ClipRRect(borderRadius: BorderRadius.circular(20), child: Container(height: 180, width: double.infinity, color: Colors.grey.shade200, child: Image.asset('assets/images/adventures/${adventure['number']}.png', fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.image_not_supported_outlined, size: 50, color: Colors.grey))))),
+                          const SizedBox(height: 15),
+                          Center(child: Text(adventure['title'] ?? '', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: widget.themeColor))),
+                          const SizedBox(height: 15),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildInfoChip(Icons.category, adventure['category'] ?? 'General'),
+                              const SizedBox(width: 10),
+                              _buildInfoChip(Icons.timer, adventure['estimatedTime'] ?? '1 hora'),
+                              const SizedBox(width: 10),
+                              _buildInfoChip(Icons.attach_money, 'Nivel \$${adventure['costLevel'] ?? 1}'),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          const Text('Descripción', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(height: 5),
+                          Text(adventure['description'] ?? '', style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: widget.themeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(15)),
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('🏆 Reto', style: TextStyle(fontWeight: FontWeight.bold, color: widget.themeColor)),
+                              const SizedBox(height: 5),
+                              Text(adventure['challenge'] ?? '', style: TextStyle(color: widget.themeColor)),
+                            ]),
+                          ),
+                          const SizedBox(height: 30),
+                          
+                          SizedBox(
+                            width: double.infinity, height: 55,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context); 
+                                _showTipsBeforeStart(adventure!, nodeIndex, availableIds);
+                              },
+                              style: ElevatedButton.styleFrom(backgroundColor: widget.themeColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                              label: const Text('Empezar Aventura', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          
+                          if (widget.mode != 'group' && rerollsLeft > 0) ...[
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () => _rerollAdventure(nodeIndex, currentAdventureId),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.grey.shade700,
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  padding: const EdgeInsets.symmetric(vertical: 15),
+                                ),
+                                icon: const Icon(Icons.casino_outlined),
+                                label: Text(widget.mode == 'couple' 
+                                  ? 'Cambiar (Compartido: $rerollsLeft restantes)' 
+                                  : 'Cambiar Aventura ($rerollsLeft restantes)'),
+                              ),
+                            ),
+                          ]
                         ],
                       ),
-                      const SizedBox(height: 20),
-                      const Text('Descripción', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 5),
-                      Text(adventure['description'] ?? '', style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: widget.themeColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(15)),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('🏆 Reto', style: TextStyle(fontWeight: FontWeight.bold, color: widget.themeColor)),
-                          const SizedBox(height: 5),
-                          Text(adventure['challenge'] ?? '', style: TextStyle(color: widget.themeColor)),
-                        ]),
-                      ),
-                      const SizedBox(height: 30),
-                      SizedBox(
-                        width: double.infinity, height: 55,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(bottomSheetContext); 
-                            _showTipsBeforeStart(adventure, nodeIndex, availableIds);
-                          },
-                          style: ElevatedButton.styleFrom(backgroundColor: widget.themeColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                          icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
-                          label: const Text('Empezar Aventura', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          }
         );
       },
     );
@@ -502,7 +611,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       body: Stack(
         children: [
           Container(
-            decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [widget.pathColor.withValues(alpha: 0.3), Colors.white, const Color(0xFFAED581), const Color(0xFF66BB6A)], stops: const [0.0, 0.3, 0.6, 1.0])),
+            decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [widget.pathColor.withOpacity(0.3), Colors.white, const Color(0xFFAED581), const Color(0xFF66BB6A)], stops: const [0.0, 0.3, 0.6, 1.0])),
             child: SingleChildScrollView(
               controller: _scrollController,
               child: SizedBox(
@@ -510,7 +619,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                 child: Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
-                    ...ambientPoints.map((pos) => Positioned(left: pos.dx, top: pos.dy, child: Icon(Icons.local_florist, color: widget.pathColor.withValues(alpha: 0.3), size: 30))),
+                    ...ambientPoints.map((pos) => Positioned(left: pos.dx, top: pos.dy, child: Icon(Icons.local_florist, color: widget.pathColor.withOpacity(0.3), size: 30))),
                     CustomPaint(size: Size(mapWidth, mapHeight), painter: CandyPathPainter(points: pathPoints, pathColor: widget.pathColor)),
                     ...decoPoints.asMap().entries.map((entry) => _buildStaticDecoration(entry.value.dx, entry.value.dy, entry.key)),
                     ...pathPoints.asMap().entries.map((entry) {
@@ -522,7 +631,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                     }),
                     if (_adventurePath.length < widget.totalNodes)
                       Positioned(top: 0, left: 0, right: 0, bottom: fogBottom,
-                        child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.transparent, Colors.white.withValues(alpha: 0.85), Colors.white.withValues(alpha: 0.98), const Color(0xFFE0E0E0)], stops: const [0.0, 0.15, 0.4, 1.0])))),
+                        child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.transparent, Colors.white.withOpacity(0.85), Colors.white.withOpacity(0.98), const Color(0xFFE0E0E0)], stops: const [0.0, 0.15, 0.4, 1.0])))),
                   ],
                 ),
               ),
@@ -533,12 +642,12 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
             top: MediaQuery.of(context).padding.top + 10, left: 10, right: 10,
             child: Row(
               children: [
-                Material(color: Colors.black.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(30), child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28), onPressed: () => Navigator.pop(context))),
+                Material(color: Colors.black.withOpacity(0.4), borderRadius: BorderRadius.circular(30), child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28), onPressed: () => Navigator.pop(context))),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(20)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -583,7 +692,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         height: size, 
         child: Image.asset(
           imagePath, 
-          fit: BoxFit.contain, // Contain respeta la forma original del PNG
+          fit: BoxFit.contain, 
           errorBuilder: (context, error, stackTrace) => Icon(
             Icons.location_city, 
             color: const Color(0xFF9C27B0), 
@@ -625,7 +734,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       startColor = const Color(0xFF66BB6A); endColor = const Color(0xFF2E7D32); 
       iconChild = const Icon(Icons.check_circle, color: Colors.white, size: 28);
     } else if (isNextStep) { 
-      startColor = widget.themeColor; endColor = widget.themeColor.withValues(alpha: 0.8);
+      startColor = widget.themeColor; endColor = widget.themeColor.withOpacity(0.8);
       iconChild = Text(displayNumber.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20, shadows: [Shadow(color: Colors.black54, blurRadius: 2, offset: Offset(1, 1))]));
     } else { 
       startColor = Colors.grey.shade400; endColor = Colors.grey.shade600; 
@@ -641,7 +750,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         shape: BoxShape.circle,
         gradient: RadialGradient(colors: [startColor, endColor], center: Alignment.center, radius: 0.5),
         border: Border.all(color: Colors.white, width: isInProgress ? 4 : 3), 
-        boxShadow: [BoxShadow(color: startColor.withValues(alpha: 0.6), blurRadius: isInProgress ? 12 : 6, offset: const Offset(2, 4))], 
+        boxShadow: [BoxShadow(color: startColor.withOpacity(0.6), blurRadius: isInProgress ? 12 : 6, offset: const Offset(2, 4))], 
       ),
       child: Center(
         child: _isLoadingData 
@@ -667,7 +776,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
           } else if (isCompleted) {
             Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToMemory(adventureId, adventureData)));
           } else if (isNextStep) {
-            _showAdventureDetail(adventureData, arrayIndex);
+            _showAdventureDetail(arrayIndex);
           }
         },
         child: Column(

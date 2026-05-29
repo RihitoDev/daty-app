@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/screens/profile_screen.dart';
@@ -60,8 +62,66 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class HomeContent extends StatelessWidget {
+class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
+
+  @override
+  State<HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<HomeContent> {
+  late Future<List<Map<String, dynamic>>> _randomAdventuresFuture;
+  
+  late PageController _pageController;
+  Timer? _autoScrollTimer;
+  // NUEVO: Empezamos en un número alto para que el carrusel sea infinito en ambas direcciones
+  int _currentPage = 1000; 
+
+  @override
+  void initState() {
+    super.initState();
+    _randomAdventuresFuture = _fetchRandomAdventures();
+    _pageController = PageController(initialPage: _currentPage, viewportFraction: 0.6);
+  }
+
+  @override
+  void dispose() {
+    _stopAutoScroll();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRandomAdventures() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('adventures').limit(15).get();
+      final adventures = snapshot.docs.map((doc) => doc.data()).toList();
+      adventures.shuffle();
+      return adventures;
+    } catch (e) {
+      debugPrint('Error cargando aventuras random: $e');
+      return [];
+    }
+  }
+
+  void _startAutoScroll(int itemCount) {
+    _stopAutoScroll(); // Limpiamos cualquier timer anterior
+    
+    _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_pageController.hasClients && itemCount > 0) {
+        _currentPage++; // Siempre avanzamos, nunca volvemos atrás
+        _pageController.animateToPage(
+          _currentPage, 
+          duration: const Duration(milliseconds: 800), 
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
+  }
+
+  void _stopAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
+  }
 
   String getInitials(String? name) {
     if (name == null || name.isEmpty) return 'AE';
@@ -94,7 +154,6 @@ class HomeContent extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 25, 
                   backgroundColor: const Color(0xFF81D4FA),
-                  // CAMBIO: Caché aplicado al Avatar del usuario
                   child: photoUrl != null && photoUrl.isNotEmpty
                     ? ClipOval(
                         child: CachedNetworkImage(
@@ -132,24 +191,192 @@ class HomeContent extends StatelessWidget {
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupLobby()))
                 ),
 
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 140,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned(left: 20, child: Transform.rotate(angle: -0.2, child: _buildPolaroidPhoto('https://picsum.photos/200/300?random=1'))),
-                      Positioned(right: 20, child: Transform.rotate(angle: 0.2, child: _buildPolaroidPhoto('https://picsum.photos/200/300?random=2'))),
-                      Positioned(child: _buildPolaroidPhoto('https://picsum.photos/200/300?random=3')),
-                    ],
-                  ),
+                const SizedBox(height: 20),
+                
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Conoce estos lugares', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
                 ),
+                const SizedBox(height: 10),
+                
+                _buildAdventureCarousel(),
+
                 const SizedBox(height: 30),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAdventureCarousel() {
+    return SizedBox(
+      height: 220,
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _randomAdventuresFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No hay aventuras disponibles'));
+          }
+
+          final adventures = snapshot.data!;
+          
+          // Iniciar el auto-scroll cuando los datos estén listos
+          _startAutoScroll(adventures.length);
+
+          // NUEVO: NotificationListener para detectar cuándo el usuario toca el carrusel
+          return NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              // Si el usuario empieza a arrastrar con el dedo
+              if (notification is ScrollStartNotification && notification.dragDetails != null) {
+                _stopAutoScroll();
+              } 
+              // Si el usuario suelta el dedo (termina el arrastre)
+              else if (notification is ScrollEndNotification) {
+                // Esperamos 3 segundos de inactividad antes de reanudar el auto-scroll
+                Future.delayed(const Duration(seconds: 3), () {
+                  if (mounted) {
+                    _startAutoScroll(adventures.length);
+                  }
+                });
+              }
+              return false; // Permite que el scroll siga su curso normal
+            },
+            child: PageView.builder(
+              controller: _pageController,
+              // Un número muy alto para simular bucle infinito en ambas direcciones
+              itemCount: adventures.length * 10000, 
+              onPageChanged: (index) {
+                _currentPage = index; // Actualizamos la posición actual
+              },
+              itemBuilder: (context, index) {
+                final realIndex = index % adventures.length;
+                final adv = adventures[realIndex];
+                return _buildCarouselCard(adv);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCarouselCard(Map<String, dynamic> adventure) {
+    final String title = adventure['title'] ?? 'Aventura';
+    final String description = adventure['description'] ?? '';
+    final int number = adventure['number'] ?? 0;
+
+    return GestureDetector(
+      onTap: () => _showDescriptionDialog(title, description),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: Colors.white,
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(2, 4))],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      'assets/images/adventures/$number.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFCE93D8), Color(0xFF9C27B0)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.photo_camera_back_outlined, color: Colors.white30, size: 50),
+                          ),
+                        );
+                      },
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 80,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black54],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 10,
+                      left: 10,
+                      right: 10,
+                      child: Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white, 
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 14,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDescriptionDialog(String title, String description) {
+    _stopAutoScroll(); // Detenemos el auto-scroll al abrir el diálogo
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(20),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF9C27B0))),
+            const SizedBox(height: 15),
+            Text(description, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade700, fontSize: 14)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Reanudamos el auto-scroll al cerrar el diálogo
+              _fetchRandomAdventures().then((adventures) {
+                if (mounted && adventures.isNotEmpty) {
+                  _startAutoScroll(adventures.length);
+                }
+              });
+            }, 
+            child: const Text('Cerrar', style: TextStyle(color: Color(0xFF9C27B0)))
+          ),
+        ],
+      ),
     );
   }
 
@@ -162,46 +389,55 @@ class HomeContent extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
           gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-          boxShadow: [BoxShadow(color: gradientColors.last.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 8), spreadRadius: 2)],
+          boxShadow: [
+            BoxShadow(
+              color: gradientColors.last.withOpacity(0.4),
+              blurRadius: 15, 
+              offset: const Offset(0, 8), 
+              spreadRadius: 2
+            )
+          ],
         ),
         child: Row(
           children: [
-            Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), shape: BoxShape.circle), child: Icon(icon, size: 40, color: Colors.white)),
+            Container(
+              padding: const EdgeInsets.all(14), 
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.25),
+                shape: BoxShape.circle
+              ), 
+              child: Icon(icon, size: 40, color: Colors.white)
+            ),
             const SizedBox(width: 25),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))])), const SizedBox(height: 6), Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600))])),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, 
+                children: [
+                  Text(
+                    title, 
+                    style: const TextStyle(
+                      color: Colors.white, 
+                      fontSize: 21, 
+                      fontWeight: FontWeight.w800, 
+                      shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))]
+                    )
+                  ),
+                  const SizedBox(height: 6), 
+                  Text(
+                    subtitle, 
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.95),
+                      fontSize: 15, 
+                      fontWeight: FontWeight.w600
+                    )
+                  )
+                ]
+              )
+            ),
             const Icon(Icons.chevron_right, color: Colors.white70, size: 28)
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildPolaroidPhoto(String imageUrl) {
-    return Container(
-      width: 100, 
-      height: 120, 
-      padding: const EdgeInsets.all(5), 
-      decoration: BoxDecoration(
-        color: Colors.white, 
-        borderRadius: BorderRadius.circular(10), 
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 3))]
-      ), 
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(5), 
-        // CAMBIO: Caché aplicado a fotos decorativas
-        child: CachedNetworkImage(
-          imageUrl: imageUrl, 
-          fit: BoxFit.cover, 
-          placeholder: (_, __) => Container(
-            color: Colors.grey.shade200, 
-            child: const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          ),
-          errorWidget: (_, __, ___) => Container(
-            color: Colors.grey.shade200, 
-            child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 40)
-          ),
-        )
-      )
     );
   }
 }
