@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../auth/providers/auth_provider.dart';
 
-class SettingsProvider extends ChangeNotifier {
+class SettingsProvider with ChangeNotifier {
   final AuthProvider _authProvider;
 
-  bool _isProcessing = false; // CAMBIO: Renombrado para cubrir ambas acciones
+  bool _isProcessing = false; 
   bool get isProcessing => _isProcessing;
 
   SettingsProvider(this._authProvider);
@@ -17,10 +17,8 @@ class SettingsProvider extends ChangeNotifier {
     try {
       final myUid = _authProvider.user!.uid;
 
-      // 1. Borramos el documento de progreso
       await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).delete();
 
-      // 2. Borramos todos los recuerdos solitarios de este usuario
       final memoriesQuery = await FirebaseFirestore.instance
           .collection('solo_memories')
           .where('userId', isEqualTo: myUid)
@@ -36,7 +34,7 @@ class SettingsProvider extends ChangeNotifier {
 
       _isProcessing = false;
       notifyListeners();
-      return null; // Éxito
+      return null; 
     } catch (e) {
       debugPrint('Error al borrar progreso solitario: $e');
       _isProcessing = false;
@@ -61,39 +59,35 @@ class SettingsProvider extends ChangeNotifier {
           ? '${myUid}_$partnerId' 
           : '${partnerId}_$myUid';
 
-      // 1. Eliminar los documentos de recuerdos de pareja (Memories)
       final memoriesQuery = await FirebaseFirestore.instance
           .collection('memories')
           .where('coupleDocId', isEqualTo: coupleDocId)
           .get();
 
-      if (memoriesQuery.docs.isNotEmpty) {
-        WriteBatch memoriesBatch = FirebaseFirestore.instance.batch();
-        for (var doc in memoriesQuery.docs) {
-          memoriesBatch.delete(doc.reference);
-        }
-        await memoriesBatch.commit();
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      for (var doc in memoriesQuery.docs) {
+        batch.delete(doc.reference);
       }
 
-      // 2. Transacción para borrar el vínculo y el progreso
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final myRef = FirebaseFirestore.instance.collection('users').doc(myUid);
-        final partnerRef = FirebaseFirestore.instance.collection('users').doc(partnerId);
-        final coupleRef = FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId);
+      final myRef = FirebaseFirestore.instance.collection('users').doc(myUid);
+      final partnerRef = FirebaseFirestore.instance.collection('users').doc(partnerId);
+      final coupleRef = FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId);
 
-        transaction.update(myRef, {'partnerId': FieldValue.delete()});
-        transaction.update(partnerRef, {'partnerId': FieldValue.delete()});
-        transaction.delete(coupleRef);
-      });
+      batch.update(myRef, {'partnerId': null});
+      batch.update(partnerRef, {'partnerId': null});
+      batch.delete(coupleRef);
+
+      await batch.commit();
 
       _isProcessing = false;
       notifyListeners();
-      return null; // Éxito
+      return null;
     } catch (e) {
-      debugPrint('Error al desvincular: $e');
+      debugPrint('❌ Error al desvincular (detalles): $e');
       _isProcessing = false;
       notifyListeners();
-      return 'Error al desvincular. Inténtalo de nuevo.';
+      return 'Error al desvincular. Revisa la consola para ver el error de permisos.';
     }
   }
 }

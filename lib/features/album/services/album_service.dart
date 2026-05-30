@@ -1,23 +1,22 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/album_memory.dart';
 
 class AlbumService {
   
-  // Stream para memorias SOLITARIAS en tiempo real
   static Stream<List<AlbumMemory>> soloMemoriesStream(String myUid) {
     return FirebaseFirestore.instance
         .collection('solo_memories')
         .where('userId', isEqualTo: myUid)
-        .orderBy('timestamp', descending: true) // Ordenado desde Firestore
-        .limit(50) // Paginación básica
+        .orderBy('timestamp', descending: true)
+        .limit(50)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => AlbumMemory.fromSoloFirestore(doc.data()))
             .toList());
   }
 
-  // Stream para memorias de PAREJA en tiempo real
   static Stream<List<AlbumMemory>> coupleMemoriesStream(String coupleDocId, String user1Name, String user2Name) {
     return FirebaseFirestore.instance
         .collection('memories')
@@ -30,47 +29,59 @@ class AlbumService {
             .toList());
   }
 
-  // Stream para memorias GRUPALES en tiempo real (Consultando Subcolecciones)
-  static Stream<List<AlbumMemory>> groupMemoriesStream(String myUid) async* {
-    // 1. Obtener los grupos del usuario
-    final groupsSnapshot = await FirebaseFirestore.instance
-        .collection('groups')
-        .where('members', arrayContains: myUid)
-        .get();
+  // SOLUCIÓN: Reestructurado con un StreamController para evitar el bloqueo del "await for"
+  static Stream<List<AlbumMemory>> groupMemoriesStream(String myUid) {
+    late StreamController<List<AlbumMemory>> controller;
+    List<StreamSubscription> subscriptions = [];
+    
+    controller = StreamController<List<AlbumMemory>>(
+      onListen: () async {
+        final groupsSnapshot = await FirebaseFirestore.instance
+            .collection('groups')
+            .where('members', arrayContains: myUid)
+            .get();
 
-    // 2. Si no está en ningún grupo, emitir lista vacía
-    if (groupsSnapshot.docs.isEmpty) {
-      yield [];
-      return;
-    }
-
-    // 3. Crear streams para la subcolección 'memories' de CADA grupo
-    List<Stream<List<AlbumMemory>>> groupStreams = groupsSnapshot.docs.map((groupDoc) {
-      return FirebaseFirestore.instance
-          .collection('groups')
-          .doc(groupDoc.id)
-          .collection('memories')
-          .orderBy('timestamp', descending: true)
-          .limit(20)
-          .snapshots()
-          .map((memSnapshot) => memSnapshot.docs
-              .map((memDoc) => AlbumMemory.fromGroupFirestore(memDoc.data()))
-              .toList());
-    }).toList();
-
-    // 4. Combinar los streams (usando un enfoque simple)
-    // Nota: Para una app muy grande, convendría usar RxDart, pero esto funciona bien.
-    for (var stream in groupStreams) {
-      await for (var memories in stream) {
-        // Como estamos escuchando varios streams, recolectamos lo que vamos recibiendo
-        // Para hacerlo sencillo y no bloquear, simplemente emitimos lo que llega.
-        // Para tener TODOS juntos, es mejor usar un Provider que una las listas.
-        yield memories; 
+        if (groupsSnapshot.docs.isEmpty) {
+          controller.add([]);
+          return;
+        }
+        
+        Map<String, List<AlbumMemory>> groupMemoriesMap = {};
+        
+        for (var groupDoc in groupsSnapshot.docs) {
+          var sub = FirebaseFirestore.instance
+              .collection('groups')
+              .doc(groupDoc.id)
+              .collection('memories')
+              .orderBy('timestamp', descending: true)
+              .limit(20)
+              .snapshots()
+              .listen((memSnapshot) {
+                groupMemoriesMap[groupDoc.id] = memSnapshot.docs
+                    .map((memDoc) => AlbumMemory.fromGroupFirestore(memDoc.data()))
+                    .toList();
+                
+                List<AlbumMemory> allGroupMemories = [];
+                for (var list in groupMemoriesMap.values) {
+                  allGroupMemories.addAll(list);
+                }
+                allGroupMemories.sort((a, b) => b.date.compareTo(a.date));
+                controller.add(allGroupMemories);
+              });
+              
+          subscriptions.add(sub);
+        }
+      },
+      onCancel: () {
+        for (var sub in subscriptions) {
+          sub.cancel();
+        }
       }
-    }
+    );
+    
+    return controller.stream;
   }
 
-  // Método para obtener TODAS las memorias (Para la pestaña general)
   static Future<List<AlbumMemory>> fetchAllMemories({
     required String myUid,
     required String myName,

@@ -68,7 +68,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       upperBound: 1.1,
     )..repeat(reverse: true);
 
-    // LISTA DE IMÁGENES Y RANDOMIZACIÓN
     final List<String> allDecoImages = [
       'assets/images/deco_cristo.png',
       'assets/images/deco_palacio.png',
@@ -82,7 +81,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     ];
     
     // Tamaños variables para los stickers
-    final List<double> possibleSizes = [110.0, 120.0, 140.0, 130.0, 115.0];
+    final List<double> possibleSizes = [210.0, 220.0, 240.0, 230.0, 215.0];
 
     _shuffledDecorationImages = List.from(allDecoImages)..shuffle();
     _shuffledDecorationSizes = List.from(possibleSizes)..shuffle();
@@ -320,9 +319,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     return List.generate(widget.mode == 'solo' ? 30 : 40, (i) => Offset(mapWidth * (0.05 + (i * 0.23) % 0.9), mapHeight - (i * 187) % mapHeight));
   }
 
-  // ====================================================================================
-  // SISTEMA DE RE-ROLL (TIEMPO REAL PARA PAREJAS)
-  // ====================================================================================
 
   Future<void> _rerollAdventure(int nodeIndex, int currentAdventureId) async {
     DocumentReference docRef;

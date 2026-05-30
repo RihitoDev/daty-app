@@ -63,7 +63,6 @@ class _PairingDialogState extends State<PairingDialog> {
     try {
       final codeEntered = _codeController.text.toUpperCase();
 
-      // 1. Primero buscamos el UID del usuario con ese código (FUERA de la transacción)
       final querySnapshot = await _firestore.collection('users')
           .where('pairingCode', isEqualTo: codeEntered)
           .limit(1)
@@ -81,12 +80,10 @@ class _PairingDialogState extends State<PairingDialog> {
 
       String coupleDocId = widget.myUid.compareTo(partnerUid) < 0 
           ? '${widget.myUid}_$partnerUid' 
-          : '${partnerUid}_$widget.myUid';
+          : '${partnerUid}_${widget.myUid}';
 
-      // 2. Ejecutamos la transacción con los UIDs que ya conocemos
       await _firestore.runTransaction((transaction) async {
         
-        // Leemos los documentos DENTRO de la transacción
         final myDocRef = _firestore.collection('users').doc(widget.myUid);
         final partnerDocRef = _firestore.collection('users').doc(partnerUid);
         final coupleDocRef = _firestore.collection('couples_progress').doc(coupleDocId);
@@ -94,7 +91,6 @@ class _PairingDialogState extends State<PairingDialog> {
         final myDoc = await transaction.get(myDocRef);
         final partnerDoc = await transaction.get(partnerDocRef);
 
-        // Validaciones en tiempo real
         if (myDoc.data()?['partnerId'] != null) {
           throw Exception('Tú ya estás vinculado');
         }
@@ -102,12 +98,12 @@ class _PairingDialogState extends State<PairingDialog> {
           throw Exception('Esta persona ya está vinculada');
         }
 
-        // Escrituras atómicas
         transaction.set(coupleDocRef, {
           'user1': widget.myUid.compareTo(partnerUid) < 0 ? widget.myUid : partnerUid,
           'user2': widget.myUid.compareTo(partnerUid) < 0 ? partnerUid : widget.myUid, 
           'fechaVinculacion': FieldValue.serverTimestamp(), 
-          'xpPareja': 0, 'nivelPareja': 1,
+          'xpPareja': 0, 
+          'nivelPareja': 1,
           'contractSignedUser1': false,
           'contractSignedUser2': false
         });
@@ -115,8 +111,6 @@ class _PairingDialogState extends State<PairingDialog> {
         transaction.update(myDocRef, {'partnerId': partnerUid, 'pairingCode': FieldValue.delete()});
         transaction.update(partnerDocRef, {'partnerId': widget.myUid, 'pairingCode': FieldValue.delete()});
       });
-
-      // Si llegó aquí, ¡éxito total! El listener cerrará el diálogo automáticamente.
 
     } catch (e) {
       if (mounted) {
@@ -141,7 +135,6 @@ class _PairingDialogState extends State<PairingDialog> {
   @override
   void dispose() {
     _subscription?.cancel();
-    // Si cierra el diálogo sin vincularse, borramos su código
     _firestore.collection('users').doc(widget.myUid).set({'pairingCode': FieldValue.delete()}, SetOptions(merge: true));
     _codeController.dispose();
     super.dispose();

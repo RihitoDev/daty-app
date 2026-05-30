@@ -94,7 +94,12 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
           'photos': _uploadedPhotoUrls.whereType<String>().toList(),
         };
         transaction.set(FirebaseFirestore.instance.collection('solo_memories').doc(memoryDocId), memoryData);
-        transaction.update(FirebaseFirestore.instance.collection('users').doc(myUid), {'exp': FieldValue.increment(expEarned)});
+        
+        // CORRECCIÓN CRÍTICA PARA LOGROS: Sumar a soloDatesCompleted y no a groupOutingsCompleted
+        transaction.update(FirebaseFirestore.instance.collection('users').doc(myUid), {
+          'exp': FieldValue.increment(expEarned),
+          'soloDatesCompleted': FieldValue.increment(1) // <--- CAMBIO AQUÍ
+        });
 
         Map<String, dynamic> updateData = {'activeAdventureNumber': FieldValue.delete()};
         if (widget.availableAdventuresIds.isNotEmpty) {

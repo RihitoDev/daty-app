@@ -61,14 +61,20 @@ class _GroupRoomState extends State<GroupRoom> {
       final adventureSnap = await FirebaseFirestore.instance.collection('adventures').where('number', isEqualTo: _activeAdventureId).limit(1).get();
       if (adventureSnap.docs.isNotEmpty && mounted) {
         final adventureData = adventureSnap.docs.first.data();
-        Navigator.pushReplacement(
+        
+        // SOLUCIÓN: Usar Navigator.push en lugar de pushReplacement
+        Navigator.push(
           context, 
           MaterialPageRoute(builder: (_) => GroupAdventureScreen(
             adventureData: adventureData, 
             groupCode: widget.groupCode, 
             members: List<String>.from(_members),
           ))
-        );
+        ).then((_) {
+          // Si el usuario abandona la aventura y regresa aquí, reseteamos la navegación
+          if (mounted) setState(() => _isNavigating = false);
+        });
+        
       } else {
         _isNavigating = false;
       }

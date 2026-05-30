@@ -23,19 +23,32 @@ class AlbumProvider with ChangeNotifier {
   String get myName => _myName;
 
   AlbumProvider(this._authProvider) {
+    // CORRECCIÓN: Ahora el Álbum escucha activamente los cambios de estado/pareja
+    _authProvider.addListener(_onAuthUpdate);
+    _loadPartnerData();
+  }
+
+  void _onAuthUpdate() {
     _loadPartnerData();
   }
 
   Future<void> _loadPartnerData() async {
-    final myUid = _authProvider.user!.uid;
+    final user = _authProvider.user;
+    if (user == null) return;
+
+    final myUid = user.uid;
     _myName = _authProvider.userData?['username'] ?? 'Yo';
     _partnerId = _authProvider.userData?['partnerId'];
 
     if (_partnerId != null) {
       _isUser1 = myUid.compareTo(_partnerId!) < 0;
-      final doc = await FirebaseFirestore.instance.collection('users').doc(_partnerId).get();
-      if (doc.exists) {
-        _partnerName = doc.data()?['username'] ?? 'Pareja';
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(_partnerId).get();
+        if (doc.exists) {
+          _partnerName = doc.data()?['username'] ?? 'Pareja';
+        }
+      } catch (e) {
+        debugPrint('Error cargando nombre de pareja: $e');
       }
     }
     notifyListeners();
@@ -63,16 +76,18 @@ class AlbumProvider with ChangeNotifier {
   }
 
   Stream<List<AlbumMemory>> get soloStream {
+    if (_authProvider.user == null) return Stream.value([]);
     return AlbumService.soloMemoriesStream(_authProvider.user!.uid);
   }
 
   Stream<List<AlbumMemory>> get coupleStream {
-    if (_partnerId == null) return Stream.value([]);
-    String coupleDocId = _isUser1 ? '${_authProvider.user!.uid}_$_partnerId' : '$_partnerId}_${_authProvider.user!.uid}';
+    if (_partnerId == null || _authProvider.user == null) return Stream.value([]);
+    String coupleDocId = _isUser1 ? '${_authProvider.user!.uid}_$_partnerId' : '${_partnerId}_${_authProvider.user!.uid}';
     return AlbumService.coupleMemoriesStream(coupleDocId, _isUser1 ? _myName : _partnerName, _isUser1 ? _partnerName : _myName);
   }
 
   Stream<List<AlbumMemory>> get groupStream {
+    if (_authProvider.user == null) return Stream.value([]);
     return AlbumService.groupMemoriesStream(_authProvider.user!.uid);
   }
 }

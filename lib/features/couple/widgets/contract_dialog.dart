@@ -25,7 +25,6 @@ class _ContractDialogState extends State<ContractDialog> {
 
   bool get _allChecked => _rule1Checked && _rule2Checked && _rule3Checked;
 
-  // ✅ MEJORA CRÍTICA: Transacción para firmar
   Future<void> _signContract() async {
     setState(() => _isProcessing = true);
     
@@ -49,20 +48,25 @@ class _ContractDialogState extends State<ContractDialog> {
     }
   }
 
-  // ✅ MEJORA CRÍTICA: Transacción para desvincular de forma segura
   Future<void> _rejectAndUnlink() async {
     setState(() => _isProcessing = true);
 
     try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        transaction.update(FirebaseFirestore.instance.collection('users').doc(widget.myUid), {'partnerId': FieldValue.delete()});
-        transaction.update(FirebaseFirestore.instance.collection('users').doc(widget.partnerUid), {'partnerId': FieldValue.delete()});
-        transaction.delete(FirebaseFirestore.instance.collection('couples_progress').doc(widget.coupleDocId));
-      });
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+      
+      final myRef = FirebaseFirestore.instance.collection('users').doc(widget.myUid);
+      final partnerRef = FirebaseFirestore.instance.collection('users').doc(widget.partnerUid);
+      final coupleRef = FirebaseFirestore.instance.collection('couples_progress').doc(widget.coupleDocId);
 
+      batch.update(myRef, {'partnerId': null});
+      batch.update(partnerRef, {'partnerId': null});
+      batch.delete(coupleRef);
+
+      await batch.commit();
+      
       if (mounted) Navigator.pop(context); 
     } catch (e) {
-      debugPrint('Error al desvincular desde contrato: $e');
+      debugPrint('❌ Error al desvincular desde contrato: $e');
       if(mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al romper vínculo'), backgroundColor: Colors.redAccent));
       }
@@ -72,7 +76,6 @@ class _ContractDialogState extends State<ContractDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ MEJORA: PopScope es el reemplazo moderno de WillPopScope
     return PopScope(
       canPop: false,
       child: Dialog(

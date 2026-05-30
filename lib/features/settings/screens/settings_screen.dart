@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
-import '../../profile/screens/profile_screen.dart'; 
+import '../../profile/screens/profile_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -50,7 +50,6 @@ class SettingsScreen extends StatelessWidget {
                         leading: const Icon(Icons.link_off, color: Colors.redAccent),
                         title: const Text('Desvincular Pareja', style: TextStyle(color: Colors.redAccent)),
                         subtitle: const Text('Se eliminará el progreso, mapa y recuerdos compartidos'),
-                        // CAMBIO: Usar isProcessing
                         trailing: settingsProvider.isProcessing 
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.chevron_right, color: Colors.grey),
@@ -66,14 +65,12 @@ class SettingsScreen extends StatelessWidget {
                       leading: const Icon(Icons.refresh, color: Color(0xFF1976D2)),
                       title: const Text('Reiniciar Progreso Solo', style: TextStyle(color: Color(0xFF1976D2))),
                       subtitle: const Text('Borra tu mapa y recuerdos individuales'),
-                      // CAMBIO: Usar isProcessing
                       trailing: settingsProvider.isProcessing 
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.chevron_right, color: Colors.grey),
                       onTap: settingsProvider.isProcessing ? null : () async {
                          final confirm = await showDialog<bool>(
                            context: context,
-                           // CAMBIO: Dar nombre al contexto del diálogo
                            builder: (dialogContext) => AlertDialog(
                              title: const Text('¿Reiniciar progreso?'),
                              content: const Text('Se borrarán todas tus aventuras y fotos en solitario. Esta acción no se puede deshacer.'),
@@ -135,7 +132,11 @@ class SettingsScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 3))],
       ),
-      child: Column(children: children),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: Column(children: children),
+      ),
     );
   }
 

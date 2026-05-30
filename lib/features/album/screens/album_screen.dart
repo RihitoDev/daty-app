@@ -101,7 +101,8 @@ class _SoloAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<AlbumProvider>();
+    // CORRECCIÓN: Cambiado de read() a watch()
+    final provider = context.watch<AlbumProvider>();
 
     return StreamBuilder<List<AlbumMemory>>(
       stream: provider.soloStream,
@@ -127,7 +128,8 @@ class _CoupleAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<AlbumProvider>();
+    // CORRECCIÓN: Cambiado de read() a watch()
+    final provider = context.watch<AlbumProvider>();
 
     if (provider.partnerId == null) {
       return const EmptyStateWidget(icon: Icons.favorite_border, message: 'Vincúlate con alguien para ver el álbum de pareja.');
@@ -157,7 +159,8 @@ class _GroupAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<AlbumProvider>();
+    // CORRECCIÓN: Cambiado de read() a watch()
+    final provider = context.watch<AlbumProvider>();
 
     return StreamBuilder<List<AlbumMemory>>(
       stream: provider.groupStream,

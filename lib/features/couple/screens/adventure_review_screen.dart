@@ -108,8 +108,15 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
           partnerJustReviewed = true;
           int expEarned = widget.adventureData['xpBase'] ?? 50; 
           
-          transaction.update(FirebaseFirestore.instance.collection('users').doc(myUid), {'exp': FieldValue.increment(expEarned)});
-          transaction.update(FirebaseFirestore.instance.collection('users').doc(partnerId), {'exp': FieldValue.increment(expEarned)});
+          // CORRECCIÓN CRÍTICA PARA LOGROS: Se añade coupleDatesCompleted
+          transaction.update(FirebaseFirestore.instance.collection('users').doc(myUid), {
+            'exp': FieldValue.increment(expEarned),
+            'coupleDatesCompleted': FieldValue.increment(1) // <--- CAMBIO AQUÍ
+          });
+          transaction.update(FirebaseFirestore.instance.collection('users').doc(partnerId), {
+            'exp': FieldValue.increment(expEarned),
+            'coupleDatesCompleted': FieldValue.increment(1) // <--- CAMBIO AQUÍ
+          });
 
           Map<String, dynamic> updateData = {
             'activeAdventureNumber': FieldValue.delete(), 
