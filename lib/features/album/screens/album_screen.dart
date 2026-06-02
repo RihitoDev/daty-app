@@ -14,14 +14,6 @@ class AlbumScreen extends StatefulWidget {
 
 class _AlbumScreenState extends State<AlbumScreen> {
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AlbumProvider>().fetchAllMemories();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4,
@@ -72,26 +64,37 @@ class _AllAlbumList extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AlbumProvider>();
 
-    if (provider.isLoadingAll) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
-    }
+    return StreamBuilder<List<AlbumMemory>>(
+      stream: provider.allStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
+        }
+        
+        // ¡NUEVO! Mostrar el error si existe
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text('Error al cargar todos:\n${snapshot.error}', textAlign: TextAlign.center, style: TextStyle(color: Colors.red)),
+            ),
+          );
+        }
 
-    if (provider.allMemories.isEmpty) {
-      return EmptyStateWidget(
-        icon: Icons.auto_stories,
-        message: 'Aún no tienes recuerdos guardados.\n¡Completa una aventura!',
-        onRetry: () => provider.fetchAllMemories(),
-      );
-    }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const EmptyStateWidget(
+            icon: Icons.auto_stories,
+            message: 'Aún no tienes recuerdos guardados.\n¡Completa una aventura!',
+          );
+        }
 
-    return RefreshIndicator(
-      onRefresh: () => provider.fetchAllMemories(),
-      color: const Color(0xFF9C27B0),
-      child: ListView.builder(
-        padding: const EdgeInsets.only(top: 10, bottom: 20),
-        itemCount: provider.allMemories.length,
-        itemBuilder: (context, index) => MemoryCard(memory: provider.allMemories[index]),
-      ),
+        final memories = snapshot.data!;
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 10, bottom: 20),
+          itemCount: memories.length,
+          itemBuilder: (context, index) => MemoryCard(memory: memories[index]),
+        );
+      },
     );
   }
 }
@@ -101,7 +104,6 @@ class _SoloAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // CORRECCIÓN: Cambiado de read() a watch()
     final provider = context.watch<AlbumProvider>();
 
     return StreamBuilder<List<AlbumMemory>>(
@@ -110,6 +112,11 @@ class _SoloAlbumList extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF1976D2)));
         }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('Error Solo: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+        }
+
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const EmptyStateWidget(icon: Icons.backpack_outlined, message: 'Aún no tienes aventuras solitarias.\n¡Explora por tu cuenta!');
         }
@@ -128,7 +135,6 @@ class _CoupleAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // CORRECCIÓN: Cambiado de read() a watch()
     final provider = context.watch<AlbumProvider>();
 
     if (provider.partnerId == null) {
@@ -141,6 +147,11 @@ class _CoupleAlbumList extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFFC2185B)));
         }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('Error Pareja: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+        }
+
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const EmptyStateWidget(icon: Icons.favorite_outline, message: 'Aún no tienen aventuras juntos.\n¡Planeen una cita!');
         }
@@ -159,7 +170,6 @@ class _GroupAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // CORRECCIÓN: Cambiado de read() a watch()
     final provider = context.watch<AlbumProvider>();
 
     return StreamBuilder<List<AlbumMemory>>(
@@ -168,6 +178,21 @@ class _GroupAlbumList extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
         }
+        
+        // ¡AQUÍ ESTÁ LA CLAVE! 
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Error Grupo: ${snapshot.error}', 
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+          );
+        }
+
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const EmptyStateWidget(icon: Icons.groups_outlined, message: 'Aún no hay expediciones grupales.\n¡Arma un grupo!');
         }

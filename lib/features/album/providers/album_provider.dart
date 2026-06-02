@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:rxdart/rxdart.dart'; // NUEVA IMPORTACIÓN
 import '../../auth/providers/auth_provider.dart';
 import '../models/album_memory.dart';
 import '../services/album_service.dart';
@@ -12,18 +13,12 @@ class AlbumProvider with ChangeNotifier {
   bool _isUser1 = false;
   String _myName = 'Yo';
   
-  List<AlbumMemory> _allMemories = [];
-  bool _isLoadingAll = false;
-  
-  List<AlbumMemory> get allMemories => _allMemories;
-  bool get isLoadingAll => _isLoadingAll;
   String? get partnerId => _partnerId;
   String get partnerName => _partnerName;
   bool get isUser1 => _isUser1;
   String get myName => _myName;
 
   AlbumProvider(this._authProvider) {
-    // CORRECCIÓN: Ahora el Álbum escucha activamente los cambios de estado/pareja
     _authProvider.addListener(_onAuthUpdate);
     _loadPartnerData();
   }
@@ -54,27 +49,6 @@ class AlbumProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchAllMemories() async {
-    _isLoadingAll = true;
-    notifyListeners();
-
-    try {
-      final myUid = _authProvider.user!.uid;
-      _allMemories = await AlbumService.fetchAllMemories(
-        myUid: myUid,
-        myName: _myName,
-        partnerId: _partnerId,
-        partnerName: _partnerName,
-        isUser1: _isUser1,
-      );
-    } catch (e) {
-      debugPrint('Error en AlbumProvider fetchAllMemories: $e');
-    }
-
-    _isLoadingAll = false;
-    notifyListeners();
-  }
-
   Stream<List<AlbumMemory>> get soloStream {
     if (_authProvider.user == null) return Stream.value([]);
     return AlbumService.soloMemoriesStream(_authProvider.user!.uid);
@@ -89,5 +63,20 @@ class AlbumProvider with ChangeNotifier {
   Stream<List<AlbumMemory>> get groupStream {
     if (_authProvider.user == null) return Stream.value([]);
     return AlbumService.groupMemoriesStream(_authProvider.user!.uid);
+  }
+
+  // SOLUCIÓN: Combinamos los 3 streams en tiempo real usando rxdart
+  Stream<List<AlbumMemory>> get allStream {
+    return Rx.combineLatest3<List<AlbumMemory>, List<AlbumMemory>, List<AlbumMemory>, List<AlbumMemory>>(
+      soloStream,
+      coupleStream,
+      groupStream,
+      (soloMemories, coupleMemories, groupMemories) {
+        final allMemories = [...soloMemories, ...coupleMemories, ...groupMemories];
+        // Ordenamos todas por fecha
+        allMemories.sort((a, b) => b.date.compareTo(a.date));
+        return allMemories;
+      },
+    );
   }
 }

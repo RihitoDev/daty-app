@@ -21,6 +21,7 @@ dependencies:
   connectivity_plus: ^6.0.3
   cached_network_image: ^3.3.1
   flutter_dotenv: ^5.1.0
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:
@@ -33,6 +34,7 @@ flutter:
 
   assets:
     - assets/images/ 
+    - assets/images/adventures/
     - .env
 
 flutter_launcher_icons:

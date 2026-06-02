@@ -9,8 +9,15 @@ class GroupMemoryBoardScreen extends StatelessWidget {
   final String groupCode;
   final Map<String, dynamic> adventureData;
   final List<String> members;
+  final bool isReviewingPastMemory; // ¡NUEVO PARÁMETRO!
 
-  const GroupMemoryBoardScreen({super.key, required this.groupCode, required this.adventureData, required this.members});
+  const GroupMemoryBoardScreen({
+    super.key, 
+    required this.groupCode, 
+    required this.adventureData, 
+    required this.members,
+    this.isReviewingPastMemory = false, // Por defecto es falso
+  });
 
   Future<void> _saveToAlbum(BuildContext context) async {
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
@@ -18,6 +25,8 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     
     await FirebaseFirestore.instance.collection('users').doc(myUid).update({
       'savedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
+      // Lo removemos de ignorados por si acaso lo había ignorado antes y ahora lo quiere guardar
+      'dismissedGroupMemories': FieldValue.arrayRemove([memoryDocId]), 
     });
 
     if (context.mounted) {
@@ -25,8 +34,18 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     }
   }
 
-  void _skipToHome(BuildContext context) {
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+  void _skipToHome(BuildContext context) async {
+    final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
+    String memoryDocId = '${groupCode}_${adventureData['number']}';
+    
+    // ¡NUEVA LÓGICA! Registramos que el usuario decidió ignorar este recuerdo
+    await FirebaseFirestore.instance.collection('users').doc(myUid).update({
+      'dismissedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
+    });
+
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+    }
   }
 
   @override
@@ -45,7 +64,13 @@ class GroupMemoryBoardScreen extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(20.0),
-            child: Text('Estos son los recuerdos de tu última aventura en grupo', textAlign: TextAlign.center, style: TextStyle(color: Colors.amber.shade200, fontSize: 18, fontWeight: FontWeight.bold)),
+            child: Text(
+              isReviewingPastMemory 
+                ? 'Reviviendo los buenos momentos de esta expedición' 
+                : 'Estos son los recuerdos de tu última aventura en grupo', 
+              textAlign: TextAlign.center, 
+              style: TextStyle(color: Colors.amber.shade200, fontSize: 18, fontWeight: FontWeight.bold)
+            ),
           ),
           Expanded(
             child: StreamBuilder<DocumentSnapshot>(
@@ -79,7 +104,6 @@ class GroupMemoryBoardScreen extends StatelessWidget {
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: photoUrl != null
-                                      // CAMBIO: Caché de imágenes
                                       ? ClipRRect(
                                           borderRadius: BorderRadius.circular(10), 
                                           child: CachedNetworkImage(
@@ -106,32 +130,50 @@ class GroupMemoryBoardScreen extends StatelessWidget {
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: double.infinity, height: 55,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _saveToAlbum(context),
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E24AA), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                    icon: const Icon(Icons.save, color: Colors.white),
-                    label: const Text('Guardar y Continuar', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          
+          // Solo mostramos los botones de acción si NO están revisando un recuerdo del pasado
+          if (!isReviewingPastMemory) ...[
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity, height: 55,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _saveToAlbum(context),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E24AA), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                      icon: const Icon(Icons.save, color: Colors.white),
+                      label: const Text('Guardar y Continuar', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity, height: 55,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _skipToHome(context),
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.white54, side: const BorderSide(color: Colors.white24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                    icon: const Icon(Icons.close),
-                    label: const Text('No Guardar', style: TextStyle(fontSize: 18)),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity, height: 55,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _skipToHome(context),
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.white54, side: const BorderSide(color: Colors.white24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                      icon: const Icon(Icons.close),
+                      label: const Text('No Guardar', style: TextStyle(fontSize: 18)),
+                    ),
                   ),
+                ],
+              ),
+            )
+          ] else ...[
+            // Si están revisando el pasado, solo les damos un botón de "Volver" para no alterar su historia
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: SizedBox(
+                width: double.infinity, height: 55,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  label: const Text('Volver al Lobby', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
-              ],
-            ),
-          )
+              ),
+            )
+          ]
         ],
       ),
     );

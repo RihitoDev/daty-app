@@ -180,7 +180,6 @@ class MemoryCard extends StatelessWidget {
         decoration: BoxDecoration(borderRadius: borderRadius, color: Colors.grey.shade200),
         child: ClipRRect(
           borderRadius: borderRadius,
-          // CACHÉ DE IMÁGENES IMPLEMENTADO
           child: CachedNetworkImage(
             imageUrl: url,
             fit: BoxFit.cover,
