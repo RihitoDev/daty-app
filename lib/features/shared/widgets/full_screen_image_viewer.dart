@@ -18,7 +18,6 @@ class FullScreenImageViewer extends StatelessWidget {
         child: InteractiveViewer(
           minScale: 0.5,
           maxScale: 4.0,
-          // CAMBIO: Caché aplicado al visor
           child: CachedNetworkImage(
             imageUrl: imageUrl, 
             fit: BoxFit.contain, 

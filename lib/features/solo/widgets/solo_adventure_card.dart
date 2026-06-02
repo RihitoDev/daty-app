@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/screens/adventure_map.dart';
-import '../../couple/screens/adventure_in_progress_screen.dart'; // Import necesario
-import '../screens/solo_adventure_review_screen.dart'; // Import necesario
-import '../screens/solo_adventure_memory_screen.dart'; // Import necesario
+import '../../couple/screens/adventure_in_progress_screen.dart';
+import '../screens/solo_adventure_review_screen.dart'; 
+import '../screens/solo_adventure_memory_screen.dart'; 
 import 'solo_contract_dialog.dart';
 
 class SoloAdventureCard extends StatelessWidget {
@@ -49,11 +49,10 @@ class SoloAdventureCard extends StatelessWidget {
             pathColor: const Color(0xFF64B5F6),
             totalNodes: 30,
             headerTitle: 'Mi Camino',
-            // NUEVOS CALLBACKS DE NAVEGACIÓN (Desacoplando el mapa)
             onNavigateToProgress: (adventureData, availableIds) => AdventureInProgressScreen(
               adventureData: adventureData, 
               availableAdventuresIds: availableIds, 
-              onSoloFinish: (ctx) { // Recibimos el context de AdventureInProgressScreen
+              onSoloFinish: (ctx) { 
                 Navigator.pushReplacement(ctx, MaterialPageRoute(builder: (_) => SoloAdventureReviewScreen(adventureData: adventureData, availableAdventuresIds: availableIds)));
               },
             ),

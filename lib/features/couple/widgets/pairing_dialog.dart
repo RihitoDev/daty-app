@@ -69,7 +69,7 @@ class _PairingDialogState extends State<PairingDialog> {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        throw Exception('Código no encontrado');
+        throw Exception('Codigo no encontrado');
       }
 
       final partnerUid = querySnapshot.docs.first.id;
@@ -92,10 +92,10 @@ class _PairingDialogState extends State<PairingDialog> {
         final partnerDoc = await transaction.get(partnerDocRef);
 
         if (myDoc.data()?['partnerId'] != null) {
-          throw Exception('Tú ya estás vinculado');
+          throw Exception('Tu ya estas vinculado');
         }
         if (partnerDoc.data()?['partnerId'] != null) {
-          throw Exception('Esta persona ya está vinculada');
+          throw Exception('Esta persona ya esta vinculada');
         }
 
         transaction.set(coupleDocRef, {
@@ -116,18 +116,27 @@ class _PairingDialogState extends State<PairingDialog> {
       if (mounted) {
         setState(() => _isLinking = false);
         String errorMsg = 'Error al vincular';
-        if (e.toString().contains('Código no encontrado')) {
-          errorMsg = 'Código no encontrado';
-        } else if (e.toString().contains('ya está vinculada')) {
+        if (e.toString().contains('Codigo no encontrado')) {
+          errorMsg = 'Codigo no encontrado';
+        } else if (e.toString().contains('ya esta vinculada')) {
           errorMsg = 'Esta persona ya tiene pareja';
-        } else if (e.toString().contains('ya estás vinculado')) {
-          errorMsg = 'Tú ya estás vinculado';
+        } else if (e.toString().contains('ya estas vinculado')) {
+          errorMsg = 'Tu ya estas vinculado';
         }
         
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(errorMsg), 
-          backgroundColor: Colors.redAccent
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(child: Text(errorMsg)),
+              ],
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
       }
     }
   }
@@ -160,7 +169,7 @@ class _PairingDialogState extends State<PairingDialog> {
                 const SizedBox(height: 25),
 
                 if (_isShowingMyCode) ...[
-                  const Text('Comparte tu código:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                  const Text('Comparte tu codigo:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -173,7 +182,13 @@ class _PairingDialogState extends State<PairingDialog> {
                           icon: const Icon(Icons.copy, color: Color(0xFF9C27B0)),
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: _myCode));
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Código copiado'), duration: Duration(seconds: 1)));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(children: const [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 10), Text('Codigo copiado')]),
+                                duration: const Duration(seconds: 1),
+                                behavior: SnackBarBehavior.floating,
+                              )
+                            );
                           },
                         )
                       ],
@@ -185,11 +200,11 @@ class _PairingDialogState extends State<PairingDialog> {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF9C27B0), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
                       onPressed: () => setState(() => _isShowingMyCode = false),
-                      child: const Text('Tengo un código', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: const Text('Tengo un codigo', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ] else ...[
-                  const Text('Ingresa el código de tu pareja:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                  const Text('Ingresa el codigo de tu pareja:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _codeController, textCapitalization: TextCapitalization.characters, textAlign: TextAlign.center, maxLength: 6, autofocus: true,
@@ -209,7 +224,7 @@ class _PairingDialogState extends State<PairingDialog> {
                   ),
                   TextButton(
                     onPressed: () => setState(() => _isShowingMyCode = true),
-                    child: const Text('Ver mi código de nuevo', style: TextStyle(color: Colors.grey)),
+                    child: const Text('Ver mi codigo de nuevo', style: TextStyle(color: Colors.grey)),
                   )
                 ],
               ],

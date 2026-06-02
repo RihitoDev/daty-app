@@ -72,14 +72,12 @@ class MemoryCard extends StatelessWidget {
             ),
           ),
           
-          // TÍTULO
           if (memory.title.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text('${memory.emoji} ${memory.title}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF2C2C2C))),
             ),
 
-          // RESEÑAS
           if (memory.reviews.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -97,10 +95,8 @@ class MemoryCard extends StatelessWidget {
           
           const SizedBox(height: 10),
 
-          // FOTOS
           if (memory.photoUrls.isNotEmpty) _buildPhotoGrid(context),
           
-          // Sin fotos
           if (memory.photoUrls.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

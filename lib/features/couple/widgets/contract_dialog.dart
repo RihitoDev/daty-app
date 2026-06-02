@@ -40,9 +40,20 @@ class _ContractDialogState extends State<ContractDialog> {
       
       if (mounted) Navigator.pop(context); 
     } catch (e) {
-      debugPrint('Error al firmar contrato: $e');
       if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al firmar'), backgroundColor: Colors.redAccent));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 10),
+                Text('Error al firmar'),
+              ],
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
       }
       setState(() => _isProcessing = false);
     }
@@ -66,9 +77,20 @@ class _ContractDialogState extends State<ContractDialog> {
       
       if (mounted) Navigator.pop(context); 
     } catch (e) {
-      debugPrint('❌ Error al desvincular desde contrato: $e');
       if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al romper vínculo'), backgroundColor: Colors.redAccent));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.link_off, color: Colors.white),
+                SizedBox(width: 10),
+                Text('Error al romper vinculo'),
+              ],
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
       }
       setState(() => _isProcessing = false);
     }
@@ -91,26 +113,41 @@ class _ContractDialogState extends State<ContractDialog> {
                 const SizedBox(height: 15),
                 const Text('Contrato de Aventura', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
                 const SizedBox(height: 5),
-                const Text('100 Citas Románticas', style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w600)),
+                const Text('50 Aventuras', style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 20),
                 
                 CheckboxListTile(
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _rule1Checked,
                   onChanged: (val) => setState(() => _rule1Checked = val ?? false),
-                  title: const Text('📸 Registren cada salida con fotos o videos. ¡Su álbum será un recuerdo eterno!', style: TextStyle(fontSize: 13)),
+                  title: Row(
+                    children: [
+                      const SizedBox(width: 6),
+                      const Expanded(child: Text('Registren cada salida con fotos o videos. Su album sera su recuerdo eterno!', style: TextStyle(fontSize: 13))),
+                    ],
+                  ),
                 ),
                 CheckboxListTile(
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _rule2Checked,
                   onChanged: (val) => setState(() => _rule2Checked = val ?? false),
-                  title: const Text('📵 El celular solo se usará para capturar momentos, no para distraerse.', style: TextStyle(fontSize: 13)),
+                  title: Row(
+                    children: [
+                      const SizedBox(width: 6),
+                      const Expanded(child: Text('El celular solo se usara para capturar momentos, no para distraerse.', style: TextStyle(fontSize: 13))),
+                    ],
+                  ),
                 ),
                 CheckboxListTile(
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _rule3Checked,
                   onChanged: (val) => setState(() => _rule3Checked = val ?? false),
-                  title: const Text('💖 Lo esencial es la complicidad y el disfrute juntos, no que todo salga perfecto.', style: TextStyle(fontSize: 13)),
+                  title: Row(
+                    children: [
+                      const SizedBox(width: 6),
+                      const Expanded(child: Text('Lo esencial es la complicidad y el disfrute juntos, no que todo salga perfecto.', style: TextStyle(fontSize: 13))),
+                    ],
+                  ),
                 ),
 
                 const Divider(height: 30),
@@ -131,7 +168,7 @@ class _ContractDialogState extends State<ContractDialog> {
                 ),
                 TextButton(
                   onPressed: _isProcessing ? null : _rejectAndUnlink,
-                  child: const Text('No estoy de acuerdo (Romper vínculo)', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                  child: const Text('No estoy de acuerdo', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),

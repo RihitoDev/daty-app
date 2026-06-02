@@ -13,7 +13,6 @@ class AdventureMap extends StatefulWidget {
   final int totalNodes;
   final String headerTitle;
   
-  // Callbacks para desacoplar la navegación
   final Widget Function(Map<String, dynamic> adventureData, List<int> availableIds) onNavigateToProgress;
   final Widget Function(int adventureId, Map<String, dynamic> adventureData) onNavigateToMemory;
 
@@ -52,7 +51,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
 
   late AnimationController _pulseController;
 
-  // Variables para decoraciones aleatorias
   late List<String> _shuffledDecorationImages;
   late List<double> _shuffledDecorationSizes;
 
@@ -80,7 +78,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       'assets/images/deco_recoleta.png',
     ];
     
-    // Tamaños variables para los stickers
     final List<double> possibleSizes = [210.0, 220.0, 240.0, 230.0, 215.0];
 
     _shuffledDecorationImages = List.from(allDecoImages)..shuffle();
@@ -128,7 +125,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         
         _scrollController.animateTo(targetScrollOffset, duration: const Duration(milliseconds: 800), curve: Curves.easeInOut);
       } catch (e) {
-        debugPrint("Error seguro al hacer scroll: $e");
+        
       }
     });
   }
@@ -158,7 +155,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
               _scrollToCurrentNode();
             }
           },
-          onError: (error) => debugPrint("Error en Stream Solo: $error"),
+          onError: (error) {},
           cancelOnError: false, 
         );
       } else if (_coupleDocId != null) {
@@ -177,7 +174,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
               _scrollToCurrentNode();
             }
           },
-          onError: (error) => debugPrint("Error en Stream Pareja: $error"),
+          onError: (error) {},
           cancelOnError: false,
         );
       }
@@ -196,7 +193,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       }
 
     } catch (e) {
-      debugPrint('Error cargando aventuras iniciales: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingData = false);
@@ -258,7 +254,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         }
       }
     } catch (e) {
-      debugPrint("Error seguro obteniendo ratings: $e");
     } finally {
       _isFetchingRatings = false;
     }
@@ -283,7 +278,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         }, SetOptions(merge: true));
       }
     } catch (e) {
-      debugPrint("Error generando nodo: $e");
     }
   }
 
@@ -364,13 +358,8 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         });
       });
     } catch (e) {
-      debugPrint("Error re-rolling adventure: $e");
     }
   }
-
-  // ====================================================================================
-  // MODAL DE DETALLE DE AVENTURA (CON STREAM BUILDER TIEMPO REAL)
-  // ====================================================================================
 
   void _showAdventureDetail(int nodeIndex) {
     DocumentReference docRef;
@@ -404,7 +393,21 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
             Map<String, dynamic>? adventure = _adventuresCache[currentAdventureId];
 
             if (adventure == null) {
-              return const Center(child: Text("Error cargando aventura"));
+              return Center(
+                child: Container(
+                  margin: const EdgeInsets.all(30),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.grey, size: 40),
+                      const SizedBox(height: 10),
+                      const Text('Error al cargar los detalles de la aventura', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                    ],
+                  )
+                )
+              );
             }
 
             List<int> availableIds = _adventuresCache.keys.where((id) => !path.contains(id)).toList();
@@ -436,14 +439,20 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                             ],
                           ),
                           const SizedBox(height: 20),
-                          const Text('Descripción', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Text('Descripcion', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 5),
                           Text(adventure['description'] ?? '', style: TextStyle(fontSize: 15, color: Colors.grey.shade700)),
                           const SizedBox(height: 20),
                           Container(
                             padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: widget.themeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(15)),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('🏆 Reto', style: TextStyle(fontWeight: FontWeight.bold, color: widget.themeColor)),
+                              Row(
+                                children: [
+                                  Icon(Icons.emoji_events_outlined, color: widget.themeColor, size: 20),
+                                  const SizedBox(width: 6),
+                                  Text('Reto', style: TextStyle(fontWeight: FontWeight.bold, color: widget.themeColor)),
+                                ],
+                              ),
                               const SizedBox(height: 5),
                               Text(adventure['challenge'] ?? '', style: TextStyle(color: widget.themeColor)),
                             ]),
@@ -566,8 +575,22 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       }
       return true;
     } catch (e) {
-      debugPrint('Error guardando estado: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error de conexión al iniciar.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.wifi_off, color: Colors.white),
+                SizedBox(width: 10),
+                Text('Error de conexion al iniciar.'),
+              ],
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          )
+        );
+      }
       return false;
     }
   }
@@ -765,7 +788,20 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       child: GestureDetector(
         onTap: isLocked || adventureData == null ? null : () {
           if (isWaitingForPartner) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ya calificaste. ¡Esperando a tu pareja!')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: const [
+                    Icon(Icons.info_outline, color: Colors.white),
+                    SizedBox(width: 10),
+                    Text('Ya calificaste. Esperando a tu pareja.'),
+                  ],
+                ),
+                backgroundColor: const Color(0xFFFFA000),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              )
+            );
           } else if (isInProgress) {
             List<int> availableIds = _adventuresCache.keys.where((id) => !_adventurePath.contains(id)).toList();
             Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventureData, availableIds)));

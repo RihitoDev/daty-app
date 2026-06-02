@@ -27,12 +27,6 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
   final List<String?> _uploadedPhotoUrls = [null, null];
   final List<bool> _isUploading = [false, false];
 
-  bool get _isValid {
-    if (_rating == 0) return false;
-    List<String> words = _reviewController.text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-    return words.length >= 3;
-  }
-
   Future<void> _pickPhoto(int index) async {
     final XFile? image = await ImageUploadService.pickImage();
     if (image != null) {
@@ -53,19 +47,70 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
   }
 
   Future<void> _submitReview() async {
-    if (!_isValid) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La calificación y la descripción (mínimo 3 palabras) son obligatorias.')));
+    if (_rating == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [const Icon(Icons.star_outline, color: Colors.white), const SizedBox(width: 10), const Expanded(child: Text('Debes seleccionar al menos 1 estrella.'))]),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
+      }
+      return;
+    }
+
+    List<String> words = _reviewController.text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.length < 3) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [const Icon(Icons.edit_outlined, color: Colors.white), const SizedBox(width: 10), const Expanded(child: Text('Describe tu experiencia (minimo 3 palabras).'))]),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
+      }
+      return;
+    }
+
+    if (_uploadedPhotoUrls.every((url) => url == null)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [const Icon(Icons.add_a_photo_outlined, color: Colors.white), const SizedBox(width: 10), const Expanded(child: Text('Debes subir al menos 1 foto de la cita.'))]),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
+      }
       return;
     }
 
     if (_isUploading.any((u) => u)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Espera a que las fotos terminen de subir.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: const [Icon(Icons.hourglass_top, color: Colors.white), SizedBox(width: 10), Expanded(child: Text('Espera a que las fotos terminen de subir.'))]),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
+      }
       return;
     }
 
     bool hasConnection = await NetworkService.isConnected;
     if (!hasConnection) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sin conexión a internet.'), backgroundColor: Colors.redAccent));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: const [Icon(Icons.wifi_off, color: Colors.white), SizedBox(width: 10), Text('Sin conexion a internet.')]),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
+      }
       return;
     }
 
@@ -108,14 +153,13 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
           partnerJustReviewed = true;
           int expEarned = widget.adventureData['xpBase'] ?? 50; 
           
-          // CORRECCIÓN CRÍTICA PARA LOGROS: Se añade coupleDatesCompleted
           transaction.update(FirebaseFirestore.instance.collection('users').doc(myUid), {
             'exp': FieldValue.increment(expEarned),
-            'coupleDatesCompleted': FieldValue.increment(1) // <--- CAMBIO AQUÍ
+            'coupleDatesCompleted': FieldValue.increment(1)
           });
           transaction.update(FirebaseFirestore.instance.collection('users').doc(partnerId), {
             'exp': FieldValue.increment(expEarned),
-            'coupleDatesCompleted': FieldValue.increment(1) // <--- CAMBIO AQUÍ
+            'coupleDatesCompleted': FieldValue.increment(1)
           });
 
           Map<String, dynamic> updateData = {
@@ -135,16 +179,36 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
       if (mounted) {
         if (partnerJustReviewed) {
           int expEarned = widget.adventureData['xpBase'] ?? 50;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.green, content: Text('¡Ambos calificaron! +$expEarned EXP'), duration: const Duration(seconds: 2)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(children: [const Icon(Icons.check_circle, color: Colors.white), const SizedBox(width: 10), Text('Ambos calificaron! +$expEarned EXP')]),
+              backgroundColor: Colors.green, 
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2)
+            )
+          );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: Colors.orange, content: Text('¡Calificación guardada! Esperando a tu pareja...'), duration: Duration(seconds: 3)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(children: const [Icon(Icons.hourglass_top, color: Colors.white), SizedBox(width: 10), Expanded(child: Text('Calificacion guardada! Esperando a tu pareja...'))]),
+              backgroundColor: Colors.orange, 
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3)
+            )
+          );
         }
         Navigator.pop(context); 
       }
 
     } catch (e) {
       if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al guardar: $e'), backgroundColor: Colors.redAccent));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: const [Icon(Icons.error_outline, color: Colors.white), SizedBox(width: 10), Expanded(child: Text('Error al guardar. Intenta de nuevo.'))]),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          )
+        );
         setState(() => _isSubmitting = false);
       }
     }
@@ -155,7 +219,7 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('¿Cómo estuvo la cita?', style: TextStyle(color: Color(0xFFC2185B), fontWeight: FontWeight.bold)),
+        title: const Text('Como estuvo la cita?', style: TextStyle(color: Color(0xFFC2185B), fontWeight: FontWeight.bold)),
         centerTitle: true, 
         backgroundColor: Colors.white, 
         elevation: 0, 
@@ -166,7 +230,7 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(widget.adventureData['emoji'] ?? '📍', style: const TextStyle(fontSize: 60)),
+            Icon(Icons.favorite, size: 60, color: Colors.pink.shade300),
             const SizedBox(height: 10),
             Text(widget.adventureData['title'] ?? '', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFFC2185B)), textAlign: TextAlign.center,),
             const SizedBox(height: 25),
@@ -180,20 +244,20 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
               ))
             ),
             const SizedBox(height: 20),
-            const Align(alignment: Alignment.centerLeft, child: Text('Describe en 3 o más palabras:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            const Align(alignment: Alignment.centerLeft, child: Text('Describe en 3 o mas palabras:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
             const SizedBox(height: 10),
             TextField(
               controller: _reviewController, 
               maxLines: 3, 
               decoration: InputDecoration(
-                hintText: 'Ej: Divertida, romántica, inolvidable...', 
+                hintText: 'Ej: Divertida, romantica, inolvidable...', 
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)), 
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFFC2185B), width: 2))
               ), 
               onChanged: (_) => setState(() {})
             ), 
             const SizedBox(height: 30),
-            const Align(alignment: Alignment.centerLeft, child: Text('📸 Sube hasta 2 fotos:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            Align(alignment: Alignment.centerLeft, child: Row(children: const [Icon(Icons.photo_library_outlined, size: 18, color: Color(0xFFC2185B)), SizedBox(width: 6), Text('Sube hasta 2 fotos (1 obligatoria):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))])),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -207,15 +271,15 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
               width: double.infinity, 
               height: 55,
               child: ElevatedButton.icon(
-                onPressed: _isValid && !_isSubmitting ? _submitReview : null,
+                onPressed: !_isSubmitting ? _submitReview : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isValid ? const Color(0xFFC2185B) : Colors.grey.shade300, 
+                  backgroundColor: const Color(0xFFC2185B), 
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
                 ),
                 icon: _isSubmitting 
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.check_circle, color: Colors.white),
-                label: Text(_isSubmitting ? 'Guardando...' : 'Enviar Calificación', style: TextStyle(color: _isValid ? Colors.white : Colors.grey, fontSize: 16, fontWeight: FontWeight.bold)),
+                  : const Icon(Icons.save_outlined, color: Colors.white),
+                label: Text(_isSubmitting ? 'Guardando...' : 'Enviar Calificacion', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             )
           ],

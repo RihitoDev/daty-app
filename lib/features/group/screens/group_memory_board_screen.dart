@@ -9,14 +9,14 @@ class GroupMemoryBoardScreen extends StatelessWidget {
   final String groupCode;
   final Map<String, dynamic> adventureData;
   final List<String> members;
-  final bool isReviewingPastMemory; // ¡NUEVO PARÁMETRO!
+  final bool isReviewingPastMemory; 
 
   const GroupMemoryBoardScreen({
     super.key, 
     required this.groupCode, 
     required this.adventureData, 
     required this.members,
-    this.isReviewingPastMemory = false, // Por defecto es falso
+    this.isReviewingPastMemory = false, 
   });
 
   Future<void> _saveToAlbum(BuildContext context) async {
@@ -25,7 +25,6 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     
     await FirebaseFirestore.instance.collection('users').doc(myUid).update({
       'savedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
-      // Lo removemos de ignorados por si acaso lo había ignorado antes y ahora lo quiere guardar
       'dismissedGroupMemories': FieldValue.arrayRemove([memoryDocId]), 
     });
 
@@ -38,7 +37,6 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
     String memoryDocId = '${groupCode}_${adventureData['number']}';
     
-    // ¡NUEVA LÓGICA! Registramos que el usuario decidió ignorar este recuerdo
     await FirebaseFirestore.instance.collection('users').doc(myUid).update({
       'dismissedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
     });
@@ -131,7 +129,6 @@ class GroupMemoryBoardScreen extends StatelessWidget {
             ),
           ),
           
-          // Solo mostramos los botones de acción si NO están revisando un recuerdo del pasado
           if (!isReviewingPastMemory) ...[
             Padding(
               padding: const EdgeInsets.all(20.0),
@@ -160,7 +157,6 @@ class GroupMemoryBoardScreen extends StatelessWidget {
               ),
             )
           ] else ...[
-            // Si están revisando el pasado, solo les damos un botón de "Volver" para no alterar su historia
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: SizedBox(

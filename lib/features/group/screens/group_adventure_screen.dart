@@ -49,7 +49,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Necesitamos el UID del usuario actual para darle su propia XP
       final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
       
       final groupRef = FirebaseFirestore.instance.collection('groups').doc(widget.groupCode);
@@ -62,21 +61,18 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final groupSnap = await transaction.get(groupRef);
         
-        if (!groupSnap.exists) return; // El grupo fue eliminado
-
+        if (!groupSnap.exists) return; 
         List<dynamic> completedBy = [];
         if (groupSnap.data()!.containsKey('completedBy')) {
           completedBy = List<dynamic>.from(groupSnap.data()!['completedBy']);
         }
 
-        // 1. Cada quien se da su PROPIA XP (Firebase lo permite sin problemas)
         if (!completedBy.contains(myUid)) {
           transaction.update(myUserRef, {
             'exp': FieldValue.increment(expEarned), 
             'groupOutingsCompleted': FieldValue.increment(1)
           });
           
-          // Me agrego a la lista para no volver a cobrar la XP
           completedBy.add(myUid);
           transaction.update(groupRef, {
             'status': 'completed',
@@ -84,19 +80,16 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
           });
         }
 
-        // 2. Crear documento de memoria grupal fusionando los datos (merge: true)
         transaction.set(memoryRef, {
           'adventure_title': widget.adventureData['title'],
           'emoji': widget.adventureData['emoji'] ?? '👥',
           'id_adventure': widget.adventureData['number'].toString(),
           'members': widget.members,
           'timestamp': FieldValue.serverTimestamp(),
-          // No sobreescribimos 'photos' para no borrar las fotos de quienes ya subieron
         }, SetOptions(merge: true)); 
 
       });
 
-      // 3. TODOS navegan a la pantalla de fotos, sin importar quién le dio primero
       if (mounted) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GroupPhotoUploadScreen(
           groupCode: widget.groupCode, 

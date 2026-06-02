@@ -13,7 +13,7 @@ class CoupleProvider with ChangeNotifier {
   StreamSubscription? _coupleSub;
   StreamSubscription? _partnerSub;
   String? _currentPartnerId;
-  Timer? _retryTimer; // Timer para el reintento
+  Timer? _retryTimer;
 
   CoupleProvider(this._authProvider) {
     _authProvider.addListener(_onAuthUpdate);
@@ -56,7 +56,7 @@ class CoupleProvider with ChangeNotifier {
       } else {
         _isLoading = false;
         _coupleData = null;
-        _partnerName = 'tu pareja'; // Limpiar nombre de ex
+        _partnerName = 'tu pareja';
         notifyListeners();
       }
     }
@@ -67,7 +67,7 @@ class CoupleProvider with ChangeNotifier {
     _partnerSub?.cancel();
     _coupleSub = null;
     _partnerSub = null;
-    _retryTimer?.cancel(); // Cancelar reintento si cambiamos de estado
+    _retryTimer?.cancel();
   }
 
   void _setupListeners(String myUid, String partnerId) {
@@ -75,28 +75,22 @@ class CoupleProvider with ChangeNotifier {
     notifyListeners();
 
     String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
-    debugPrint("🔥 [CoupleProvider] Escuchando documento couples_progress/$coupleDocId");
 
     _coupleSub = _firestore.collection('couples_progress').doc(coupleDocId).snapshots().listen(
       (snapshot) {
-        debugPrint("🔥 [CoupleProvider] Snapshot recibido -> ¿Existe?: ${snapshot.exists}");
         if (snapshot.exists) {
           _coupleData = snapshot.data()!;
           _isLoading = false;
-          _retryTimer?.cancel(); // Si llega el dato, cancelamos el reintento
+          _retryTimer?.cancel();
           notifyListeners();
         } else {
           _coupleData = null;
           _isLoading = false;
           notifyListeners();
-          
-          // 🚨 SOLUCIÓN: Si el stream dice que no existe, programamos un reintento manual
-          // Esto arregla el bug de caché de Firestore al re-vincular
           _fetchCoupleDataWithRetry(coupleDocId);
         }
       },
       onError: (e) {
-        debugPrint("❌ [CoupleProvider] ERROR en stream: $e");
         _isLoading = false;
         _coupleData = null;
         notifyListeners();
@@ -113,23 +107,18 @@ class CoupleProvider with ChangeNotifier {
     );
   }
 
-  // 🚨 Función mágica para desatascar la caché de Firestore
   void _fetchCoupleDataWithRetry(String docId) {
-    // Si ya tenemos datos o ya estamos esperando, no hacer nada
     if (_coupleData != null || _retryTimer?.isActive == true) return;
 
     _retryTimer = Timer(const Duration(seconds: 2), () async {
       if (_coupleData == null && _currentPartnerId != null) {
-        debugPrint("🔥 [CoupleProvider] Reintentando obtener documento manualmente...");
         try {
           final doc = await _firestore.collection('couples_progress').doc(docId).get();
           if (doc.exists && _coupleData == null) {
-            debugPrint("🔥 [CoupleProvider] ¡Documento encontrado en reintento manual!");
             _coupleData = doc.data()!;
             notifyListeners();
           }
         } catch (e) {
-          debugPrint("❌ [CoupleProvider] Error en reintento manual: $e");
         }
       }
     });

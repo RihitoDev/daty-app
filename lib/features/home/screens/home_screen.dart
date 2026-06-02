@@ -71,11 +71,10 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   late Future<List<Map<String, dynamic>>> _randomAdventuresFuture;
-  
   late PageController _pageController;
   Timer? _autoScrollTimer;
-  // NUEVO: Empezamos en un número alto para que el carrusel sea infinito en ambas direcciones
   int _currentPage = 1000; 
+  int _adventuresCount = 0;
 
   @override
   void initState() {
@@ -98,17 +97,18 @@ class _HomeContentState extends State<HomeContent> {
       adventures.shuffle();
       return adventures;
     } catch (e) {
-      debugPrint('Error cargando aventuras random: $e');
       return [];
     }
   }
 
-  void _startAutoScroll(int itemCount) {
-    _stopAutoScroll(); // Limpiamos cualquier timer anterior
+  void _startAutoScroll() {
+    _stopAutoScroll(); 
     
+    if (_adventuresCount == 0) return;
+
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (_pageController.hasClients && itemCount > 0) {
-        _currentPage++; // Siempre avanzamos, nunca volvemos atrás
+      if (_pageController.hasClients) {
+        _currentPage++;
         _pageController.animateToPage(
           _currentPage, 
           duration: const Duration(milliseconds: 800), 
@@ -176,8 +176,8 @@ class _HomeContentState extends State<HomeContent> {
             padding: const EdgeInsets.symmetric(horizontal: 25.0),
             child: Column(
               children: [
-                const Text('Bienvenido!', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Color(0xFF729BFF), letterSpacing: 1.2)),
-                Text('Hola, $userName', style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600)),
+                const Text('Bienvenido!', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Color(0xFF9C27B0), letterSpacing: 1.2)),
+                Text('Hola, $userName', style: const TextStyle(fontSize: 18, color: Color(0xFF9C27B0), fontWeight: FontWeight.w600)),
                 const SizedBox(height: 30),
                 
                 const SoloAdventureCard(),
@@ -185,7 +185,7 @@ class _HomeContentState extends State<HomeContent> {
                 
                 _buildAdventureCard(
                   title: 'Aventura Grupal', 
-                  subtitle: 'Expedición en grupo', 
+                  subtitle: 'Expedicion en grupo', 
                   gradientColors: const [Color(0xFFBA68C8), Color(0xFF8E24AA)],
                   icon: Icons.groups_rounded, 
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupLobby()))
@@ -220,41 +220,46 @@ class _HomeContentState extends State<HomeContent> {
             return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No hay aventuras disponibles'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.explore_off_outlined, color: Colors.grey.shade400, size: 40),
+                  const SizedBox(height: 10),
+                  Text('No hay aventuras disponibles', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                ],
+              )
+            );
           }
 
           final adventures = snapshot.data!;
+          _adventuresCount = adventures.length;
           
-          // Iniciar el auto-scroll cuando los datos estén listos
-          _startAutoScroll(adventures.length);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_autoScrollTimer == null || !_autoScrollTimer!.isActive) {
+              _startAutoScroll();
+            }
+          });
 
-          // NUEVO: NotificationListener para detectar cuándo el usuario toca el carrusel
           return NotificationListener<ScrollNotification>(
             onNotification: (notification) {
-              // Si el usuario empieza a arrastrar con el dedo
               if (notification is ScrollStartNotification && notification.dragDetails != null) {
                 _stopAutoScroll();
-              } 
-              // Si el usuario suelta el dedo (termina el arrastre)
-              else if (notification is ScrollEndNotification) {
-                // Esperamos 3 segundos de inactividad antes de reanudar el auto-scroll
+              } else if (notification is ScrollEndNotification) {
                 Future.delayed(const Duration(seconds: 3), () {
-                  if (mounted) {
-                    _startAutoScroll(adventures.length);
-                  }
+                  if (mounted) _startAutoScroll();
                 });
               }
-              return false; // Permite que el scroll siga su curso normal
+              return false;
             },
             child: PageView.builder(
               controller: _pageController,
-              // Un número muy alto para simular bucle infinito en ambas direcciones
-              itemCount: adventures.length * 10000, 
+              itemCount: _adventuresCount * 10000, 
               onPageChanged: (index) {
-                _currentPage = index; // Actualizamos la posición actual
+                _currentPage = index;
               },
               itemBuilder: (context, index) {
-                final realIndex = index % adventures.length;
+                final realIndex = index % _adventuresCount;
                 final adv = adventures[realIndex];
                 return _buildCarouselCard(adv);
               },
@@ -293,47 +298,24 @@ class _HomeContentState extends State<HomeContent> {
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
                           decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFFCE93D8), Color(0xFF9C27B0)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            gradient: LinearGradient(colors: [Color(0xFFCE93D8), Color(0xFF9C27B0)], begin: Alignment.topLeft, end: Alignment.bottomRight),
                           ),
-                          child: const Center(
-                            child: Icon(Icons.photo_camera_back_outlined, color: Colors.white30, size: 50),
-                          ),
+                          child: const Center(child: Icon(Icons.photo_camera_back_outlined, color: Colors.white30, size: 50)),
                         );
                       },
                     ),
                     Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
+                      bottom: 0, left: 0, right: 0,
                       child: Container(
                         height: 80,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.black54],
-                          ),
-                        ),
+                        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black54])),
                       ),
                     ),
                     Positioned(
-                      bottom: 10,
-                      left: 10,
-                      right: 10,
+                      bottom: 10, left: 10, right: 10,
                       child: Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white, 
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 14,
-                          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                        ),
+                        title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
                       ),
                     ),
                   ],
@@ -347,7 +329,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   void _showDescriptionDialog(String title, String description) {
-    _stopAutoScroll(); // Detenemos el auto-scroll al abrir el diálogo
+    _stopAutoScroll();
     
     showDialog(
       context: context,
@@ -366,11 +348,8 @@ class _HomeContentState extends State<HomeContent> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Reanudamos el auto-scroll al cerrar el diálogo
-              _fetchRandomAdventures().then((adventures) {
-                if (mounted && adventures.isNotEmpty) {
-                  _startAutoScroll(adventures.length);
-                }
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) _startAutoScroll();
               });
             }, 
             child: const Text('Cerrar', style: TextStyle(color: Color(0xFF9C27B0)))
@@ -391,10 +370,8 @@ class _HomeContentState extends State<HomeContent> {
           gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.last.withOpacity(0.4),
-              blurRadius: 15, 
-              offset: const Offset(0, 8), 
-              spreadRadius: 2
+              color: gradientColors.last.withValues(alpha: 0.4),
+              blurRadius: 15, offset: const Offset(0, 8), spreadRadius: 2
             )
           ],
         ),
@@ -402,10 +379,7 @@ class _HomeContentState extends State<HomeContent> {
           children: [
             Container(
               padding: const EdgeInsets.all(14), 
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.25),
-                shape: BoxShape.circle
-              ), 
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), shape: BoxShape.circle), 
               child: Icon(icon, size: 40, color: Colors.white)
             ),
             const SizedBox(width: 25),
@@ -413,24 +387,9 @@ class _HomeContentState extends State<HomeContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start, 
                 children: [
-                  Text(
-                    title, 
-                    style: const TextStyle(
-                      color: Colors.white, 
-                      fontSize: 21, 
-                      fontWeight: FontWeight.w800, 
-                      shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))]
-                    )
-                  ),
+                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))])),
                   const SizedBox(height: 6), 
-                  Text(
-                    subtitle, 
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.95),
-                      fontSize: 15, 
-                      fontWeight: FontWeight.w600
-                    )
-                  )
+                  Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600))
                 ]
               )
             ),

@@ -25,13 +25,13 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   final List<String> _dateTips = [
     "Deja el celular boca abajo, disfruta el momento.",
     "Considera dividir las cuentas, es un gesto de igualdad.",
-    "Hazle una pregunta abierta y escucha con atención la respuesta.",
+    "Hazle una pregunta abierta y escucha con atencion la respuesta.",
     "Camina a su ritmo, no te adelantes.",
-    "Si hace frío, ofrécele tu chaqueta.",
-    "No temas al silencio, a veces una mirada dice más que mil palabras.",
-    "Sonríele, la positividad es contagiosa.",
-    "Sé tú mismo, la autenticidad es el mejor encanto.",
-    "Evita mirar a otras personas, enfócate en tu cita.",
+    "Si hace frio, ofrecele tu chaqueta.",
+    "No temas al silencio, a veces una mirada dice mas que mil palabras.",
+    "Sonriele, la positividad es contagiosa.",
+    "Se tu mismo, la autenticidad es el mejor encanto.",
+    "Evita mirar a otras personas, enfocate en tu cita.",
     "Paga un detalle inesperado: un chocolate, una flor.",
   ];
 
@@ -44,7 +44,6 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   void initState() {
     super.initState();
     _startTipTimer();
-    // Solo escuchamos a la pareja si NO es modo solitario (onSoloFinish es null)
     if (widget.onSoloFinish == null) {
       _listenForPartnerReview();
     }
@@ -91,12 +90,9 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
     _tipTimer?.cancel();
     _partnerReviewListener?.cancel(); 
     
-    // NAVEGACIÓN CONDICIONAL
     if (widget.onSoloFinish != null) {
-      // Modo Solitario
       widget.onSoloFinish!(context);
     } else {
-      // Modo Pareja
       Navigator.pushReplacement(
         context, 
         MaterialPageRoute(builder: (_) => AdventureReviewScreen(adventureData: widget.adventureData, availableAdventuresIds: widget.availableAdventuresIds))
@@ -114,7 +110,6 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   @override
   Widget build(BuildContext context) {
     final String adventureTitle = (widget.adventureData['title'] ?? 'CITA').toUpperCase();
-    final String adventureEmoji = widget.adventureData['emoji'] ?? '📍';
     final bool isSolo = widget.onSoloFinish != null;
     final Color themeColor = isSolo ? const Color(0xFF1976D2) : const Color(0xFFC2185B);
 
@@ -135,7 +130,7 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(adventureEmoji, style: const TextStyle(fontSize: 80)),
+            Icon(Icons.explore_rounded, size: 80, color: themeColor.withOpacity(0.8)),
             const SizedBox(height: 40),
             
             AnimatedSwitcher(

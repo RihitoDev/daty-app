@@ -71,7 +71,6 @@ class _AllAlbumList extends StatelessWidget {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
         }
         
-        // ¡NUEVO! Mostrar el error si existe
         if (snapshot.hasError) {
           return Center(
             child: Padding(
@@ -179,7 +178,6 @@ class _GroupAlbumList extends StatelessWidget {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
         }
         
-        // ¡AQUÍ ESTÁ LA CLAVE! 
         if (snapshot.hasError) {
           return Center(
             child: Padding(

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 class CandyPathPainter extends CustomPainter {
   final List<Offset> points;
-  final Color pathColor; // NUEVO
+  final Color pathColor;
 
-  CandyPathPainter({required this.points, this.pathColor = const Color.fromARGB(255, 255, 199, 77)}); // Rosa por defecto
+  CandyPathPainter({required this.points, this.pathColor = const Color.fromARGB(255, 255, 199, 77)});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -16,7 +16,7 @@ class CandyPathPainter extends CustomPainter {
     }
     
     canvas.drawPath(path.shift(const Offset(2, 4)), Paint()..color = Colors.brown.withValues(alpha: 0.15)..strokeWidth = 20..strokeCap = StrokeCap.round..style = PaintingStyle.stroke);
-    canvas.drawPath(path, Paint()..color = pathColor..strokeWidth = 16..strokeCap = StrokeCap.round..style = PaintingStyle.stroke); // USA EL COLOR AQUÍ
+    canvas.drawPath(path, Paint()..color = pathColor..strokeWidth = 16..strokeCap = StrokeCap.round..style = PaintingStyle.stroke);
   }
   
   @override bool shouldRepaint(covariant CustomPainter oldDelegate) => false;

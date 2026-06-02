@@ -62,7 +62,6 @@ class _GroupRoomState extends State<GroupRoom> {
       if (adventureSnap.docs.isNotEmpty && mounted) {
         final adventureData = adventureSnap.docs.first.data();
         
-        // SOLUCIÓN: Usar Navigator.push en lugar de pushReplacement
         Navigator.push(
           context, 
           MaterialPageRoute(builder: (_) => GroupAdventureScreen(
@@ -71,7 +70,6 @@ class _GroupRoomState extends State<GroupRoom> {
             members: List<String>.from(_members),
           ))
         ).then((_) {
-          // Si el usuario abandona la aventura y regresa aquí, reseteamos la navegación
           if (mounted) setState(() => _isNavigating = false);
         });
         

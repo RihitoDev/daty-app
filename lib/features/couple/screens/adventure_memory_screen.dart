@@ -41,7 +41,16 @@ class AdventureMemoryScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator(color: Color(0xFFC2185B)));
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Aún no hay recuerdos guardados de esta cita.'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.history_rounded, size: 60, color: Colors.grey),
+                  const SizedBox(height: 15),
+                  Text('Aun no hay recuerdos guardados de esta cita.', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+                ],
+              )
+            );
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -61,9 +70,9 @@ class AdventureMemoryScreen extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                Text(adventureData['emoji'] ?? '📍', style: const TextStyle(fontSize: 60)),
+                Icon(Icons.favorite, size: 60, color: Colors.pink.shade300),
                 const SizedBox(height: 10),
-                const Text('✨ Cita Completada ✨', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const Text('Cita Completada', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
                 const SizedBox(height: 30),
                 
                 _buildReviewCard(context, title: 'Mi experiencia', rating: myRating, review: myReview, photos: myPhotos, isMe: true),
@@ -102,7 +111,13 @@ class AdventureMemoryScreen extends StatelessWidget {
             const Text('Sin comentario', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
           
           const SizedBox(height: 20),
-          const Text('📸 Recuerdos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Row(
+            children: [
+              const Icon(Icons.photo_library_outlined, size: 16, color: Color(0xFFC2185B)),
+              const SizedBox(width: 6),
+              const Text('Recuerdos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            ],
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -125,7 +140,6 @@ class AdventureMemoryScreen extends StatelessWidget {
           child: photoUrl != null && photoUrl.isNotEmpty
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(15),
-                // CAMBIO: Caché de imágenes
                 child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, placeholder: (_, __) => const Center(child: CircularProgressIndicator()), errorWidget: (_, __, ___) => _buildPhotoPlaceholder())
               )
             : _buildPhotoPlaceholder(),

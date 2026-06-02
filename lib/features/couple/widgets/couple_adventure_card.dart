@@ -17,7 +17,7 @@ class CoupleAdventureCard extends StatelessWidget {
     if (!coupleProvider.hasPartner) {
       return _buildPremiumCard(
         title: 'Aventura en pareja',
-        subtitle: 'Vincúlate con alguien',
+        subtitle: 'Vinculate con alguien',
         gradientColors: const [Color(0xFFF48FB1), Color(0xFFD81B60)],
         icon: Icons.favorite_border_rounded,
         onTap: () => showDialog(context: context, builder: (context) => PairingDialog(myUid: coupleProvider.myUid)),
@@ -38,7 +38,7 @@ class CoupleAdventureCard extends StatelessWidget {
       if (!coupleProvider.isLoading) {
         return _buildPremiumCard(
           title: 'Error de Datos',
-          subtitle: 'Ve a Ajustes y desvincúlate para reiniciar',
+          subtitle: 'Ve a Ajustes y desvinculate para reiniciar',
           gradientColors: const [Colors.redAccent, Colors.red],
           icon: Icons.error_outline,
           onTap: null
@@ -72,7 +72,16 @@ class CoupleAdventureCard extends StatelessWidget {
         icon: Icons.hourglass_top,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Esperando que ${coupleProvider.partnerName} firme el contrato...')),
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('Esperando que ${coupleProvider.partnerName} firme el contrato...')),
+                ],
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         },
       );

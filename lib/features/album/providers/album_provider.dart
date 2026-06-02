@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:rxdart/rxdart.dart'; // NUEVA IMPORTACIÓN
+import 'package:rxdart/rxdart.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/album_memory.dart';
 import '../services/album_service.dart';
@@ -65,7 +65,6 @@ class AlbumProvider with ChangeNotifier {
     return AlbumService.groupMemoriesStream(_authProvider.user!.uid);
   }
 
-  // SOLUCIÓN: Combinamos los 3 streams en tiempo real usando rxdart
   Stream<List<AlbumMemory>> get allStream {
     return Rx.combineLatest3<List<AlbumMemory>, List<AlbumMemory>, List<AlbumMemory>, List<AlbumMemory>>(
       soloStream,
@@ -73,7 +72,6 @@ class AlbumProvider with ChangeNotifier {
       groupStream,
       (soloMemories, coupleMemories, groupMemories) {
         final allMemories = [...soloMemories, ...coupleMemories, ...groupMemories];
-        // Ordenamos todas por fecha
         allMemories.sort((a, b) => b.date.compareTo(a.date));
         return allMemories;
       },

@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/screens/adventure_map.dart';
-import '../../couple/screens/adventure_in_progress_screen.dart'; // Import necesario
-import '../screens/solo_adventure_review_screen.dart'; // Import necesario
-import '../screens/solo_adventure_memory_screen.dart'; // Import necesario
+import '../../couple/screens/adventure_in_progress_screen.dart'; 
+import '../screens/solo_adventure_review_screen.dart'; 
+import '../screens/solo_adventure_memory_screen.dart'; 
 
 class SoloContractDialog extends StatefulWidget {
   const SoloContractDialog({super.key});
@@ -32,7 +32,6 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
       if (mounted) {
         Navigator.pop(context); 
         
-        // Navegamos al mapa inyectando las rutas de Solo
         Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMap(
           mode: 'solo',
           themeColor: const Color(0xFF1976D2),
@@ -54,9 +53,21 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
         )));
       }
     } catch (e) {
-      debugPrint('Error al firmar contrato solitario: $e');
       if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al firmar el compromiso'), backgroundColor: Colors.redAccent));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 10),
+                Text('Error al firmar el compromiso'),
+              ],
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          )
+        );
       }
       setState(() => _isProcessing = false);
     }
@@ -84,7 +95,12 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _ruleChecked,
                   onChanged: (val) => setState(() => _ruleChecked = val ?? false),
-                  title: const Text('🧘 Me comprometo a disfrutar mi propia compañía y vivir nuevas experiencias sin excusas.', style: TextStyle(fontSize: 13)),
+                  title: Row(
+                    children: [
+                      const SizedBox(width: 6),
+                      const Expanded(child: Text('Me comprometo a disfrutar y vivir nuevas experiencias solo y sin excusas.', style: TextStyle(fontSize: 13))),
+                    ],
+                  ),
                 ),
 
                 const Divider(height: 30),
@@ -100,7 +116,7 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
                     icon: _isProcessing 
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.check_circle_outline, color: Colors.white),
-                    label: const Text('¡A volar solo!', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    label: const Text('Iniciar mi Aventura', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

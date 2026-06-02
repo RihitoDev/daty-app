@@ -84,7 +84,7 @@ class SettingsProvider with ChangeNotifier {
       notifyListeners();
       return null;
     } catch (e) {
-      debugPrint('❌ Error al desvincular (detalles): $e');
+      debugPrint(' Error al desvincular (detalles): $e');
       _isProcessing = false;
       notifyListeners();
       return 'Error al desvincular. Revisa la consola para ver el error de permisos.';

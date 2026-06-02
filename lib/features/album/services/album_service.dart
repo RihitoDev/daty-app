@@ -36,9 +36,7 @@ class AlbumService {
         });
   }
 
-  // SOLUCIÓN: Ahora solo busca las memorias que el usuario decidió guardar en su perfil
   static Stream<List<AlbumMemory>> groupMemoriesStream(String myUid) {
-    // 1. Escuchamos los cambios en el perfil del usuario (para saber si guarda/ignora algo nuevo)
     return FirebaseFirestore.instance
         .collection('users')
         .doc(myUid)
@@ -47,13 +45,10 @@ class AlbumService {
           
       final List<dynamic> savedIds = userSnap.data()?['savedGroupMemories'] ?? [];
       
-      // Si no hay memorias guardadas, devolvemos una lista vacía inmediatamente
       if (savedIds.isEmpty) {
         return Stream.value([]);
       }
 
-      // 2. Si hay memorias guardadas, buscamos SOLO esos documentos
-      // Nota: whereIn tiene un límite de 30 elementos en Firestore, suficiente para un álbum
       return FirebaseFirestore.instance
           .collection('group_memories')
           .where(FieldPath.documentId, whereIn: savedIds)
@@ -63,7 +58,6 @@ class AlbumService {
                 .map((doc) => AlbumMemory.fromGroupFirestore(doc.data()))
                 .toList();
             
-            // Ordenamos en Dart para evitar requerir otro índice compuesto en Firebase
             list.sort((a, b) => b.date.compareTo(a.date));
             return list;
           })

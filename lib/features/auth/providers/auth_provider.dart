@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  
+  StreamSubscription<DocumentSnapshot>? _userDocSubscription;
   
   User? _user;
   Map<String, dynamic>? _userData;
@@ -25,6 +28,7 @@ class AuthProvider extends ChangeNotifier {
         _listenToUserData(u.uid);
       } else {
         _userData = null;
+        _userDocSubscription?.cancel(); 
       }
       _isInitializing = false;
       notifyListeners();
@@ -32,7 +36,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _listenToUserData(String uid) {
-    _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
+    _userDocSubscription?.cancel();
+    _userDocSubscription = _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
       if (snapshot.exists) {
         _userData = snapshot.data();
         notifyListeners();
@@ -40,12 +45,10 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  // NUEVO: Método centralizado para crear el documento en Firestore
   Future<void> _createUserDocument(User user, {String? usernameOverride}) async {
     final userDoc = _firestore.collection('users').doc(user.uid);
     final docSnapshot = await userDoc.get();
 
-    // Solo lo creamos si no existe (evita sobrescribir si el usuario ya existía)
     if (!docSnapshot.exists) {
       await userDoc.set({
         "username": usernameOverride ?? user.displayName ?? "Aventurero",
@@ -58,6 +61,8 @@ class AuthProvider extends ChangeNotifier {
         "equippedPins": [],        
         "rachaDias": 0,           
         "fechaRegistro": FieldValue.serverTimestamp(),
+        "savedGroupMemories": [],
+        "dismissedGroupMemories": [],
       });
     }
   }
@@ -67,10 +72,10 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
       _setLoading(false);
-      return null; // Éxito
+      return null; 
     } on FirebaseAuthException catch (e) {
       _setLoading(false);
-      return e.code; // Devolvemos el código de error para que la UI lo interprete
+      return e.code; 
     } catch (e) {
       _setLoading(false);
       return 'unknown-error';
@@ -87,33 +92,31 @@ class AuthProvider extends ChangeNotifier {
       if (credential.user != null) {
         await credential.user!.updateDisplayName(username.trim());
         try {
-          // Usamos el método centralizado
           await _createUserDocument(credential.user!, usernameOverride: username.trim());
         } catch (firestoreError) {
           _setLoading(false);
-          return 'Error al crear tu perfil en la base de datos. Inténtalo de nuevo.'; 
+          return 'firestore-error'; 
         }
       }
       
       _setLoading(false);
-      return null; // Éxito
+      return null; 
     } on FirebaseAuthException catch (e) {
       _setLoading(false);
-      return e.code; // 'weak-password', 'email-already-in-use', etc.
+      return e.code; 
     } catch (e) {
       _setLoading(false);
       return 'unknown-error';
     }
   }
 
-  // CAMBIO: Ahora devuelve String? en vez de bool para diferenciar cancelación de error
   Future<String?> signInWithGoogle() async {
     _setLoading(true);
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         _setLoading(false);
-        return 'cancelled'; // El usuario cerró el popup
+        return 'cancelled'; 
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -124,15 +127,14 @@ class AuthProvider extends ChangeNotifier {
       UserCredential userCredential = await _auth.signInWithCredential(credential);
 
       if (userCredential.user != null) {
-        // Usamos el método centralizado
         await _createUserDocument(userCredential.user!);
       }
 
       _setLoading(false);
-      return null; // Éxito
+      return null; 
     } catch (e) {
       _setLoading(false);
-      return 'error'; // Error real
+      return 'error'; 
     }
   }
 
@@ -141,10 +143,10 @@ class AuthProvider extends ChangeNotifier {
       await _auth.sendPasswordResetEmail(email: email.trim());
       return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') return 'No existe una cuenta con este correo.';
-      return 'Error al enviar el correo de recuperación.';
+      if (e.code == 'user-not-found') return 'not-found';
+      return 'error';
     } catch (e) {
-      return 'Ocurrió un error inesperado.';
+      return 'error';
     }
   }
 
@@ -156,7 +158,7 @@ class AuthProvider extends ChangeNotifier {
       _user = null;
       _userData = null;
     } catch (e) {
-      debugPrint('Error al cerrar sesión: $e');
+      debugPrint('Error al cerrar sesion: $e');
     } finally {
       _setLoading(false);
     }
@@ -165,5 +167,11 @@ class AuthProvider extends ChangeNotifier {
   void _setLoading(bool val) {
     _isLoading = val;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _userDocSubscription?.cancel();
+    super.dispose();
   }
 }
