@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class ContractDialog extends StatefulWidget {
   final String myUid;
@@ -38,22 +39,10 @@ class _ContractDialogState extends State<ContractDialog> {
         transaction.update(coupleRef, {fieldToUpdate: true});
       });
       
-      if (mounted) Navigator.pop(context); 
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.error_outline, color: Colors.white),
-                SizedBox(width: 10),
-                Text('Error al firmar'),
-              ],
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
+      if (mounted) {
+        CustomSnackBar.showError(context, 'Error al firmar el contrato');
       }
       setState(() => _isProcessing = false);
     }
@@ -61,36 +50,18 @@ class _ContractDialogState extends State<ContractDialog> {
 
   Future<void> _rejectAndUnlink() async {
     setState(() => _isProcessing = true);
-
     try {
       WriteBatch batch = FirebaseFirestore.instance.batch();
       
-      final myRef = FirebaseFirestore.instance.collection('users').doc(widget.myUid);
-      final partnerRef = FirebaseFirestore.instance.collection('users').doc(widget.partnerUid);
-      final coupleRef = FirebaseFirestore.instance.collection('couples_progress').doc(widget.coupleDocId);
-
-      batch.update(myRef, {'partnerId': null});
-      batch.update(partnerRef, {'partnerId': null});
-      batch.delete(coupleRef);
-
-      await batch.commit();
+      batch.update(FirebaseFirestore.instance.collection('users').doc(widget.myUid), {'partnerId': null});
+      batch.update(FirebaseFirestore.instance.collection('users').doc(widget.partnerUid), {'partnerId': null});
+      batch.delete(FirebaseFirestore.instance.collection('couples_progress').doc(widget.coupleDocId));
       
-      if (mounted) Navigator.pop(context); 
+      await batch.commit();
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.link_off, color: Colors.white),
-                SizedBox(width: 10),
-                Text('Error al romper vinculo'),
-              ],
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
+      if (mounted) {
+        CustomSnackBar.showError(context, 'Error al cancelar el vínculo');
       }
       setState(() => _isProcessing = false);
     }
@@ -109,11 +80,9 @@ class _ContractDialogState extends State<ContractDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.history_edu, color: Color(0xFF9C27B0), size: 50),
+                const Icon(Icons.handshake_outlined, color: Color(0xFF66BB6A), size: 50),
                 const SizedBox(height: 15),
-                const Text('Contrato de Aventura', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
-                const SizedBox(height: 5),
-                const Text('50 Aventuras', style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w600)),
+                const Text('Pacto de Pareja', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
                 const SizedBox(height: 20),
                 
                 CheckboxListTile(
@@ -123,7 +92,7 @@ class _ContractDialogState extends State<ContractDialog> {
                   title: Row(
                     children: [
                       const SizedBox(width: 6),
-                      const Expanded(child: Text('Registren cada salida con fotos o videos. Su album sera su recuerdo eterno!', style: TextStyle(fontSize: 13))),
+                      const Expanded(child: Text('Nos comprometemos a no usar el celular durante las citas, salvo emergencias o fotos.', style: TextStyle(fontSize: 13))),
                     ],
                   ),
                 ),
@@ -134,7 +103,7 @@ class _ContractDialogState extends State<ContractDialog> {
                   title: Row(
                     children: [
                       const SizedBox(width: 6),
-                      const Expanded(child: Text('El celular solo se usara para capturar momentos, no para distraerse.', style: TextStyle(fontSize: 13))),
+                      const Expanded(child: Text('Mantenemos la mente abierta para probar nuevas actividades sin juzgar antes.', style: TextStyle(fontSize: 13))),
                     ],
                   ),
                 ),
@@ -145,7 +114,7 @@ class _ContractDialogState extends State<ContractDialog> {
                   title: Row(
                     children: [
                       const SizedBox(width: 6),
-                      const Expanded(child: Text('Lo esencial es la complicidad y el disfrute juntos, no que todo salga perfecto.', style: TextStyle(fontSize: 13))),
+                      const Expanded(child: Text('El objetivo principal es la complicidad y el disfrute juntos, no que todo salga perfecto.', style: TextStyle(fontSize: 13))),
                     ],
                   ),
                 ),

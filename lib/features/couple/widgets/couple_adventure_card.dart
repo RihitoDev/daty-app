@@ -6,6 +6,7 @@ import '../providers/couple_provider.dart';
 import 'pairing_dialog.dart';
 import 'contract_dialog.dart';
 import '../../shared/screens/adventure_map.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class CoupleAdventureCard extends StatelessWidget {
   const CoupleAdventureCard({super.key});
@@ -71,18 +72,7 @@ class CoupleAdventureCard extends StatelessWidget {
         gradientColors: const [Color(0xFF90A4AE), Color(0xFF546E7A)],
         icon: Icons.hourglass_top,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.white),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text('Esperando que ${coupleProvider.partnerName} firme el contrato...')),
-                ],
-              ),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          CustomSnackBar.showInfo(context, 'Esperando que ${coupleProvider.partnerName} firme el contrato...');
         },
       );
     }

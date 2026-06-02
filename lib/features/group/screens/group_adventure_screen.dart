@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'group_photo_upload_screen.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class GroupAdventureScreen extends StatefulWidget {
   final Map<String, dynamic> adventureData;
@@ -100,7 +101,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
     } catch (e) {
       if(mounted) {
         debugPrint('Error en completeAdventure: $e');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al finalizar la expedición'), backgroundColor: Colors.redAccent));
+        CustomSnackBar.showError(context, 'Error al finalizar la expedición');
         setState(() => _isSubmitting = false);
       }
     }
@@ -115,6 +116,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
   @override
   Widget build(BuildContext context) {
     final String adventureTitle = (widget.adventureData['title'] ?? 'AVENTURA').toUpperCase();
+    final Color themeColor = const Color(0xFF8E24AA);
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -130,14 +132,14 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(Icons.groups_rounded, size: 80, color: Color(0xFF8E24AA)),
+            Icon(Icons.groups_rounded, size: 80, color: themeColor.withOpacity(0.8)),
             const SizedBox(height: 40),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 600),
               child: Container(
                 key: ValueKey<int>(_currentTipIndex),
                 padding: const EdgeInsets.all(25),
-                decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFF8E24AA).withValues(alpha: 0.5))),
+                decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15), border: Border.all(color: themeColor.withValues(alpha: 0.5))),
                 child: Column(children: [
                   const Icon(Icons.lightbulb_outline, color: Colors.amber, size: 30),
                   const SizedBox(height: 15),
@@ -150,7 +152,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
               width: double.infinity, height: 55,
               child: ElevatedButton.icon(
                 onPressed: _isSubmitting ? null : _completeAdventure,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E24AA), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), disabledBackgroundColor: Colors.grey),
+                style: ElevatedButton.styleFrom(backgroundColor: themeColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), disabledBackgroundColor: Colors.grey),
                 icon: _isSubmitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.check_circle_outline, color: Colors.white),
                 label: const Text('Finalizar Expedición', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               ),

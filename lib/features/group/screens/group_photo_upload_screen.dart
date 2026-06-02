@@ -7,6 +7,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/services/image_upload_service.dart';
 import '../../../core/services/network_service.dart';
 import '../../shared/widgets/full_screen_image_viewer.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 import 'group_memory_board_screen.dart';
 
 class GroupPhotoUploadScreen extends StatefulWidget {
@@ -46,13 +47,13 @@ class _GroupPhotoUploadScreenState extends State<GroupPhotoUploadScreen> {
 
   Future<void> _continue() async {
     if (_isUploading) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Espera a que la foto termine de subir.')));
+      CustomSnackBar.showWarning(context, 'Espera a que la foto termine de subir.');
       return;
     }
 
     bool hasConnection = await NetworkService.isConnected;
     if (!hasConnection) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sin conexión a internet.'), backgroundColor: Colors.redAccent));
+      if (mounted) CustomSnackBar.showError(context, 'Sin conexión a internet.');
       return;
     }
 
@@ -75,7 +76,7 @@ class _GroupPhotoUploadScreenState extends State<GroupPhotoUploadScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al subir la foto'), backgroundColor: Colors.redAccent));
+        CustomSnackBar.showError(context, 'Error al subir la foto');
       }
     }
   }

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class PairingDialog extends StatefulWidget {
   final String myUid;
@@ -124,19 +125,7 @@ class _PairingDialogState extends State<PairingDialog> {
           errorMsg = 'Tu ya estas vinculado';
         }
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(child: Text(errorMsg)),
-              ],
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
+        CustomSnackBar.showError(context, errorMsg);
       }
     }
   }
@@ -182,13 +171,7 @@ class _PairingDialogState extends State<PairingDialog> {
                           icon: const Icon(Icons.copy, color: Color(0xFF9C27B0)),
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: _myCode));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(children: const [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 10), Text('Codigo copiado')]),
-                                duration: const Duration(seconds: 1),
-                                behavior: SnackBarBehavior.floating,
-                              )
-                            );
+                            CustomSnackBar.showSuccess(context, 'Codigo copiado');
                           },
                         )
                       ],

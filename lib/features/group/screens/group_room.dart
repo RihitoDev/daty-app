@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/group_provider.dart';
 import 'group_adventure_screen.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class GroupRoom extends StatefulWidget {
   final String groupCode;
@@ -33,7 +34,7 @@ class _GroupRoomState extends State<GroupRoom> {
     _groupSubscription = FirebaseFirestore.instance.collection('groups').doc(widget.groupCode).snapshots().listen((doc) {
       if (!doc.exists) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El grupo fue disuelto.'), backgroundColor: Colors.redAccent));
+          CustomSnackBar.showError(context, 'El grupo fue disuelto.');
           Navigator.pop(context);
         }
         return;

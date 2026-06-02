@@ -4,6 +4,7 @@ import '../../../core/models/achievement_definition.dart';
 import '../../../core/utils/achievement_mapper.dart';
 import '../providers/profile_provider.dart';
 import 'package:provider/provider.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class AchievementsList extends StatelessWidget {
   final AchievementMode mode;
@@ -29,7 +30,7 @@ class AchievementsList extends StatelessWidget {
         return GestureDetector(
           onTap: isUnlocked ? () {
             if (!isEquipped && profileProvider.equippedPins.length >= 3) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Máximo 3 pines equipados')));
+              CustomSnackBar.showWarning(context, 'Máximo 3 pines equipados');
               return;
             }
             profileProvider.togglePin(ach.id, isEquipped);

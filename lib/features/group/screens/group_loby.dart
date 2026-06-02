@@ -5,6 +5,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/group_provider.dart';
 import 'group_room.dart';
 import 'group_memory_board_screen.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class GroupLobby extends StatelessWidget {
   const GroupLobby({super.key});
@@ -61,7 +62,7 @@ class GroupLobby extends StatelessWidget {
                           onPressed: groupProvider.isLoading ? null : () async {
                             final code = await groupProvider.createGroup();
                             if (code == null && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al crear grupo'), backgroundColor: Colors.redAccent));
+                              CustomSnackBar.showError(context, 'Error al crear grupo');
                             }
                           },
                           icon: groupProvider.isLoading 
@@ -142,7 +143,17 @@ class GroupLobby extends StatelessWidget {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(_), child: const Text('Cancelar')),
-          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E24AA), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), onPressed: () async { Navigator.pop(_); final error = await provider.joinGroup(controller.text.trim()); if (error != null && context.mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.redAccent)); }}, child: const Text('Unirse', style: TextStyle(color: Colors.white))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E24AA), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), 
+            onPressed: () async { 
+              Navigator.pop(_); 
+              final error = await provider.joinGroup(controller.text.trim()); 
+              if (error != null && context.mounted) { 
+                CustomSnackBar.showError(context, error); 
+              } 
+            }, 
+            child: const Text('Unirse', style: TextStyle(color: Colors.white))
+          ),
         ],
       ),
     );

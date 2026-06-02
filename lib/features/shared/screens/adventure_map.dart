@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../couple/widgets/candy_path_painter.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class AdventureMap extends StatefulWidget {
   final String mode;
@@ -576,20 +577,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       return true;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.wifi_off, color: Colors.white),
-                SizedBox(width: 10),
-                Text('Error de conexion al iniciar.'),
-              ],
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          )
-        );
+        CustomSnackBar.showError(context, 'Error de conexión al iniciar.');
       }
       return false;
     }
@@ -788,20 +776,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       child: GestureDetector(
         onTap: isLocked || adventureData == null ? null : () {
           if (isWaitingForPartner) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: const [
-                    Icon(Icons.info_outline, color: Colors.white),
-                    SizedBox(width: 10),
-                    Text('Ya calificaste. Esperando a tu pareja.'),
-                  ],
-                ),
-                backgroundColor: const Color(0xFFFFA000),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              )
-            );
+            CustomSnackBar.showInfo(context, 'Ya calificaste. Esperando a tu pareja.');
           } else if (isInProgress) {
             List<int> availableIds = _adventuresCache.keys.where((id) => !_adventurePath.contains(id)).toList();
             Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventureData, availableIds)));

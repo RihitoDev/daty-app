@@ -6,6 +6,7 @@ import '../../shared/screens/adventure_map.dart';
 import '../../couple/screens/adventure_in_progress_screen.dart'; 
 import '../screens/solo_adventure_review_screen.dart'; 
 import '../screens/solo_adventure_memory_screen.dart'; 
+import '../../shared/widgets/custom_snackbar.dart';
 
 class SoloContractDialog extends StatefulWidget {
   const SoloContractDialog({super.key});
@@ -54,20 +55,7 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
       }
     } catch (e) {
       if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: const [
-                Icon(Icons.error_outline, color: Colors.white),
-                SizedBox(width: 10),
-                Text('Error al firmar el compromiso'),
-              ],
-            ),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          )
-        );
+        CustomSnackBar.showError(context, 'Error al firmar el compromiso');
       }
       setState(() => _isProcessing = false);
     }

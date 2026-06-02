@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -82,10 +83,12 @@ class SettingsScreen extends StatelessWidget {
                          );
                          if (confirm == true) {
                            final error = await settingsProvider.resetSoloProgress();
-                           if (context.mounted && error != null) {
-                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.redAccent));
-                           } else if (context.mounted) {
-                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Progreso reiniciado'), backgroundColor: Colors.green));
+                           if (context.mounted) {
+                             if (error != null) {
+                               CustomSnackBar.showError(context, error);
+                             } else {
+                               CustomSnackBar.showSuccess(context, 'Progreso reiniciado');
+                             }
                            }
                          }
                       },
@@ -179,9 +182,9 @@ class SettingsScreen extends StatelessWidget {
               
               if (context.mounted) {
                 if (error != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.redAccent));
+                  CustomSnackBar.showError(context, error);
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Se ha roto el vínculo exitosamente'), backgroundColor: Colors.green));
+                  CustomSnackBar.showSuccess(context, 'Se ha roto el vínculo exitosamente');
                 }
               }
             },

@@ -8,6 +8,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/services/image_upload_service.dart';
 import '../../../core/services/network_service.dart';
 import '../../shared/widgets/full_screen_image_viewer.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class AdventureReviewScreen extends StatefulWidget {
   final Map<String, dynamic> adventureData; 
@@ -48,69 +49,29 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
 
   Future<void> _submitReview() async {
     if (_rating == 0) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: [const Icon(Icons.star_outline, color: Colors.white), const SizedBox(width: 10), const Expanded(child: Text('Debes seleccionar al menos 1 estrella.'))]),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
-      }
+      if (mounted) CustomSnackBar.showError(context, 'Debes seleccionar al menos 1 estrella.');
       return;
     }
 
     List<String> words = _reviewController.text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     if (words.length < 3) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: [const Icon(Icons.edit_outlined, color: Colors.white), const SizedBox(width: 10), const Expanded(child: Text('Describe tu experiencia (minimo 3 palabras).'))]),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
-      }
+      if (mounted) CustomSnackBar.showError(context, 'Describe tu experiencia (minimo 3 palabras).');
       return;
     }
 
     if (_uploadedPhotoUrls.every((url) => url == null)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: [const Icon(Icons.add_a_photo_outlined, color: Colors.white), const SizedBox(width: 10), const Expanded(child: Text('Debes subir al menos 1 foto de la cita.'))]),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
-      }
+      if (mounted) CustomSnackBar.showError(context, 'Debes subir al menos 1 foto de la cita.');
       return;
     }
 
     if (_isUploading.any((u) => u)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: const [Icon(Icons.hourglass_top, color: Colors.white), SizedBox(width: 10), Expanded(child: Text('Espera a que las fotos terminen de subir.'))]),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
-      }
+      if (mounted) CustomSnackBar.showWarning(context, 'Espera a que las fotos terminen de subir.');
       return;
     }
 
     bool hasConnection = await NetworkService.isConnected;
     if (!hasConnection) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: const [Icon(Icons.wifi_off, color: Colors.white), SizedBox(width: 10), Text('Sin conexion a internet.')]),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
-      }
+      if (mounted) CustomSnackBar.showError(context, 'Sin conexion a internet.');
       return;
     }
 
@@ -179,36 +140,16 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
       if (mounted) {
         if (partnerJustReviewed) {
           int expEarned = widget.adventureData['xpBase'] ?? 50;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(children: [const Icon(Icons.check_circle, color: Colors.white), const SizedBox(width: 10), Text('Ambos calificaron! +$expEarned EXP')]),
-              backgroundColor: Colors.green, 
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2)
-            )
-          );
+          CustomSnackBar.showSuccess(context, 'Ambos calificaron! +$expEarned EXP');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(children: const [Icon(Icons.hourglass_top, color: Colors.white), SizedBox(width: 10), Expanded(child: Text('Calificacion guardada! Esperando a tu pareja...'))]),
-              backgroundColor: Colors.orange, 
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3)
-            )
-          );
+          CustomSnackBar.showWarning(context, 'Calificacion guardada! Esperando a tu pareja...');
         }
         Navigator.pop(context); 
       }
 
     } catch (e) {
       if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: const [Icon(Icons.error_outline, color: Colors.white), SizedBox(width: 10), Expanded(child: Text('Error al guardar. Intenta de nuevo.'))]),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          )
-        );
+        CustomSnackBar.showError(context, 'Error al guardar. Intenta de nuevo.');
         setState(() => _isSubmitting = false);
       }
     }
