@@ -177,7 +177,7 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
               onChanged: (_) => setState(() => _formError = null)
             ), 
             const SizedBox(height: 30),
-            const Align(alignment: Alignment.centerLeft, child: Row(children: [Icon(Icons.photo_library_outlined, size: 18, color: Color(0xFF1976D2)), SizedBox(width: 6), Text('Sube hasta 2 fotos (1 obligatoria):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))])),
+            const Align(alignment: Alignment.centerLeft, child: Row(children: [Icon(Icons.photo_library_outlined, size: 18, color: Color(0xFF1976D2)), SizedBox(width: 6), Text('Sube hasta 2 fotos:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))])),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -188,14 +188,35 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
             ),
             const SizedBox(height: 40),
             SizedBox(
-              width: double.infinity, height: 55,
-              child: ElevatedButton.icon(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
                 onPressed: _isValid && !_isSubmitting ? _submitReview : null,
-                style: ElevatedButton.styleFrom(backgroundColor: _isValid ? const Color(0xFF1976D2) : Colors.grey.shade300, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                icon: _isSubmitting 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.save_outlined, color: Colors.white),
-                label: Text(_isSubmitting ? 'Guardando...' : 'Guardar y Ganar EXP', style: TextStyle(color: _isValid ? Colors.white : Colors.grey, fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isValid ? const Color(0xFF1976D2) : Colors.grey.shade300,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isSubmitting) ...[
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Text(
+                      _isSubmitting ? 'Guardando...' : 'Guardar',
+                      style: TextStyle(
+                        color: _isValid ? Colors.white : Colors.grey,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           ],
