@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui'; // ¡Importante para el efecto de cristal (ImageFilter)!
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -139,14 +139,13 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
     
     final bool isSolo = widget.onSoloFinish != null;
     
-    // Colores de tema
     final Color primaryColor = isSolo ? const Color(0xFF1976D2) : const Color(0xFFC2185B);
     final Color darkBgColor = isSolo ? const Color(0xFF0A1124) : const Color(0xFF240618);
     final Color midBgColor = isSolo ? const Color(0xFF0F2744) : const Color(0xFF3E0C24);
 
     return Scaffold(
-      extendBodyBehindAppBar: true, // El fondo se extiende detrás de la appbar
-      backgroundColor: darkBgColor, // Color de respaldo
+      extendBodyBehindAppBar: true,
+      backgroundColor: darkBgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -158,8 +157,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
         ],
       ),
       body: Container(
-        width: double.infinity, // FUERZA a ocupar todo el ancho
-        height: double.infinity, // FUERZA a ocupar todo el alto (SOLUCIÓN DEL PROBLEMA)
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -172,17 +171,15 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
           ),
         ),
         child: SingleChildScrollView(
-          // Padding inteligente: se adapta a la barra de estado y a la AppBar de cualquier teléfono
           padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + kToolbarHeight, // Notch + Altura de la AppBar
+            top: MediaQuery.of(context).padding.top + kToolbarHeight,
             left: 30.0,
             right: 30.0,
-            bottom: MediaQuery.of(context).padding.bottom + 40, // Barra inferior de iOS/Android
+            bottom: MediaQuery.of(context).padding.bottom + 40,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Indicador de "En Vivo"
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -198,8 +195,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                     Text(
                       isSolo ? 'AVENTURA EN CURSO' : 'CITA EN CURSO',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9), 
-                        fontWeight: FontWeight.bold, 
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.bold,
                         fontSize: 12,
                         letterSpacing: 1.5,
                       ),
@@ -212,19 +209,18 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
               Text(adventureEmoji, style: const TextStyle(fontSize: 80)),
               const SizedBox(height: 15),
               Text(
-                adventureTitle, 
+                adventureTitle,
                 style: const TextStyle(
-                  color: Colors.white, 
-                  fontSize: 26, 
-                  fontWeight: FontWeight.w900, 
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
                   letterSpacing: 1.2
-                ), 
+                ),
                 textAlign: TextAlign.center
               ),
               
               const SizedBox(height: 30),
               
-              // Tarjeta desplegable (Glassmorphism)
               GestureDetector(
                 onTap: () => setState(() => _isDetailExpanded = !_isDetailExpanded),
                 child: ClipRRect(
@@ -250,7 +246,7 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                                   Icon(Icons.menu_book_outlined, color: primaryColor, size: 20),
                                   const SizedBox(width: 10),
                                   const Text(
-                                    "Detalles y Reto", 
+                                    "Detalles y Reto",
                                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
                                   ),
                                 ],
@@ -267,29 +263,29 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                             curve: Curves.easeInOut,
                             alignment: Alignment.topCenter,
                             child: _isDetailExpanded 
-                              ? Container(
-                                  width: double.infinity,
-                                  margin: const EdgeInsets.only(top: 20),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      if (location.isNotEmpty) ...[
-                                        _DetailRow(icon: Icons.location_on_outlined, text: location, color: primaryColor),
-                                        const SizedBox(height: 15),
+                                ? Container(
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.only(top: 20),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (location.isNotEmpty) ...[
+                                          _DetailRow(icon: Icons.location_on_outlined, text: location, color: primaryColor),
+                                          const SizedBox(height: 15),
+                                        ],
+                                        if (challenge.isNotEmpty) ...[
+                                          _DetailRow(icon: Icons.flag_outlined, text: "Reto: $challenge", color: primaryColor),
+                                          const SizedBox(height: 15),
+                                        ],
+                                        if (description.isNotEmpty)
+                                          Text(
+                                            description,
+                                            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14, height: 1.5)
+                                          ),
                                       ],
-                                      if (challenge.isNotEmpty) ...[
-                                        _DetailRow(icon: Icons.flag_outlined, text: "Reto: $challenge", color: primaryColor),
-                                        const SizedBox(height: 15),
-                                      ],
-                                      if (description.isNotEmpty)
-                                        Text(
-                                          description, 
-                                          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14, height: 1.5)
-                                        ),
-                                    ],
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
                           ),
                         ],
                       ),
@@ -300,7 +296,6 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
               
               const SizedBox(height: 30),
               
-              // Tips con efecto cristal
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 600),
                 child: ClipRRect(
@@ -311,8 +306,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(25),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08), 
-                        borderRadius: BorderRadius.circular(20), 
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: primaryColor.withOpacity(0.3))
                       ),
                       child: Column(
@@ -320,11 +315,11 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                           Icon(Icons.lightbulb_outline, color: primaryColor, size: 28),
                           const SizedBox(height: 15),
                           Text(
-                            _dateTips[_currentTipIndex], 
-                            textAlign: TextAlign.center, 
+                            _dateTips[_currentTipIndex],
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9), 
-                              fontSize: 17, 
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 17,
                               fontStyle: FontStyle.italic,
                               height: 1.4,
                             )
@@ -338,9 +333,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
               
               const SizedBox(height: 50),
 
-              // Botón con gradiente
               SizedBox(
-                width: double.infinity, 
+                width: double.infinity,
                 height: 55,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -366,7 +360,7 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
                     child: Text(
-                      isSolo ? 'Finalizar Aventura' : 'Finalizar Cita', 
+                      isSolo ? 'Finalizar Aventura' : 'Finalizar Cita',
                       style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
                     ),
                   ),
@@ -380,7 +374,6 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   }
 }
 
-// Widgets auxiliares
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String text;
