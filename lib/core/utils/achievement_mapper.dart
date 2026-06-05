@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Este traductor convierte los nombres en texto que tenemos en los datos a íconos y colores reales que Flutter entiende
 class AchievementMapper {
   static IconData getIcon(String iconName) {
     switch (iconName) {
@@ -18,6 +19,7 @@ class AchievementMapper {
       case 'groups': return Icons.groups;
       case 'celebration': return Icons.celebration;
       case 'party_mode': return Icons.party_mode;
+      // Ícono de ayuda por si llega un nombre que no tenemos registrado
       default: return Icons.help_outline; 
     }
   }
@@ -37,6 +39,7 @@ class AchievementMapper {
       case 'green': return Colors.green;
       case 'lime': return Colors.lime;
       case 'orange': return Colors.orange;
+      // Color gris de emergencia si el nombre no coincide con nada
       default: return Colors.grey; 
     }
   }

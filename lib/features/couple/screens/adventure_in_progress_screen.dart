@@ -46,11 +46,13 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   void initState() {
     super.initState();
     _startTipTimer();
+    // Si onSoloFinish es nulo, asumimos que es una cita de pareja y nos ponemos a escuchar al otro usuario
     if (widget.onSoloFinish == null) {
       _listenForPartnerReview();
     }
   }
 
+  // Va rotando los tips automáticamente para darle vida a la pantalla mientras están en la cita
   void _startTipTimer() {
     _tipTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (mounted) {
@@ -69,10 +71,14 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
     if (partnerId == null) return;
 
     final myUid = user.uid;
+    
+    // Mantenemos la regla alfabética para asegurar que leemos el mismo documento
     final String coupleDocId = myUid.compareTo(partnerId) < 0 
         ? '${myUid}_$partnerId' 
         : '${partnerId}_$myUid';
     final bool isUser1 = myUid.compareTo(partnerId) < 0;
+    
+    // Escuchamos el campo del OTRO usuario para saber si ya terminó
     final String partnerReviewField = isUser1 ? 'reviewCompletedUser2' : 'reviewCompletedUser1';
 
     _partnerReviewListener = FirebaseFirestore.instance
@@ -84,6 +90,7 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
         final data = snapshot.data() as Map<String, dynamic>;
         final bool partnerReviewed = data[partnerReviewField] ?? false;
 
+        // Si la pareja ya terminó su parte, forzamos la navegación a la pantalla de review
         if (partnerReviewed) {
           _hasNavigated = true;
           _tipTimer?.cancel();
@@ -104,6 +111,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   void _goToReviewScreen() {
     if (_hasNavigated) return;
     _hasNavigated = true;
+    
+    // Es vital matar estos procesos antes de saltar de pantalla para evitar memory leaks
     _tipTimer?.cancel();
     _partnerReviewListener?.cancel();
 

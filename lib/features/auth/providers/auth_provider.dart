@@ -22,6 +22,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isInitializing => _isInitializing;
 
   AuthProvider() {
+    // Escuchamos los cambios de sesión. Si entra alguien, nos enganchamos a su doc en Firestore.
     _auth.authStateChanges().listen((User? u) {
       _user = u;
       if (u != null) {
@@ -35,6 +36,7 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  // Mantiene _userData sincronizado en tiempo real si el doc cambia en la base de datos
   void _listenToUserData(String uid) {
     _userDocSubscription?.cancel();
     _userDocSubscription = _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
@@ -45,6 +47,7 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  // Prepara el documento del usuario con los campos base si es su primera vez
   Future<void> _createUserDocument(User user, {String? usernameOverride}) async {
     final userDoc = _firestore.collection('users').doc(user.uid);
     final docSnapshot = await userDoc.get();
@@ -158,7 +161,7 @@ class AuthProvider extends ChangeNotifier {
       _user = null;
       _userData = null;
     } catch (e) {
-      debugPrint('Error al cerrar sesion: $e');
+      debugPrint('Fallo al cerrar sesión: $e');
     } finally {
       _setLoading(false);
     }

@@ -57,10 +57,10 @@ class ProfileScreen extends StatelessWidget {
                         CircleAvatar(
                           radius: 55,
                           backgroundColor: const Color(0xFF9C27B0),
-                          // CAMBIO: Lógica de Avatar con CachedNetworkImage
+                          // Prioridad de la foto: imagen local (mientras sube) -> foto de internet -> iniciales
                           backgroundImage: provider.selectedImageBytes != null 
                             ? MemoryImage(provider.selectedImageBytes!) 
-                            : (provider.photoUrl != null ? null : null), // Se maneja abajo
+                            : (provider.photoUrl != null ? null : null), 
                           child: provider.selectedImageBytes != null 
                             ? null 
                             : provider.photoUrl != null
@@ -136,6 +136,7 @@ class ProfileScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildStatCard('Solitario', provider.soloDates, Icons.person, Colors.blue),
+                      // Solo mostramos las citas de pareja si el usuario está vinculado
                       if (provider.isLinked) _buildStatCard('Pareja', provider.coupleDates, Icons.favorite, Colors.pink),
                       _buildStatCard('Grupo', provider.groupOutings, Icons.group, Colors.purple),
                     ],
@@ -144,6 +145,7 @@ class ProfileScreen extends StatelessWidget {
                     const Divider(height: 30),
                     const Text('Mis Pines Equipados', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54, fontSize: 12)),
                     const SizedBox(height: 10),
+                    // Convertimos los IDs de los pines guardados en íconos y colores reales
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: provider.equippedPins.map((pinId) {
@@ -178,7 +180,6 @@ class ProfileScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
             
-            // CAMBIO: Añadido el tab de Grupo (length: 4)
             DefaultTabController(
               length: 4,
               child: Container(
@@ -196,12 +197,12 @@ class ProfileScreen extends StatelessWidget {
                         labelColor: Color(0xFF9C27B0),
                         unselectedLabelColor: Colors.grey,
                         indicatorColor: Color(0xFF9C27B0),
-                        isScrollable: true, // Para que quepan 4 tabs en pantallas pequeñas
+                        isScrollable: true, // Para que los 4 tabs quepan bien en pantallas pequeñas
                         tabs: [
                           Tab(text: 'General'),
                           Tab(text: 'Solitario'),
                           Tab(text: 'Pareja'),
-                          Tab(text: 'Grupo'), // NUEVO
+                          Tab(text: 'Grupo'),
                         ],
                       ),
                     ),
@@ -212,7 +213,7 @@ class ProfileScreen extends StatelessWidget {
                           AchievementsList(mode: AchievementMode.general),
                           AchievementsList(mode: AchievementMode.solo),
                           AchievementsList(mode: AchievementMode.couple),
-                          AchievementsList(mode: AchievementMode.group), // NUEVO
+                          AchievementsList(mode: AchievementMode.group),
                         ],
                       ),
                     ),

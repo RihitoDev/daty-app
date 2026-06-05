@@ -27,6 +27,7 @@ class CoupleProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   Map<String, dynamic>? get coupleData => _coupleData;
 
+  // Ordenamos los IDs alfabéticamente. Así el ID del doc compartido siempre es exactamente el mismo sin importar quién inicie sesión.
   String? get coupleDocId {
     if (_currentPartnerId == null) return null;
     return myUid.compareTo(_currentPartnerId!) < 0 
@@ -34,6 +35,7 @@ class CoupleProvider with ChangeNotifier {
         : '${_currentPartnerId}_$myUid';
   }
 
+  // Checamos si somos el user1 o user2 basándonos en la misma regla alfabética de arriba para leer el campo correcto.
   bool get iSigned {
     if (_coupleData == null || _currentPartnerId == null) return false;
     bool isUser1 = myUid.compareTo(_currentPartnerId!) < 0;
@@ -46,6 +48,7 @@ class CoupleProvider with ChangeNotifier {
     return isUser1 ? (_coupleData?['contractSignedUser2'] ?? false) : (_coupleData?['contractSignedUser1'] ?? false);
   }
 
+  // Detecta si nos vincularon o desvincularon para reiniciar todo
   void _onAuthUpdate() {
     final newPartnerId = _authProvider.userData?['partnerId'] as String?;
     if (newPartnerId != _currentPartnerId) {
@@ -107,6 +110,7 @@ class CoupleProvider with ChangeNotifier {
     );
   }
 
+  // Si Firebase se demora en crear el documento en backend al vincularlos, le damos 2 segundos de gracia y volvemos a consultar.
   void _fetchCoupleDataWithRetry(String docId) {
     if (_coupleData != null || _retryTimer?.isActive == true) return;
 

@@ -17,8 +17,10 @@ class SettingsProvider with ChangeNotifier {
     try {
       final myUid = _authProvider.user!.uid;
 
+      // Borramos el documento principal del progreso
       await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).delete();
 
+      // Borramos todos los recuerdos de golpe usando un batch para no hacer peticiones una por una
       final memoriesQuery = await FirebaseFirestore.instance
           .collection('solo_memories')
           .where('userId', isEqualTo: myUid)
@@ -55,6 +57,7 @@ class SettingsProvider with ChangeNotifier {
         throw Exception("No tienes pareja vinculada");
       }
 
+      // Igual que en el perfil, ordenamos los UIDs alfabéticamente para encontrar su documento compartido
       String coupleDocId = myUid.compareTo(partnerId) < 0 
           ? '${myUid}_$partnerId' 
           : '${partnerId}_$myUid';
@@ -66,6 +69,7 @@ class SettingsProvider with ChangeNotifier {
 
       WriteBatch batch = FirebaseFirestore.instance.batch();
 
+      // Preparamos la eliminación de todos los recuerdos compartidos
       for (var doc in memoriesQuery.docs) {
         batch.delete(doc.reference);
       }
@@ -74,6 +78,7 @@ class SettingsProvider with ChangeNotifier {
       final partnerRef = FirebaseFirestore.instance.collection('users').doc(partnerId);
       final coupleRef = FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId);
 
+      // En una sola operación limpiamos todo: borramos el progreso de la pareja y le quitamos el vínculo a ambos usuarios
       batch.update(myRef, {'partnerId': null});
       batch.update(partnerRef, {'partnerId': null});
       batch.delete(coupleRef);

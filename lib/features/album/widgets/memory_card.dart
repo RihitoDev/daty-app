@@ -29,6 +29,7 @@ class MemoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final typeColor = _getTypeColor();
+    // Fuerza el formato DD/MM/YYYY para evitar inconsistencias
     final formattedDate = "${memory.date.day.toString().padLeft(2, '0')}/${memory.date.month.toString().padLeft(2, '0')}/${memory.date.year}";
 
     return Container(
@@ -43,7 +44,6 @@ class MemoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // CABECERA
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
             child: Row(
@@ -141,6 +141,7 @@ class MemoryCard extends StatelessWidget {
       );
     }
 
+    // Grid para 3+ fotos. Máximo 4 celdas, la última hace de overlay si hay más fotos
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: GridView.builder(

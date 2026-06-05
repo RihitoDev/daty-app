@@ -1,4 +1,4 @@
-import 'dart:ui'; // ¡Importante para el efecto de cristal!
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,6 +24,7 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
     String memoryDocId = '${groupCode}_${adventureData['number']}';
     
+    // Lo agregamos a guardados y nos aseguramos de sacarlo de descartados por si el usuario cambió de opinión
     await FirebaseFirestore.instance.collection('users').doc(myUid).update({
       'savedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
       'dismissedGroupMemories': FieldValue.arrayRemove([memoryDocId]),
@@ -34,10 +35,11 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     }
   }
 
-  void _skipToHome(BuildContext context) async {
+  Future<void> _skipToHome(BuildContext context) async {
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
     String memoryDocId = '${groupCode}_${adventureData['number']}';
     
+    // Lo marcamos como descartado para que este recuerdo no vuelva a saltar como pendiente en el lobby
     await FirebaseFirestore.instance.collection('users').doc(myUid).update({
       'dismissedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
     });
@@ -50,34 +52,32 @@ class GroupMemoryBoardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String memoryDocId = '${groupCode}_${adventureData['number']}';
-    final Color primaryColor = const Color(0xFF8E24AA);
+    const Color primaryColor = Color(0xFF8E24AA);
 
     return Scaffold(
-      extendBodyBehindAppBar: true, // El fondo se extiende detrás de la AppBar
-      backgroundColor: const Color(0xFF1A0515), // Color de respaldo
+      extendBodyBehindAppBar: true, 
+      backgroundColor: const Color(0xFF1A0515), 
       appBar: AppBar(
         title: const Text('Recuerdos del Grupo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.transparent, // Transparente para ver el gradiente
+        backgroundColor: Colors.transparent, 
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
       body: Container(
-        // Fondo inmersivo con gradiente (Estilo Daty)
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF1A0515), // Morado ultra oscuro
-              Color(0xFF3B0A30), // Morado medio
-              Color(0xFF1A0515), // Morado ultra oscuro
+              Color(0xFF1A0515),
+              Color(0xFF3B0A30),
+              Color(0xFF1A0515),
             ],
           ),
         ),
         child: Column(
           children: [
-            // Padding superior seguro para que no choque con la AppBar
             SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight),
             
             Padding(
@@ -119,20 +119,21 @@ class GroupMemoryBoardScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final uid = members[index];
                       final photoUrl = photos[uid];
+                      
+                      // Consultamos el doc de cada usuario para emparejar la foto del grupo con su nombre real
                       return FutureBuilder<DocumentSnapshot>(
                         future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
                         builder: (context, userSnap) {
                           final userData = userSnap.data?.data() as Map<String, dynamic>?;
                           final name = userData?['username'] ?? 'Aventurero';
                           
-                          // TARJETA CON EFECTO CRISTAL
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(20),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.08), // Transparencia
+                                  color: Colors.white.withOpacity(0.08),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(color: primaryColor.withOpacity(0.4), width: 1.5),
                                 ),
@@ -188,11 +189,11 @@ class GroupMemoryBoardScreen extends StatelessWidget {
               ),
             ),
             
-            // Contenedor inferior seguro contra el desbordamiento
             Container(
+              // Sumamos el padding de abajo (notch/barra del sistema) para asegurar que el botón nunca quede oculto
               padding: EdgeInsets.only(
                 left: 30, right: 30, top: 20,
-                bottom: MediaQuery.of(context).padding.bottom + 20 // SOLUCIÓN AL DESBORDAMIENTO
+                bottom: MediaQuery.of(context).padding.bottom + 20 
               ),
               child: isReviewingPastMemory 
                 ? SizedBox(
@@ -207,9 +208,8 @@ class GroupMemoryBoardScreen extends StatelessWidget {
                     ),
                   )
                 : Column(
-                    mainAxisSize: MainAxisSize.min, // Importante para evitar overflow
+                    mainAxisSize: MainAxisSize.min, 
                     children: [
-                      // Botón con Gradiente y Glow (Estilo Daty)
                       SizedBox(
                         width: double.infinity, height: 55,
                         child: DecoratedBox(

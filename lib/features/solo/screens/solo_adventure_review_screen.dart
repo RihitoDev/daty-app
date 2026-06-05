@@ -29,6 +29,7 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
   final List<String?> _uploadedPhotoUrls = [null, null];
   final List<bool> _isUploading = [false, false];
 
+  // Reglas estrictas para poder guardar: al menos 1 estrella, 3 palabras, 1 foto y que ya haya terminado de subir
   bool get _isValid {
     if (_rating == 0) return false;
     List<String> words = _reviewController.text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
@@ -60,6 +61,7 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
     if (image != null) {
       final bytes = await image.readAsBytes();
       
+      // Mostramos la foto de inmediato en la pantalla mientras se sube a la nube
       setState(() {
         _selectedImageBytes[index] = bytes;
         _isUploading[index] = true;
@@ -96,7 +98,10 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
       String memoryDocId = '${myUid}_$adventureId'; 
       int expEarned = widget.adventureData['xpBase'] ?? 50; 
 
+      // Usamos una transacción para que todo se guarde junto o no se guarde nada. 
+      // Así evitamos que gane puntos pero no se guarde el recuerdo, o viceversa.
       await FirebaseFirestore.instance.runTransaction((transaction) async {
+        // 1. Guardamos el recuerdo con la calificación y fotos
         Map<String, dynamic> memoryData = {
           'userId': myUid,
           'adventure_title': widget.adventureData['title'],
@@ -108,11 +113,13 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
         };
         transaction.set(FirebaseFirestore.instance.collection('solo_memories').doc(memoryDocId), memoryData);
         
+        // 2. Le sumamos la experiencia y la cita completada al usuario
         transaction.update(FirebaseFirestore.instance.collection('users').doc(myUid), {
           'exp': FieldValue.increment(expEarned),
           'soloDatesCompleted': FieldValue.increment(1)
         });
 
+        // 3. Cerramos la aventura actual en el mapa y desbloqueamos la siguiente
         Map<String, dynamic> updateData = {'activeAdventureNumber': FieldValue.delete()};
         if (widget.availableAdventuresIds.isNotEmpty) {
           final random = Random();
@@ -242,6 +249,7 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
   Widget _buildPhotoPicker(int index) {
     return Expanded(
       child: GestureDetector(
+        // Si ya subió la foto, al tocarla la vemos en pantalla completa. Si no, abrimos la cámara/galería
         onTap: () {
           if (_uploadedPhotoUrls[index] != null) {
             Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImageViewer(imageUrl: _uploadedPhotoUrls[index]!)));
@@ -260,9 +268,11 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
               else
                 const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo_outlined, color: Color(0xFF1976D2), size: 40), SizedBox(height: 5), Text('Foto', style: TextStyle(color: Colors.grey))]),
               
+              // Capa gris con rueda de carga mientras la foto sube a la nube
               if (_isUploading[index])
                 Container(decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(15)), alignment: Alignment.center, child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(color: Colors.white), SizedBox(height: 5), Text('Subiendo...', style: TextStyle(color: Colors.white, fontSize: 10))])),
                 
+              // Pequeña palomita verde cuando la foto ya subió bien
               if (_uploadedPhotoUrls[index] != null && !_isUploading[index])
                 Positioned(top: 5, right: 5, child: Container(padding: const EdgeInsets.all(4), decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle), child: const Icon(Icons.check, color: Colors.white, size: 12)))
             ],

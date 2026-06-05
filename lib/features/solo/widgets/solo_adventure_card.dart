@@ -16,6 +16,7 @@ class SoloAdventureCard extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
     final myUid = authProvider.user!.uid;
 
+    // Revisamos en tiempo real si el usuario ya aceptó el contrato de la aventura
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('solo_progress').doc(myUid).snapshots(),
       builder: (context, snapshot) {
@@ -28,6 +29,7 @@ class SoloAdventureCard extends StatelessWidget {
           contractAccepted = snapshot.data!['contractAccepted'] ?? false;
         }
 
+        // Si no ha firmado el compromiso, al tocar le abrimos el diálogo
         if (!contractAccepted) {
           return _buildCard(
             title: 'Aventura en solitario', 
@@ -38,6 +40,7 @@ class SoloAdventureCard extends StatelessWidget {
           );
         }
 
+        // Si ya firmó, lo mandamos al mapa de aventuras configurando qué hacer en cada paso
         return _buildCard(
           title: 'Aventura en solitario', 
           subtitle: 'Mi camino personal', 
@@ -53,6 +56,7 @@ class SoloAdventureCard extends StatelessWidget {
               adventureData: adventureData, 
               availableAdventuresIds: availableIds, 
               onSoloFinish: (ctx) { 
+                // Al terminar, lo mandamos a calificar reemplazando la pantalla, así no puede devolverse a la aventura con el botón de atrás
                 Navigator.pushReplacement(ctx, MaterialPageRoute(builder: (_) => SoloAdventureReviewScreen(adventureData: adventureData, availableAdventuresIds: availableIds)));
               },
             ),

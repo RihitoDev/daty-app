@@ -1,3 +1,5 @@
+// ignore_for_file: empty_catches
+
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
@@ -35,6 +37,7 @@ class AdventureMap extends StatefulWidget {
 
 class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  // Altura total del mapa. Depende de cuántos nodos haya para que todo quepe y se pueda hacer scroll
   late double mapHeight;
 
   List<int> _adventurePath = []; 
@@ -51,6 +54,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
   StreamSubscription? _progressSubscription;
   bool _isFetchingRatings = false; 
 
+  // Animación que hace que los nodos disponibles "respiren" y llamen la atención
   late AnimationController _pulseController;
 
   late List<String> _shuffledDecorationImages;
@@ -82,6 +86,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     
     final List<double> possibleSizes = [210.0, 220.0, 240.0, 230.0, 215.0];
 
+    // Revolvemos las imágenes y tamaños para que el mapa se vea distinto cada vez que se abre
     _shuffledDecorationImages = List.from(allDecoImages)..shuffle();
     _shuffledDecorationSizes = List.from(possibleSizes)..shuffle();
 
@@ -101,6 +106,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       if (!mounted || !_scrollController.hasClients) return;
       
       try {
+        // Buscamos qué nodo mostrar: el activo, o el primero que falte por calificar
         int targetIndex = _adventurePath.isEmpty ? 0 : _adventurePath.length - 1;
         
         if (activeAdventureNumber != null) {
@@ -126,7 +132,10 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         targetScrollOffset = targetScrollOffset.clamp(minScroll, maxScroll);
         
         _scrollController.animateTo(targetScrollOffset, duration: const Duration(milliseconds: 800), curve: Curves.easeInOut);
-      } catch (e) {}
+      } catch (e, st) {
+        debugPrint('Error scrolling to node: $e');
+        debugPrint('$st');
+      }
     });
   }
 
@@ -137,10 +146,12 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       final partnerId = authProvider.userData?['partnerId'] as String?;
       _partnerId = partnerId;
 
+      // Ordenamos los IDs alfabéticamente para que ambos miembros de la pareja encuentren el mismo documento
       if (widget.mode == 'couple' && partnerId != null) {
         _coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
       }
 
+      // Escuchamos en tiempo real los cambios del progreso
       if (widget.mode == 'solo') {
         _progressSubscription = FirebaseFirestore.instance.collection('solo_progress').doc(myUid).snapshots().listen(
           (snapshot) async {
@@ -155,7 +166,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
               _scrollToCurrentNode();
             }
           },
-          onError: (error) {},
+          onError: (error) { debugPrint('solo progress snapshot error: $error'); },
           cancelOnError: false, 
         );
       } else if (_coupleDocId != null) {
@@ -174,11 +185,12 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
               _scrollToCurrentNode();
             }
           },
-          onError: (error) {},
+          onError: (error) { debugPrint('couple progress snapshot error: $error'); },
           cancelOnError: false,
         );
       }
 
+      // Descargamos todas las aventuras disponibles de una vez para tenerlas en caché
       final snapshot = await FirebaseFirestore.instance 
           .collection('adventures')
           .where('type', isEqualTo: widget.mode == 'solo' ? 'solo' : 'pareja')
@@ -192,10 +204,13 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         }
       }
 
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('Error $e');
+      debugPrint('$st');
     } finally {
       if (mounted) {
         setState(() => _isLoadingData = false);
+        // Si el camino está vacío, generamos el primer nodo para que el usuario tenga algo que hacer
         if (_adventurePath.isEmpty && _adventuresCache.isNotEmpty) {
           final authProvider = Provider.of<AuthProvider>(context, listen: false);
           final myUid = authProvider.user!.uid;
@@ -212,6 +227,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     Map<int, double> tempRatings = {};
     
     try {
+      // La base de datos no deja buscar más de 30 cosas a la vez, así que hacemos la búsqueda por tandas
       List<List<int>> chunks = [];
       for (var i = 0; i < _adventurePath.length; i += 30) {
         chunks.add(_adventurePath.sublist(i, i + 30 > _adventurePath.length ? _adventurePath.length : i + 30));
@@ -233,6 +249,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
           for (var doc in snapshot.docs) {
             final data = doc.data();
             int advId = data['id_adventure'] is int ? data['id_adventure'] : int.parse(data['id_adventure'].toString());
+            // En pareja, promediamos las calificaciones. Si uno no ha calificado, usamos la del otro
             int r1 = data['user1_rating'] ?? 0;
             int r2 = data['user2_rating'] ?? 0;
             if (r1 > 0 && r2 > 0) {
@@ -246,6 +263,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       if (mounted) {
         setState(() => _adventureRatings = tempRatings);
         
+        // Si ya se calificó la última aventura del camino, generamos la siguiente automáticamente
         if (_adventurePath.isNotEmpty && activeAdventureNumber == null && _adventurePath.length < widget.totalNodes) {
           int lastAdventureId = _adventurePath.last;
           if (tempRatings.containsKey(lastAdventureId)) {
@@ -254,6 +272,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         }
       }
     } catch (e) {
+      debugPrint('Error $e');
     } finally {
       _isFetchingRatings = false;
     }
@@ -261,6 +280,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
 
   Future<void> _generateNextNode({String? myUid, String? coupleDocId}) async {
     if (_adventuresCache.isEmpty) return;
+    // Elegimos al azar una aventura que no esté en el camino actual
     List<int> allIds = _adventuresCache.keys.toList();
     List<int> availableIds = allIds.where((id) => !_adventurePath.contains(id)).toList();
     if (availableIds.isEmpty) return; 
@@ -277,9 +297,12 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
           'adventurePath': FieldValue.arrayUnion([nextAdventureId])
         }, SetOptions(merge: true));
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error generating next node: $e');
+    }
   }
 
+  // Dibuja el camino en zig-zag (izquierda, centro, derecha) para que no sea una línea recta aburrida
   List<Offset> _generatePathPoints(double mapWidth) {
     List<Offset> points = [];
     double y = mapHeight - 150; double stepY = -100.0; 
@@ -295,6 +318,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     return points;
   }
 
+  // Pone las decoraciones en el lado contrario del nodo para que no se encimen
   List<Offset> _generateDecorationPoints(List<Offset> pathPoints, double mapWidth) {
     List<Offset> points = [];
     for (int i = 0; i < pathPoints.length; i++) {
@@ -324,6 +348,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     }
 
     try {
+      // Usamos transacción para evitar problemas si los dos tocan cambiar a la vez
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final snapshot = await transaction.get(docRef);
         if (!snapshot.exists) return;
@@ -333,12 +358,14 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         List<dynamic> skipped = List.from(data['skippedAdventures'] ?? []);
         List<dynamic> path = List.from(data['adventurePath'] ?? []);
 
+        // Solo hay 2 cambios permitidos
         if (rerollsUsed >= 2) return;
 
         List<int> allIds = _adventuresCache.keys.toList();
         List<int> availableIds = allIds.where((id) => 
             !path.contains(id) || id == currentAdventureId
         ).toList();
+        // No volvemos a sugerir las que ya se saltaron
         availableIds.removeWhere((id) => skipped.contains(id));
 
         if (availableIds.isEmpty) return;
@@ -395,12 +422,12 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                   margin: const EdgeInsets.all(30),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(color: Colors.grey.shade900, borderRadius: BorderRadius.circular(20)),
-                  child: Column(
+                  child: const Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.grey, size: 40),
-                      const SizedBox(height: 10),
-                      const Text('Error al cargar los detalles', textAlign: TextAlign.center, style: TextStyle(color: Colors.white)),
+                      Icon(Icons.error_outline, color: Colors.grey, size: 40),
+                      SizedBox(height: 10),
+                      Text('Error al cargar los detalles', textAlign: TextAlign.center, style: TextStyle(color: Colors.white)),
                     ],
                   )
                 )
@@ -469,7 +496,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                                 child: ElevatedButton.icon(
                                   onPressed: () {
                                     Navigator.pop(context); 
-                                    _showTipsBeforeStart(adventure!, nodeIndex, availableIds);
+                                    _showTipsBeforeStart(adventure, nodeIndex, availableIds);
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: widget.themeColor, 
@@ -481,6 +508,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                                 ),
                               ),
                               
+                              // Opción de cambiar aventura si le quedan rerolls y no es grupal
                               if (widget.mode != 'group' && rerollsLeft > 0) ...[
                                 const SizedBox(height: 15),
                                 SizedBox(
@@ -489,7 +517,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                                     onPressed: () => _rerollAdventure(nodeIndex, currentAdventureId),
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white70,
-                                      side: BorderSide(color: Colors.white24),
+                                      side: const BorderSide(color: Colors.white24),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                       padding: const EdgeInsets.symmetric(vertical: 15),
                                     ),
@@ -552,6 +580,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                         child: ElevatedButton(
                           onPressed: () async {
                             Navigator.pop(dialogContext); 
+                            // Marcamos la aventura como activa en la base de datos antes de ir a la pantalla de progreso
                             bool success = await _setAdventureStatus(adventure['number'], true); 
                             if (success && mounted) {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventure, availableIds)));
@@ -586,6 +615,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       } else if (_coupleDocId != null) {
         DocumentReference docRef = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!);
         if (isActive) {
+          // Al iniciar, reiniciamos las banderas de quién ya calificó
           await docRef.set({
             'activeAdventureNumber': adventureNumber,
             'reviewCompletedUser1': false, 
@@ -631,6 +661,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     double mapProgress = _adventurePath.isEmpty ? 0.0 : _adventurePath.length / widget.totalNodes;
     int completedDates = _adventurePath.length;
 
+    // Calculamos cuánta niebla poner abajo. Cubre desde el último nodo descubierto hacia arriba
     double fogBottom;
     if (_adventurePath.isEmpty) {
       fogBottom = 0; 
@@ -657,9 +688,13 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                 child: Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
+                    // Estrellitas o brillitos de ambiente
                     ...ambientPoints.map((pos) => Positioned(left: pos.dx, top: pos.dy, child: Icon(Icons.auto_awesome, color: Colors.white.withOpacity(0.15), size: 25))),
+                    // La línea que conecta los nodos
                     CustomPaint(size: Size(mapWidth, mapHeight), painter: CandyPathPainter(points: pathPoints, pathColor: neonPathColor)),
+                    // Edificios/iconos decorativos
                     ...decoPoints.asMap().entries.map((entry) => _buildStaticDecoration(entry.value.dx, entry.value.dy, entry.key)),
+                    // Los círculos (nodos) de cada aventura
                     ...pathPoints.asMap().entries.map((entry) {
                       int nodeIndex = entry.key; 
                       int adventureId = nodeIndex < _adventurePath.length ? _adventurePath[nodeIndex] : -1;
@@ -667,6 +702,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                       bool isUnlocked = nodeIndex < _adventurePath.length;
                       return _buildGameNode(entry.value.dx, entry.value.dy, nodeIndex + 1, adventureId, adventureData, isUnlocked, myUid);
                     }),
+                    // Efecto de niebla que cubre la parte del mapa que aún no has descubierto
                     if (_adventurePath.length < widget.totalNodes)
                       Positioned(top: 0, left: 0, right: 0, bottom: fogBottom,
                         child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.transparent, bgGradient[0].withOpacity(0.85), bgGradient[0].withOpacity(0.98), bgGradient[0]], stops: const [0.0, 0.15, 0.4, 1.0])))),
@@ -676,6 +712,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
             ),
           ),
           
+          // Barra superior con el progreso general del mapa
           Positioned(
             top: MediaQuery.of(context).padding.top + 10, left: 10, right: 10,
             child: Row(
@@ -766,6 +803,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     bool isCompleted = isUnlocked && _adventureRatings.containsKey(adventureId) && !isInProgress;
     bool isNextStep = isUnlocked && !isCompleted && !isInProgress;
 
+    // Revisamos quién es el usuario 1 y quién el 2 en la relación para leer sus reseñas
     bool isUser1 = _partnerId != null && myUid.compareTo(_partnerId!) < 0;
     
     bool iReviewed = false;
@@ -778,6 +816,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       isWaitingForPartner = iReviewed && !partnerReviewed;
     }
 
+    // Aquí decidimos cómo se ve cada nodo según su estado: bloqueado, por hacer, en progreso, esperando al otro o ya hecho
     Color startColor; Color endColor; Widget iconChild;
     
     if (isWaitingForPartner) {
@@ -817,6 +856,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       ),
     );
 
+    // Solo los nodos importantes respiran, los bloqueados o terminados se quedan quietos
     if (isNextStep || isInProgress || isWaitingForPartner) {
       nodeCircle = ScaleTransition(scale: _pulseController, child: nodeCircle);
     }
@@ -825,6 +865,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       left: x - 30, 
       top: y - (showRating ? 42 : 30), 
       child: GestureDetector(
+        // Dependiendo del estado, al tocar te lleva a ver el detalle, a la aventura o al recuerdo
         onTap: isLocked || adventureData == null ? null : () {
           if (isWaitingForPartner) {
             CustomSnackBar.showInfo(context, 'Ya calificaste. Esperando a tu pareja.');

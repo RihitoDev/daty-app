@@ -15,6 +15,7 @@ class AlbumScreen extends StatefulWidget {
 class _AlbumScreenState extends State<AlbumScreen> {
   @override
   Widget build(BuildContext context) {
+    // Usamos DefaultTabController para ahorrarnos instanciar y manejar el TabController a mano
     return DefaultTabController(
       length: 4,
       child: Scaffold(
@@ -64,6 +65,7 @@ class _AllAlbumList extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AlbumProvider>();
 
+    // StreamBuilder se encarga de re-dibujar la lista si entran nuevos datos desde Firebase/Provider
     return StreamBuilder<List<AlbumMemory>>(
       stream: provider.allStream,
       builder: (context, snapshot) {
@@ -75,7 +77,7 @@ class _AllAlbumList extends StatelessWidget {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
-              child: Text('Error al cargar todos:\n${snapshot.error}', textAlign: TextAlign.center, style: TextStyle(color: Colors.red)),
+              child: Text('Algo falló al cargar los recuerdos:\n${snapshot.error}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
             ),
           );
         }
@@ -113,7 +115,7 @@ class _SoloAlbumList extends StatelessWidget {
         }
         
         if (snapshot.hasError) {
-          return Center(child: Text('Error Solo: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Fallo al cargar aventuras en solitario: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -136,6 +138,7 @@ class _CoupleAlbumList extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<AlbumProvider>();
 
+    // Bloqueamos la vista de pareja si el usuario aún no tiene un partnerId vinculado
     if (provider.partnerId == null) {
       return const EmptyStateWidget(icon: Icons.favorite_border, message: 'Vincúlate con alguien para ver el álbum de pareja.');
     }
@@ -148,7 +151,7 @@ class _CoupleAlbumList extends StatelessWidget {
         }
         
         if (snapshot.hasError) {
-          return Center(child: Text('Error Pareja: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Fallo al cargar el álbum de pareja: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -183,7 +186,7 @@ class _GroupAlbumList extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Error Grupo: ${snapshot.error}', 
+                'Fallo al cargar las aventuras del grupo: ${snapshot.error}', 
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
               ),
@@ -194,8 +197,8 @@ class _GroupAlbumList extends StatelessWidget {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const EmptyStateWidget(icon: Icons.groups_outlined, message: 'Aún no hay expediciones grupales.\n¡Arma un grupo!');
         }
+        
         final memories = snapshot.data!;
-
         return ListView.builder(
           padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: memories.length,

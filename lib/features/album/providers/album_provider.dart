@@ -19,6 +19,7 @@ class AlbumProvider with ChangeNotifier {
   String get myName => _myName;
 
   AlbumProvider(this._authProvider) {
+    // Escuchamos los cambios en la autenticación para recargar la data si el usuario se desloguea o cambia
     _authProvider.addListener(_onAuthUpdate);
     _loadPartnerData();
   }
@@ -36,14 +37,16 @@ class AlbumProvider with ChangeNotifier {
     _partnerId = _authProvider.userData?['partnerId'];
 
     if (_partnerId != null) {
+      // Ordenamos los UIDs alfabéticamente para saber quién es user1 y asegurar que el ID del documento de pareja siempre se genere igual
       _isUser1 = myUid.compareTo(_partnerId!) < 0;
+      
       try {
         final doc = await FirebaseFirestore.instance.collection('users').doc(_partnerId).get();
         if (doc.exists) {
           _partnerName = doc.data()?['username'] ?? 'Pareja';
         }
-      } catch (e) {
-        debugPrint('Error cargando nombre de pareja: $e');
+      } catch (_) {
+        // Si falla la lectura del nombre, nos quedamos con el valor por defecto silenciosamente
       }
     }
     notifyListeners();
@@ -56,6 +59,8 @@ class AlbumProvider with ChangeNotifier {
 
   Stream<List<AlbumMemory>> get coupleStream {
     if (_partnerId == null || _authProvider.user == null) return Stream.value([]);
+    
+    // Armamos el ID compuesto basándonos en la bandera _isUser1 que calculamos arriba
     String coupleDocId = _isUser1 ? '${_authProvider.user!.uid}_$_partnerId' : '${_partnerId}_${_authProvider.user!.uid}';
     return AlbumService.coupleMemoriesStream(coupleDocId, _isUser1 ? _myName : _partnerName, _isUser1 ? _partnerName : _myName);
   }
@@ -66,12 +71,16 @@ class AlbumProvider with ChangeNotifier {
   }
 
   Stream<List<AlbumMemory>> get allStream {
+    // Usamos combineLatest3 de RxDart para fusionar los tres streams. 
+    // Cada vez que Firebase empuje un cambio a cualquiera de los tres, esta función se vuelve a disparar y reordena todo.
     return Rx.combineLatest3<List<AlbumMemory>, List<AlbumMemory>, List<AlbumMemory>, List<AlbumMemory>>(
       soloStream,
       coupleStream,
       groupStream,
       (soloMemories, coupleMemories, groupMemories) {
         final allMemories = [...soloMemories, ...coupleMemories, ...groupMemories];
+        
+        // Ordenamos toda la mezcla por fecha para la vista de "Todos"
         allMemories.sort((a, b) => b.date.compareTo(a.date));
         return allMemories;
       },

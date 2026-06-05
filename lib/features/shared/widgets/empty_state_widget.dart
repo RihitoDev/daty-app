@@ -18,6 +18,7 @@ class EmptyStateWidget extends StatelessWidget {
             Icon(icon, size: 70, color: Colors.grey.shade400),
             const SizedBox(height: 15),
             Text(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+            // Solo mostramos el botón si nos pasaron una acción para reintentar
             if (onRetry != null) ...[
               const SizedBox(height: 20),
               ElevatedButton.icon(

@@ -16,6 +16,7 @@ class SoloAdventureMemoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Armamos el ID del documento uniendo el usuario y la aventura, así siempre encontramos exactamente este recuerdo
     String memoryDocId = '${myUid}_$adventureId';
 
     return Scaffold(
@@ -86,14 +87,15 @@ class SoloAdventureMemoryScreen extends StatelessWidget {
                         const Text('Sin comentario', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                       
                       const SizedBox(height: 20),
-                      Row(
+                      const Row(
                         children: [
-                          const Icon(Icons.photo_library_outlined, size: 16, color: Color(0xFF1976D2)),
-                          const SizedBox(width: 6),
-                          const Text('Mis Fotos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Icon(Icons.photo_library_outlined, size: 16, color: Color(0xFF1976D2)),
+                          SizedBox(width: 6),
+                          Text('Mis Fotos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         ],
                       ),
                       const SizedBox(height: 10),
+                      // Mostramos máximo dos fotos, si no hay dejamos el espacio vacío
                       Row(
                         children: [
                           _buildPhotoBox(photos.isNotEmpty ? photos[0] : null),

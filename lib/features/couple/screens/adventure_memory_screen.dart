@@ -21,8 +21,11 @@ class AdventureMemoryScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final myUid = authProvider.user!.uid;
     final partnerId = authProvider.userData!['partnerId'];
+    
+    // Mantenemos la regla alfabética para saber qué posición ocupamos en el documento
     bool isUser1 = myUid.compareTo(partnerId) < 0;
 
+    // El ID del documento del recuerdo siempre es la combinación de la pareja y el ID de la aventura
     String memoryDocId = '${coupleDocId}_$adventureId';
 
     return Scaffold(
@@ -34,6 +37,7 @@ class AdventureMemoryScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFFC2185B)),
       ),
+      // Usamos FutureBuilder porque este dato es histórico, no necesitamos escuchar cambios en tiempo real
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('memories').doc(memoryDocId).get(),
         builder: (context, snapshot) {
@@ -55,6 +59,7 @@ class AdventureMemoryScreen extends StatelessWidget {
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
 
+          // Identificamos los prefijos para saber qué campos de Firebase leer para cada uno
           String myPrefix = isUser1 ? 'user1' : 'user2';
           String partnerPrefix = isUser1 ? 'user2' : 'user1';
 
@@ -111,11 +116,11 @@ class AdventureMemoryScreen extends StatelessWidget {
             const Text('Sin comentario', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
           
           const SizedBox(height: 20),
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.photo_library_outlined, size: 16, color: Color(0xFFC2185B)),
-              const SizedBox(width: 6),
-              const Text('Recuerdos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Icon(Icons.photo_library_outlined, size: 16, color: Color(0xFFC2185B)),
+              SizedBox(width: 6),
+              Text('Recuerdos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
           const SizedBox(height: 10),

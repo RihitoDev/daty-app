@@ -24,6 +24,7 @@ class GroupProvider extends ChangeNotifier {
       final myUid = _authProvider.user!.uid;
       final code = _generateGroupCode();
 
+      // Inicializamos el doc del grupo, nos asignamos como creador y abrimos la sala en modo espera
       await FirebaseFirestore.instance.collection('groups').doc(code).set({
         'code': code,
         'creatorId': myUid,
@@ -38,7 +39,7 @@ class GroupProvider extends ChangeNotifier {
       notifyListeners();
       return code;
     } catch (e) {
-      debugPrint('Error al crear grupo: $e');
+      debugPrint('Fallo al armar el grupo en Firebase: $e');
       _isLoading = false;
       notifyListeners();
       return null;
@@ -54,6 +55,7 @@ class GroupProvider extends ChangeNotifier {
       final docRef = FirebaseFirestore.instance.collection('groups').doc(code.toUpperCase());
       final docSnap = await docRef.get();
 
+      // Filtros clave antes de dejar entrar a alguien a la sala para evitar bugs visuales o sobrecupos
       if (!docSnap.exists) return 'El código no existe';
       if (docSnap.data()!['status'] != 'waiting') return 'La partida ya comenzó';
 
@@ -70,7 +72,7 @@ class GroupProvider extends ChangeNotifier {
       notifyListeners();
       return null; 
     } catch (e) {
-      debugPrint('Error al unirse: $e');
+      debugPrint('Rebote al intentar unirse a la sala: $e');
       _isLoading = false;
       notifyListeners();
       return 'Error al unirse al grupo';
@@ -81,7 +83,7 @@ class GroupProvider extends ChangeNotifier {
     try {
       await FirebaseFirestore.instance.collection('groups').doc(groupCode).update({'maxMembers': newMax});
     } catch (e) {
-      debugPrint('Error al actualizar límite: $e');
+      debugPrint('Fallo al cambiar el límite de integrantes: $e');
     }
   }
 
@@ -90,6 +92,7 @@ class GroupProvider extends ChangeNotifier {
       final snapshot = await FirebaseFirestore.instance.collection('adventures').where('type', isEqualTo: 'grupo').get();
       if (snapshot.docs.isEmpty) return null;
 
+      // Sorteamos una aventura aleatoria del pool de grupos y bloqueamos la sala para que no entre nadie más
       final randomIndex = Random().nextInt(snapshot.docs.length);
       final adventureData = snapshot.docs[randomIndex].data();
 
@@ -100,7 +103,7 @@ class GroupProvider extends ChangeNotifier {
 
       return adventureData;
     } catch (e) {
-      debugPrint('Error al iniciar expedición: $e');
+      debugPrint('Fallo al dar el pitazo de salida: $e');
       return null;
     }
   }
@@ -114,6 +117,9 @@ class GroupProvider extends ChangeNotifier {
       final docSnap = await docRef.get();
       if (docSnap.exists) {
         List<dynamic> members = docSnap.data()!['members'];
+        
+        // Si somos el último en salir, apagamos la luz y borramos el grupo de la BD. 
+        // Si no, nos borramos del array y le pasamos la batuta de creador al siguiente en la lista.
         if (members.length <= 1) {
           await docRef.delete();
         } else {
@@ -124,7 +130,7 @@ class GroupProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('Error al salir del grupo: $e');
+      debugPrint('Problema al intentar abandonar la sala: $e');
     } finally {
       _currentGroupCode = null;
       _groupSubscription?.cancel();

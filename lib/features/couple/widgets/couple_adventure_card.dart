@@ -15,6 +15,7 @@ class CoupleAdventureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final coupleProvider = context.watch<CoupleProvider>();
 
+    // Si aún no se vincula con nadie, mostramos el botón para abrir el buscador de usuarios
     if (!coupleProvider.hasPartner) {
       return _buildPremiumCard(
         title: 'Aventura en pareja',
@@ -25,6 +26,7 @@ class CoupleAdventureCard extends StatelessWidget {
       );
     }
 
+    // Mientras esperamos respuesta de la base de datos, bloqueamos los toques
     if (coupleProvider.isLoading) {
       return _buildPremiumCard(
         title: 'Cargando...',
@@ -35,6 +37,7 @@ class CoupleAdventureCard extends StatelessWidget {
       );
     }
 
+    // Si hubo un fallo raro o se quedaron a medias en la vinculación
     if (coupleProvider.coupleData == null) {
       if (!coupleProvider.isLoading) {
         return _buildPremiumCard(
@@ -55,6 +58,7 @@ class CoupleAdventureCard extends StatelessWidget {
       );
     }
 
+    // El usuario actual todavía no acepta las reglas de la app
     if (!coupleProvider.iSigned) {
       return _buildPremiumCard(
         title: 'Aventura en pareja',
@@ -65,6 +69,7 @@ class CoupleAdventureCard extends StatelessWidget {
       );
     }
 
+    // Nosotros ya aceptamos, pero toca esperar a que el otro abra la app y firme
     if (coupleProvider.iSigned && !coupleProvider.partnerSigned) {
       return _buildPremiumCard(
         title: 'Aventura en pareja',
@@ -77,6 +82,7 @@ class CoupleAdventureCard extends StatelessWidget {
       );
     }
 
+    // Todo listo: Ambos están vinculados y firmaron. Abrimos el mapa principal
     return _buildPremiumCard(
       title: 'Aventura en pareja',
       subtitle: 'Nuestra aventura junto a ${coupleProvider.partnerName}',
@@ -114,6 +120,7 @@ class CoupleAdventureCard extends StatelessWidget {
     );
   }
 
+  // Plantilla base para dibujar las tarjetas sin repetir la configuración visual 5 veces
   Widget _buildPremiumCard({
     required String title,
     required String subtitle,

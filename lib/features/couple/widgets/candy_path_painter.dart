@@ -14,6 +14,8 @@ class CandyPathPainter extends CustomPainter {
     for (int i = 0; i < points.length - 1; i++) {
       final current = points[i]; 
       final next = points[i + 1];
+      
+      // Curva de Bézier cúbica para darle ese flujo suave y orgánico al camino entre los nodos
       path.cubicTo(
         current.dx, current.dy + (next.dy - current.dy) * 0.8, 
         next.dx, next.dy - (next.dy - current.dy) * 0.8, 
@@ -47,6 +49,7 @@ class CandyPathPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
+    // Se apilan las capas desde la más gruesa/transparente hasta la más delgada/brillante para crear el efecto neón o caramelo
     canvas.drawPath(path, glowPaintOuter);
     canvas.drawPath(path, glowPaintInner);
     canvas.drawPath(path, corePaint);

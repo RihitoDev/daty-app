@@ -36,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final errorCode = await authProvider.signIn(_emailController.text, _passwordController.text);
 
+    // Si Firebase devuelve un error, lo mapeamos a un mensaje amigable para la UI
     if (mounted && errorCode != null) {
       String message = 'Correo o contrasena incorrectos';
       if (errorCode == 'user-not-found') message = 'No existe una cuenta con este correo';
@@ -61,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     showDialog(
       context: context,
+      // Usamos StatefulBuilder para poder hacer setState solo dentro del diálogo (para mostrar errores) sin reconstruir toda la pantalla de fondo
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
@@ -163,6 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text('Tu Companero De Aventuras', style: TextStyle(fontSize: 16, color: Colors.white70, letterSpacing: 1.5)),
                     const SizedBox(height: 35),
 
+                    // Efecto Glassmorphism (vidrio esmerilado) para el fondo del formulario principal
                     ClipRRect(
                       borderRadius: BorderRadius.circular(28),
                       child: BackdropFilter(

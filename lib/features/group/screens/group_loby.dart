@@ -15,10 +15,13 @@ class GroupLobby extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final myUid = authProvider.user!.uid;
 
+    // Inyectamos el GroupProvider para que el estado de la sala viva durante toda la navegación en este flujo
     return ChangeNotifierProvider(
       create: (_) => GroupProvider(Provider.of<AuthProvider>(context, listen: false)),
       child: Consumer<GroupProvider>(
         builder: (context, groupProvider, _) {
+          
+          // Si el estado detecta que ya hay un código de grupo activo, saltamos el lobby y vamos directo a la sala
           if (groupProvider.currentGroupCode != null) {
             return GroupRoom(groupCode: groupProvider.currentGroupCode!);
           }
@@ -38,9 +41,12 @@ class GroupLobby extends StatelessWidget {
                 }
 
                 final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                
+                // Extraemos las listas de recuerdos para saber qué mostrar en la tarjeta de "última aventura"
                 final List<dynamic> savedMemories = userData['savedGroupMemories'] ?? [];
                 final List<dynamic> dismissedMemories = userData['dismissedGroupMemories'] ?? [];
 
+                // Buscamos el último recuerdo donde nuestro UID esté en el array de miembros
                 return FutureBuilder<QuerySnapshot>(
                   future: FirebaseFirestore.instance.collection('group_memories').where('members', arrayContains: myUid).orderBy('timestamp', descending: true).limit(1).get(),
                   builder: (context, snapshot) {
@@ -48,6 +54,7 @@ class GroupLobby extends StatelessWidget {
                       return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
                     }
 
+                    // Si no hay aventuras previas, mostramos el lobby limpio
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return _buildMainContent(context, groupProvider, null, false);
                     }
@@ -58,6 +65,7 @@ class GroupLobby extends StatelessWidget {
                     bool wasSaved = savedMemories.contains(memoryDocId);
                     bool wasDismissed = dismissedMemories.contains(memoryDocId);
 
+                    // Filtro: si el usuario ya descartó esta memoria explícitamente antes, la ocultamos
                     if (wasDismissed) {
                       return _buildMainContent(context, groupProvider, null, false);
                     }

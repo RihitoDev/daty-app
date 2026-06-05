@@ -42,9 +42,9 @@ class ProfileProvider extends ChangeNotifier {
   bool get isUploadingPhoto => _isUploadingPhoto;
 
   ProfileProvider(this._authProvider) {
-    // Escuchamos los cambios de AuthProvider (que ya escucha Firestore en tiempo real)
+    // Nos conectamos a AuthProvider para usar su caché y no hacer lecturas extra a Firestore
     _authProvider.addListener(_onAuthDataChanged);
-    _onAuthDataChanged(); // Carga inicial
+    _onAuthDataChanged(); 
   }
 
   void _onAuthDataChanged() {
@@ -66,7 +66,7 @@ class ProfileProvider extends ChangeNotifier {
       }
     }
 
-    // Extraer datos directos del cache de AuthProvider (0 lecturas extra en Firestore)
+    // Extraemos directo del caché para no gastar lecturas en la base de datos
     _exp = userData['exp'] ?? 0;
     _soloDates = userData['soloDatesCompleted'] ?? 0;
     _groupOutings = userData['groupOutingsCompleted'] ?? 0;
@@ -75,7 +75,6 @@ class ProfileProvider extends ChangeNotifier {
 
     _calculateLevel();
 
-    // Cargar fechas de pareja si está vinculado
     if (_isLinked && partnerId != null) {
       _fetchCoupleData(myUid, partnerId);
     } else {
@@ -86,6 +85,7 @@ class ProfileProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Cada 100 puntos de experiencia sube un nivel
   void _calculateLevel() {
     _level = (_exp / 100).floor() + 1;
     _progress = (_exp % 100) / 100.0;
@@ -94,7 +94,9 @@ class ProfileProvider extends ChangeNotifier {
 
   Future<void> _fetchCoupleData(String myUid, String partnerId) async {
     try {
+      // Ordenamos los UIDs alfabéticamente para que ambos miembros de la pareja lleguen al mismo documento
       String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
+      
       final coupleDoc = await FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId).get();
       if (coupleDoc.exists) {
         _coupleDates = List<int>.from(coupleDoc.data()!['adventurePath'] ?? []).length;
@@ -105,6 +107,7 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
+  // Conecta el ID de cada logro con su contador correspondiente
   int getCurrentValue(AchievementDefinition ach) {
     switch (ach.id) {
       case 'gen_welcome': return 1;
@@ -123,12 +126,14 @@ class ProfileProvider extends ChangeNotifier {
     if (isEquipped) {
       _equippedPins.remove(pinId);
     } else {
-      if (_equippedPins.length < 3) {
+      if (_equippedPins.length < 3) { // Máximo 3 pines equipados
         _equippedPins.add(pinId);
       } else {
         return;
       }
     }
+    
+    // Actualizamos la interfaz primero y luego guardamos en la base de datos para que se sienta rápido
     notifyListeners();
 
     final myUid = _authProvider.user!.uid;
@@ -144,6 +149,7 @@ class ProfileProvider extends ChangeNotifier {
     final XFile? image = await ImageUploadService.pickImage();
     if (image == null) return;
 
+    // Mostramos la imagen localmente mientras se sube a la nube
     _selectedImageBytes = await image.readAsBytes();
     _isUploadingPhoto = true;
     notifyListeners();

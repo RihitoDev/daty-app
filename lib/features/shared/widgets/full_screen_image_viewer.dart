@@ -15,12 +15,13 @@ class FullScreenImageViewer extends StatelessWidget {
         elevation: 0
       ),
       body: Center(
+        // Permite hacer zoom y mover la foto con los dedos
         child: InteractiveViewer(
           minScale: 0.5,
           maxScale: 4.0,
           child: CachedNetworkImage(
             imageUrl: imageUrl, 
-            fit: BoxFit.contain, 
+            fit: BoxFit.contain, // Ajusta la imagen para que se vea completa sin recortar
             placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
             errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 50)
           ),

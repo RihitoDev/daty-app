@@ -1,6 +1,7 @@
 import '../models/achievement_definition.dart';
 
 class AchievementsData {
+  // Lista maestra con todos los logros del app. Aquí definimos el nombre, el ícono, el color y lo que se necesita para desbloquear cada uno.
   static List<AchievementDefinition> get allAchievements => [
     
     const AchievementDefinition(
@@ -143,6 +144,7 @@ class AchievementsData {
     ),
   ];
 
+  // Filtra la lista para devolver solo los logros de una categoría específica (general, solitario, etc.)
   static List<AchievementDefinition> getByMode(AchievementMode mode) {
     return allAchievements.where((ach) => ach.mode == mode).toList();
   }

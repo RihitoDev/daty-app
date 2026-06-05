@@ -13,8 +13,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Cargamos las variables de entorno antes de conectar a Firebase
   await dotenv.load(fileName: ".env");
 
+  // Conectamos con Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -23,6 +25,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        // Les inyectamos AuthProvider a los demás para que puedan ver quién está logueado
         ChangeNotifierProvider(
           create: (context) => ProfileProvider(context.read<AuthProvider>()),
         ),
@@ -61,10 +64,12 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
+    // Muestra una rueda de carga mientras Firebase verifica si hay una sesión guardada
     if (authProvider.isInitializing) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Si ya entró, va a la app; si no, al login
     if (authProvider.user != null) {
       return const HomeScreen();
     } else {

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui'; // ¡Importante para el efecto de cristal (ImageFilter)!
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +31,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
   int _currentTipIndex = 0;
   Timer? _tipTimer;
   bool _isSubmitting = false;
-  bool _isDetailExpanded = false; // Estado para el desplegable
+  bool _isDetailExpanded = false; 
 
   @override
   void initState() {
@@ -61,6 +61,8 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
       int expEarned = widget.adventureData['xpBase'] ?? 50;
 
+      // Usamos una transacción porque en expediciones grupales varios pueden darle a "finalizar" a la vez. 
+      // Esto evita que sobreescriban el estado de la sala o se dupliquen las XP.
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final groupSnap = await transaction.get(groupRef);
         
@@ -101,7 +103,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
       }
     } catch (e) {
       if(mounted) {
-        debugPrint('Error en completeAdventure: $e');
+        debugPrint('Fallo al completar la expedición del grupo: $e');
         CustomSnackBar.showError(context, 'Error al finalizar la expedición');
         setState(() => _isSubmitting = false);
       }
@@ -110,6 +112,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
   @override
   void dispose() {
+    // Vital matar el timer al desmontar la vista para no dejar procesos colgados consumiendo memoria
     _tipTimer?.cancel();
     super.dispose();
   }
@@ -122,10 +125,9 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
     final String description = widget.adventureData['description'] ?? '';
     final String location = widget.adventureData['location'] ?? ''; 
     
-    // Paleta de colores para el modo Grupal (Morado)
-    final Color primaryColor = const Color(0xFF8E24AA);
-    final Color darkBgColor = const Color(0xFF12061E); // Morado ultra oscuro
-    final Color midBgColor = const Color(0xFF2A0D3F);  // Morado medio
+    const Color primaryColor = Color(0xFF8E24AA);
+    const Color darkBgColor = Color(0xFF12061E); 
+    const Color midBgColor = Color(0xFF2A0D3F); 
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -150,9 +152,9 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
         ],
       ),
       body: Container(
-        width: double.infinity, // Fuerza pantalla completa
+        width: double.infinity, 
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -173,7 +175,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Indicador de "En Vivo"
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -184,7 +185,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _PulsingDot(color: primaryColor),
+                    const _PulsingDot(color: primaryColor),
                     const SizedBox(width: 8),
                     Text(
                       'EXPEDICIÓN EN CURSO',
@@ -201,7 +202,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
               const SizedBox(height: 30),
               
-              // Emoji en lugar del icono genérico para mantener consistencia
               Text(adventureEmoji, style: const TextStyle(fontSize: 80)),
               const SizedBox(height: 15),
               Text(
@@ -217,7 +217,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
               const SizedBox(height: 30),
 
-              // Tarjeta desplegable (Glassmorphism)
               GestureDetector(
                 onTap: () => setState(() => _isDetailExpanded = !_isDetailExpanded),
                 child: ClipRRect(
@@ -238,11 +237,11 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
+                              const Row(
                                 children: [
                                   Icon(Icons.menu_book_outlined, color: primaryColor, size: 20),
-                                  const SizedBox(width: 10),
-                                  const Text(
+                                  SizedBox(width: 10),
+                                  Text(
                                     "Detalles y Reto", 
                                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
                                   ),
@@ -266,7 +265,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Miembros del grupo
                                       _DetailRow(icon: Icons.groups_rounded, text: "Grupo: ${widget.members.length} miembros", color: primaryColor),
                                       const SizedBox(height: 15),
                                       if (location.isNotEmpty) ...[
@@ -296,7 +294,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
               const SizedBox(height: 30),
 
-              // Tips con efecto cristal
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 600),
                 child: ClipRRect(
@@ -313,7 +310,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                       ),
                       child: Column(
                         children: [
-                          Icon(Icons.lightbulb_outline, color: primaryColor, size: 28),
+                          const Icon(Icons.lightbulb_outline, color: primaryColor, size: 28),
                           const SizedBox(height: 15),
                           Text(
                             _groupTips[_currentTipIndex], 
@@ -334,12 +331,11 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
               const SizedBox(height: 50),
 
-              // Botón con gradiente
               SizedBox(
                 width: double.infinity, 
                 height: 55,
                 child: Opacity(
-                  opacity: _isSubmitting ? 0.7 : 1.0, // Efecto deshabilitado visual
+                  opacity: _isSubmitting ? 0.7 : 1.0, 
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -383,7 +379,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
   }
 }
 
-// Widgets auxiliares (Asegúrate de copiarlos también)
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String text;

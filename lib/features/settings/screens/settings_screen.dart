@@ -16,6 +16,7 @@ class SettingsScreen extends StatelessWidget {
         builder: (context, settingsProvider, _) {
 
           final authProvider = Provider.of<AuthProvider>(context);
+          // Solo mostramos las opciones de pareja si el usuario tiene un vínculo activo
           final bool hasPartner = authProvider.userData != null && authProvider.userData!['partnerId'] != null;
 
           return Scaffold(
@@ -51,9 +52,11 @@ class SettingsScreen extends StatelessWidget {
                         leading: const Icon(Icons.link_off, color: Colors.redAccent),
                         title: const Text('Desvincular Pareja', style: TextStyle(color: Colors.redAccent)),
                         subtitle: const Text('Se eliminará el progreso, mapa y recuerdos compartidos'),
+                        // Mostramos una rueda de carga si la acción está en proceso
                         trailing: settingsProvider.isProcessing 
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.chevron_right, color: Colors.grey),
+                        // Bloqueamos el tap si ya se está procesando para evitar dobles clics
                         onTap: settingsProvider.isProcessing ? null : () => _showUnlinkConfirmation(context, settingsProvider),
                       ),
                     ]),
@@ -70,6 +73,7 @@ class SettingsScreen extends StatelessWidget {
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.chevron_right, color: Colors.grey),
                       onTap: settingsProvider.isProcessing ? null : () async {
+                         // Pedimos confirmación porque borrar el progreso no tiene vuelta atrás
                          final confirm = await showDialog<bool>(
                            context: context,
                            builder: (dialogContext) => AlertDialog(
@@ -83,6 +87,7 @@ class SettingsScreen extends StatelessWidget {
                          );
                          if (confirm == true) {
                            final error = await settingsProvider.resetSoloProgress();
+                           // Nos aseguramos de que la pantalla siga montada antes de mostrar el mensaje
                            if (context.mounted) {
                              if (error != null) {
                                CustomSnackBar.showError(context, error);
@@ -135,6 +140,7 @@ class SettingsScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(0, 3))],
       ),
+      // Usamos Material transparente para mantener el efecto de ripple (la onda al tocar) en las opciones
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
@@ -180,6 +186,7 @@ class SettingsScreen extends StatelessWidget {
               Navigator.pop(dialogContext);
               final error = await provider.unlinkPartner();
               
+              // Verificamos que el contexto siga vivo después del await
               if (context.mounted) {
                 if (error != null) {
                   CustomSnackBar.showError(context, error);

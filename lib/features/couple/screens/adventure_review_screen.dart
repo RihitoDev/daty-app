@@ -198,7 +198,7 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
               onChanged: (_) => setState(() {})
             ), 
             const SizedBox(height: 30),
-            Align(alignment: Alignment.centerLeft, child: Row(children: const [Icon(Icons.photo_library_outlined, size: 18, color: Color(0xFFC2185B)), SizedBox(width: 6), Text('Sube hasta 2 fotos (1 obligatoria):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))])),
+            const Align(alignment: Alignment.centerLeft, child: Row(children: [Icon(Icons.photo_library_outlined, size: 18, color: Color(0xFFC2185B)), SizedBox(width: 6), Text('Sube hasta 2 fotos (1 obligatoria):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))])),
             const SizedBox(height: 10),
             Row(
               children: [

@@ -21,13 +21,18 @@ class AchievementsList extends StatelessWidget {
       itemCount: achievements.length,
       itemBuilder: (context, index) {
         final ach = achievements[index];
+        
+        // Revisamos cuánto lleva del logro y si ya lo desbloqueó o lo tiene equipado
         final currentValue = profileProvider.getCurrentValue(ach);
         final isUnlocked = currentValue >= ach.requiredValue;
         final isEquipped = profileProvider.equippedPins.contains(ach.id);
+
+        // Traducimos los nombres que vienen en los datos a íconos y colores reales
         final achColor = AchievementMapper.getColor(ach.colorName);
         final achIcon = AchievementMapper.getIcon(ach.iconName);
 
         return GestureDetector(
+          // Al tocar, intentamos equipar el pin, pero si ya tiene 3, le avisamos que no puede
           onTap: isUnlocked ? () {
             if (!isEquipped && profileProvider.equippedPins.length >= 3) {
               CustomSnackBar.showWarning(context, 'Máximo 3 pines equipados');
@@ -38,6 +43,7 @@ class AchievementsList extends StatelessWidget {
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(12),
+            // Cambiamos el color y borde según si está equipado, desbloqueado o bloqueado
             decoration: BoxDecoration(
               color: isEquipped ? achColor.withValues(alpha: 0.1) : (isUnlocked ? Colors.grey.shade50 : Colors.grey.shade100),
               borderRadius: BorderRadius.circular(15),
@@ -58,10 +64,12 @@ class AchievementsList extends StatelessWidget {
                 children: [
                   Text(ach.title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isUnlocked ? Colors.black87 : Colors.grey)),
                   Text(ach.description, style: TextStyle(color: isUnlocked ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 12)),
+                  // Mostramos el progreso si está bloqueado, o si está equipado si ya lo desbloqueó
                   if (!isUnlocked) Padding(padding: const EdgeInsets.only(top: 4), child: Text('$currentValue / ${ach.requiredValue}', style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)))
                   else if (isEquipped) const Padding(padding: EdgeInsets.only(top: 4), child: Text('Equipado como pin', style: TextStyle(color: Color(0xFF9C27B0), fontSize: 11, fontWeight: FontWeight.bold)))
                 ]
               )),
+              // Ícono de la derecha indicando el estado visual rápido
               if (isEquipped) const Icon(Icons.push_pin, color: Color(0xFF9C27B0), size: 20)
               else if (isUnlocked) const Icon(Icons.check_circle_outline, color: Colors.green, size: 20)
               else const Icon(Icons.lock_outline, color: Colors.grey, size: 20)

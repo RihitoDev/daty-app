@@ -29,6 +29,7 @@ class _PairingDialogState extends State<PairingDialog> {
     _listenForPartnerLink();
   }
 
+  // Generamos el código (3 letras, 3 números mezclados) y lo guardamos en nuestro doc para que el otro lo pueda buscar.
   void _generateAndSaveCode() {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
@@ -44,6 +45,7 @@ class _PairingDialogState extends State<PairingDialog> {
     _firestore.collection('users').doc(widget.myUid).set({'pairingCode': _myCode}, SetOptions(merge: true));
   }
 
+  // Escuchamos nuestro propio doc. Si la pareja mete nuestro código antes, nos vinculan por detrás y cerramos este modal automáticamente.
   void _listenForPartnerLink() {
     _subscription = _firestore.collection('users').doc(widget.myUid).snapshots().listen((snapshot) {
       if (snapshot.exists) {
@@ -83,6 +85,7 @@ class _PairingDialogState extends State<PairingDialog> {
           ? '${widget.myUid}_$partnerUid' 
           : '${partnerUid}_${widget.myUid}';
 
+      // Transacción crítica: bloqueamos ambos perfiles y creamos el doc de la pareja al mismo tiempo para evitar que alguien se quede colgado si falla la red a medias.
       await _firestore.runTransaction((transaction) async {
         
         final myDocRef = _firestore.collection('users').doc(widget.myUid);
@@ -133,6 +136,7 @@ class _PairingDialogState extends State<PairingDialog> {
   @override
   void dispose() {
     _subscription?.cancel();
+    // Borramos el código de Firestore al salir para invalidarlo y que no quede basura en la BD.
     _firestore.collection('users').doc(widget.myUid).set({'pairingCode': FieldValue.delete()}, SetOptions(merge: true));
     _codeController.dispose();
     super.dispose();

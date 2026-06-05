@@ -29,6 +29,7 @@ class _ContractDialogState extends State<ContractDialog> {
   Future<void> _signContract() async {
     setState(() => _isProcessing = true);
     
+    // Mantenemos la regla del orden alfabético para saber exactamente qué campo del contrato nos toca actualizar
     String fieldToUpdate = widget.myUid.compareTo(widget.partnerUid) < 0 
         ? 'contractSignedUser1' 
         : 'contractSignedUser2';
@@ -51,6 +52,7 @@ class _ContractDialogState extends State<ContractDialog> {
   Future<void> _rejectAndUnlink() async {
     setState(() => _isProcessing = true);
     try {
+      // Usamos WriteBatch porque si falla la desvinculación a la mitad, dejaría la base de datos inconsistente. Es todo o nada.
       WriteBatch batch = FirebaseFirestore.instance.batch();
       
       batch.update(FirebaseFirestore.instance.collection('users').doc(widget.myUid), {'partnerId': null});
@@ -69,6 +71,7 @@ class _ContractDialogState extends State<ContractDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // PopScope bloquea el botón físico de "Atrás" en Android para forzar que el usuario tome una decisión explícita en el diálogo
     return PopScope(
       canPop: false,
       child: Dialog(
@@ -89,10 +92,10 @@ class _ContractDialogState extends State<ContractDialog> {
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _rule1Checked,
                   onChanged: (val) => setState(() => _rule1Checked = val ?? false),
-                  title: Row(
+                  title: const Row(
                     children: [
-                      const SizedBox(width: 6),
-                      const Expanded(child: Text('Nos comprometemos a no usar el celular durante las citas, salvo emergencias o fotos.', style: TextStyle(fontSize: 13))),
+                      SizedBox(width: 6),
+                      Expanded(child: Text('Nos comprometemos a no usar el celular durante las citas, salvo emergencias o fotos.', style: TextStyle(fontSize: 13))),
                     ],
                   ),
                 ),
@@ -100,10 +103,10 @@ class _ContractDialogState extends State<ContractDialog> {
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _rule2Checked,
                   onChanged: (val) => setState(() => _rule2Checked = val ?? false),
-                  title: Row(
+                  title: const Row(
                     children: [
-                      const SizedBox(width: 6),
-                      const Expanded(child: Text('Mantenemos la mente abierta para probar nuevas actividades sin juzgar antes.', style: TextStyle(fontSize: 13))),
+                      SizedBox(width: 6),
+                      Expanded(child: Text('Mantenemos la mente abierta para probar nuevas actividades sin juzgar antes.', style: TextStyle(fontSize: 13))),
                     ],
                   ),
                 ),
@@ -111,10 +114,10 @@ class _ContractDialogState extends State<ContractDialog> {
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _rule3Checked,
                   onChanged: (val) => setState(() => _rule3Checked = val ?? false),
-                  title: Row(
+                  title: const Row(
                     children: [
-                      const SizedBox(width: 6),
-                      const Expanded(child: Text('El objetivo principal es la complicidad y el disfrute juntos, no que todo salga perfecto.', style: TextStyle(fontSize: 13))),
+                      SizedBox(width: 6),
+                      Expanded(child: Text('El objetivo principal es la complicidad y el disfrute juntos, no que todo salga perfecto.', style: TextStyle(fontSize: 13))),
                     ],
                   ),
                 ),

@@ -31,6 +31,7 @@ class _GroupRoomState extends State<GroupRoom> {
   }
 
   void _listenToGroup() {
+    // Escuchamos la sala en tiempo real. Si el estatus cambia a 'active', todos los miembros navegan a la aventura simultáneamente.
     _groupSubscription = FirebaseFirestore.instance.collection('groups').doc(widget.groupCode).snapshots().listen((doc) {
       if (!doc.exists) {
         if (mounted) {
@@ -59,6 +60,7 @@ class _GroupRoomState extends State<GroupRoom> {
 
   Future<void> _navigateToAdventure() async {
     try {
+      // Traemos los detalles de la aventura sorteada antes de renderizar la pantalla de juego
       final adventureSnap = await FirebaseFirestore.instance.collection('adventures').where('number', isEqualTo: _activeAdventureId).limit(1).get();
       if (adventureSnap.docs.isNotEmpty && mounted) {
         final adventureData = adventureSnap.docs.first.data();
@@ -94,6 +96,7 @@ class _GroupRoomState extends State<GroupRoom> {
     final myUid = authProvider.user!.uid;
     final bool isCreator = myUid == _creatorId;
 
+    // Atrapamos el botón físico/gesto de "atrás" para garantizar que el usuario haga leaveGroup() en Firebase y no quede como un fantasma en la sala
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) async {
@@ -193,6 +196,7 @@ class _GroupRoomState extends State<GroupRoom> {
                   ),
 
                   if (isCreator)
+                    // Solo el creador puede dar inicio, y requiere al menos a otra persona en la sala
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _members.length >= 2 ? Colors.green : Colors.grey,

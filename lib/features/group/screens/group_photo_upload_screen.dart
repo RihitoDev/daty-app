@@ -30,6 +30,8 @@ class _GroupPhotoUploadScreenState extends State<GroupPhotoUploadScreen> {
     final XFile? image = await ImageUploadService.pickImage();
     if (image != null) {
       final bytes = await image.readAsBytes();
+      
+      // Mostramos los bytes en local de inmediato para dar feedback al usuario mientras sube a Storage
       setState(() { 
         _selectedImageBytes = bytes;
         _isUploading = true;
@@ -60,6 +62,7 @@ class _GroupPhotoUploadScreenState extends State<GroupPhotoUploadScreen> {
     try {
       final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
 
+      // Si decidió subir foto, la inyectamos en el mapa 'photos' del documento usando su UID como llave
       if (_uploadedPhotoUrl != null) {
         String memoryDocId = '${widget.groupCode}_${widget.adventureData['number']}';
         await FirebaseFirestore.instance.collection('group_memories').doc(memoryDocId).update({

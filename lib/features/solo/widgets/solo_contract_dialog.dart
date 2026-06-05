@@ -24,6 +24,8 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
 
     try {
+      // Guardamos que aceptó el contrato e inicializamos su camino vacío.
+      // Usamos merge: true por si el documento ya existía parcialmente, así no borramos lo que tenía antes.
       await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).set({
         'contractAccepted': true,
         'adventurePath': [],
@@ -31,8 +33,9 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
       }, SetOptions(merge: true));
       
       if (mounted) {
-        Navigator.pop(context); 
+        Navigator.pop(context); // Cerramos el diálogo
         
+        // Lo mandamos directo al mapa para que vea su primera aventura
         Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMap(
           mode: 'solo',
           themeColor: const Color(0xFF1976D2),
@@ -63,6 +66,7 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Bloqueamos el botón de atrás para obligar al usuario a aceptar las reglas o quedarse aquí
     return PopScope(
       canPop: false,
       child: Dialog(
@@ -83,10 +87,10 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _ruleChecked,
                   onChanged: (val) => setState(() => _ruleChecked = val ?? false),
-                  title: Row(
+                  title: const Row(
                     children: [
-                      const SizedBox(width: 6),
-                      const Expanded(child: Text('Me comprometo a disfrutar y vivir nuevas experiencias solo y sin excusas.', style: TextStyle(fontSize: 13))),
+                      SizedBox(width: 6),
+                      Expanded(child: Text('Me comprometo a disfrutar y vivir nuevas experiencias solo y sin excusas.', style: TextStyle(fontSize: 13))),
                     ],
                   ),
                 ),

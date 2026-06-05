@@ -45,12 +45,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (mounted) {
       if (errorCode != null) {
+        // Filtro rápido de errores comunes de Firebase para la UI
         String message = 'Ocurrio un error inesperado.';
         if (errorCode == 'weak-password') message = 'La contrasena es muy debil (minimo 6 caracteres).';
         if (errorCode == 'email-already-in-use') message = 'Este correo ya esta registrado.';
         if (errorCode == 'firestore-error') message = 'Error al crear el perfil. Intenta de nuevo.';
         setState(() => _authError = message);
       } else {
+        // Reseteamos el stack de navegación para evitar que vuelvan al login con el botón de "Atrás"
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     }
@@ -168,6 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       style: const TextStyle(color: Colors.white),
       onChanged: (_) => _clearError(),
       validator: (value) {
+        // Bloqueo de avance si el input rompe las reglas de negocio
         if (value == null || value.isEmpty) return 'Campo obligatorio';
         if (isEmail && !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Correo no valido';
         if (isPassword && value.length < 6) return 'Minimo 6 caracteres';
