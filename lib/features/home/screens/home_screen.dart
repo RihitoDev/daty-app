@@ -74,8 +74,6 @@ class _HomeContentState extends State<HomeContent> {
   late Future<List<Map<String, dynamic>>> _randomAdventuresFuture;
   late PageController _pageController;
   Timer? _autoScrollTimer;
-  
-  // Empezamos en 1000 para que el carrusel parezca infinito y pueda ir hacia atrás
   int _currentPage = 1000; 
   int _adventuresCount = 0;
 
@@ -124,7 +122,6 @@ class _HomeContentState extends State<HomeContent> {
 
   void _startAutoScroll() {
     _stopAutoScroll(); 
-    
     if (_adventuresCount == 0) return;
 
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
@@ -151,7 +148,6 @@ class _HomeContentState extends State<HomeContent> {
     return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
   }
 
-  // Muestra una frase aleatoria por 3 segundos al tocar la mascota
   void _onMascotTapped() {
     final random = Random();
     _bubbleTimer?.cancel();
@@ -180,107 +176,93 @@ class _HomeContentState extends State<HomeContent> {
 
     return Column(
       children: [
-        // --- NUEVO ENCABEZADO MEJORADO ---
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.only(top: 60, left: 25, right: 25, bottom: 25),
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 30, 
+            left: 20, 
+            right: 20, 
+            bottom: 20
+          ),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF9C27B0), Color(0xFF8E24AA), Color(0xFFCE93D8)],
+              colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)],
             ),
-            // Esquinas redondeadas en la parte inferior para un look más suave
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Fila 1: Saludo y Avatar
+              // Fila principal
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Saludo y Nombre
+                  // Mascota
+                  GestureDetector(
+                    onTap: _onMascotTapped,
+                    child: Container(
+                      padding: const EdgeInsets.all(4.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(40),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Image.asset(
+                        'assets/images/mascot.png', 
+                        height: 45, 
+                        errorBuilder: (c, e, s) => const Icon(Icons.pets, color: Colors.white, size: 35)
+                      ),
+                    ),
+                  ),
+                  
+                  // Saludo centrado en el espacio restante
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Bienvenido! 👋', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 18, fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 5),
-                        Text(userName, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis),
+                        Text('Bienvenido,', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w400)),
+                        Text(userName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis, maxLines: 1),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 15),
                   
-                  // Avatar más grande y con borde brillante
+                  // Avatar
                   GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())),
                     child: Container(
-                      padding: const EdgeInsets.all(3), // Grosor del borde
+                      padding: const EdgeInsets.all(2.5),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.4), // Color del borde
+                        color: Colors.white,
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))
+                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 4))
                         ]
                       ),
                       child: CircleAvatar(
-                        radius: 30,
+                        radius: 25,
                         backgroundColor: const Color(0xFF81D4FA),
-                        // Usar CachedNetworkImageProvider es más limpio para CircleAvatar
                         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? CachedNetworkImageProvider(photoUrl) : null,
                         child: (photoUrl == null || photoUrl.isEmpty) 
-                          ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24)) 
+                          ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)) 
                           : null,
                       ),
                     ),
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 15),
-              
-              // Fila 2: Mascota con su burbuja
-              SizedBox(
-                height: 80,
-                child: Stack(
-                  clipBehavior: Clip.none, // Permite que la burbuja sobresalga sin cortarse
-                  children: [
-                    if (_showBubble)
-                      Positioned(
-                        top: 0,
-                        left: 70,
-                        child: _buildSpeechBubble(_currentPhrase),
-                      ),
-                    
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      child: GestureDetector(
-                        onTap: _onMascotTapped,
-                        child: Container(
-                          padding: const EdgeInsets.all(6.0),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Image.asset(
-                            'assets/images/mascot.png', 
-                            height: 60, 
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.pets, color: Colors.white, size: 40)
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+
+              if (_showBubble)
+                Positioned(
+                  left: 30, 
+                  bottom: 40, 
+                  child: _buildSpeechBubble(_currentPhrase),
                 ),
-              ),
             ],
           ),
         ),
-        // --- FIN DEL ENCABEZADO ---
+   
 
         Expanded(
           child: SingleChildScrollView(
@@ -322,28 +304,31 @@ class _HomeContentState extends State<HomeContent> {
       opacity: _showBubble ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 300),
       child: AnimatedScale(
-        scale: _showBubble ? 1.0 : 0.5, // Efecto de "pop" al aparecer
+        scale: _showBubble ? 1.0 : 0.5,
         curve: Curves.elasticOut, 
         duration: const Duration(milliseconds: 400),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20), // Bordes redondeados estilo nube
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.55), // Limitamos al 55% para que no se haga demasiado ancho
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFF9C27B0), 
+                fontWeight: FontWeight.bold, 
+                fontSize: 13
               ),
-            ],
-          ),
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF9C27B0), 
-              fontWeight: FontWeight.bold, 
-              fontSize: 13
             ),
           ),
         ),
@@ -376,14 +361,12 @@ class _HomeContentState extends State<HomeContent> {
           final adventures = snapshot.data!;
           _adventuresCount = adventures.length;
           
-          // Inicia el auto-scroll solo si no estaba ya activo
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_autoScrollTimer == null || !_autoScrollTimer!.isActive) {
               _startAutoScroll();
             }
           });
 
-          // Pausa el scroll si el usuario lo toca, y lo reanuda tras 3 segundos de soltarlo
           return NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification is ScrollStartNotification && notification.dragDetails != null) {
@@ -397,7 +380,7 @@ class _HomeContentState extends State<HomeContent> {
             },
             child: PageView.builder(
               controller: _pageController,
-              itemCount: _adventuresCount * 10000, // Truco para simular carrusel infinito
+              itemCount: _adventuresCount * 10000,
               onPageChanged: (index) {
                 _currentPage = index;
               },
@@ -447,7 +430,6 @@ class _HomeContentState extends State<HomeContent> {
                         );
                       },
                     ),
-                    // Degradado oscuro en la parte inferior para que se lea el título
                     Positioned(
                       bottom: 0, left: 0, right: 0,
                       child: Container(
@@ -492,7 +474,6 @@ class _HomeContentState extends State<HomeContent> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Reanudamos el auto-scroll poco después de cerrar el diálogo
               Future.delayed(const Duration(seconds: 2), () {
                 if (mounted) _startAutoScroll();
               });
