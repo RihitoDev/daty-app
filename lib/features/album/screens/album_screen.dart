@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/album_provider.dart';
 import '../models/album_memory.dart';
 import '../widgets/memory_card.dart';
-import '../../shared/widgets/empty_state_widget.dart';
+import '../../../shared/widgets/empty_state_widget.dart';
 
 class AlbumScreen extends StatefulWidget {
   const AlbumScreen({super.key});

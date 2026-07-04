@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class ContractDialog extends StatefulWidget {
   final String myUid;

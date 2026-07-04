@@ -4,7 +4,7 @@ import '../../../core/models/achievement_definition.dart';
 import '../../../core/utils/achievement_mapper.dart';
 import '../providers/profile_provider.dart';
 import 'package:provider/provider.dart';
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class AchievementsList extends StatelessWidget {
   final AchievementMode mode;

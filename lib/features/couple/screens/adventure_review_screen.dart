@@ -7,8 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/services/image_upload_service.dart';
 import '../../../core/services/network_service.dart';
-import '../../shared/widgets/full_screen_image_viewer.dart';
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/full_screen_image_viewer.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class AdventureReviewScreen extends StatefulWidget {
   final Map<String, dynamic> adventureData; 

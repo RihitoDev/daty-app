@@ -6,9 +6,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../../auth/providers/auth_provider.dart';
-import '../../couple/widgets/candy_path_painter.dart';
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../features/auth/providers/auth_provider.dart';
+import '../widgets/candy_path_painter.dart';
+import '../widgets/custom_snackbar.dart';
 
 class AdventureMap extends StatefulWidget {
   final String mode;

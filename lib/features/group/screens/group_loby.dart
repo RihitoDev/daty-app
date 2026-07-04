@@ -5,7 +5,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/group_provider.dart';
 import 'group_room.dart';
 import 'group_memory_board_screen.dart';
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class GroupLobby extends StatelessWidget {
   const GroupLobby({super.key});
@@ -15,65 +15,62 @@ class GroupLobby extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final myUid = authProvider.user!.uid;
 
-    // Inyectamos el GroupProvider para que el estado de la sala viva durante toda la navegación en este flujo
     return ChangeNotifierProvider(
       create: (_) => GroupProvider(Provider.of<AuthProvider>(context, listen: false)),
       child: Consumer<GroupProvider>(
         builder: (context, groupProvider, _) {
           
-          // Si el estado detecta que ya hay un código de grupo activo, saltamos el lobby y vamos directo a la sala
-          if (groupProvider.currentGroupCode != null) {
-            return GroupRoom(groupCode: groupProvider.currentGroupCode!);
-          }
+          final bool isInRoom = groupProvider.currentGroupCode != null;
 
           return Scaffold(
             backgroundColor: const Color(0xFFF3E5F5),
-            appBar: AppBar(
+            // Ocultamos el AppBar si ya estamos dentro de la sala de espera
+            appBar: isInRoom ? null : AppBar(
               title: const Text('Aventura Grupal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               backgroundColor: const Color(0xFF8E24AA),
               iconTheme: const IconThemeData(color: Colors.white),
             ),
-            body: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('users').doc(myUid).get(),
-              builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
-                }
+            body: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: isInRoom 
+                ? GroupRoom(key: ValueKey(groupProvider.currentGroupCode), groupCode: groupProvider.currentGroupCode!)
+                : FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance.collection('users').doc(myUid).get(),
+                    builder: (context, userSnapshot) {
+                      if (!userSnapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
+                      }
 
-                final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-                
-                // Extraemos las listas de recuerdos para saber qué mostrar en la tarjeta de "última aventura"
-                final List<dynamic> savedMemories = userData['savedGroupMemories'] ?? [];
-                final List<dynamic> dismissedMemories = userData['dismissedGroupMemories'] ?? [];
+                      final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+                      final List<dynamic> savedMemories = userData['savedGroupMemories'] ?? [];
+                      final List<dynamic> dismissedMemories = userData['dismissedGroupMemories'] ?? [];
 
-                // Buscamos el último recuerdo donde nuestro UID esté en el array de miembros
-                return FutureBuilder<QuerySnapshot>(
-                  future: FirebaseFirestore.instance.collection('group_memories').where('members', arrayContains: myUid).orderBy('timestamp', descending: true).limit(1).get(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
-                    }
+                      return FutureBuilder<QuerySnapshot>(
+                        future: FirebaseFirestore.instance.collection('group_memories').where('members', arrayContains: myUid).orderBy('timestamp', descending: true).limit(1).get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
+                          }
 
-                    // Si no hay aventuras previas, mostramos el lobby limpio
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return _buildMainContent(context, groupProvider, null, false);
-                    }
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return _buildMainContent(context, groupProvider, null, false);
+                          }
 
-                    final lastDoc = snapshot.data!.docs.first;
-                    final String memoryDocId = lastDoc.id;
-                    
-                    bool wasSaved = savedMemories.contains(memoryDocId);
-                    bool wasDismissed = dismissedMemories.contains(memoryDocId);
+                          final lastDoc = snapshot.data!.docs.first;
+                          final String memoryDocId = lastDoc.id;
+                          
+                          bool wasSaved = savedMemories.contains(memoryDocId);
+                          bool wasDismissed = dismissedMemories.contains(memoryDocId);
 
-                    // Filtro: si el usuario ya descartó esta memoria explícitamente antes, la ocultamos
-                    if (wasDismissed) {
-                      return _buildMainContent(context, groupProvider, null, false);
-                    }
+                          if (wasDismissed) {
+                            return _buildMainContent(context, groupProvider, null, false);
+                          }
 
-                    return _buildMainContent(context, groupProvider, lastDoc, wasSaved);
-                  },
-                );
-              },
+                          return _buildMainContent(context, groupProvider, lastDoc, wasSaved);
+                        },
+                      );
+                    },
+                  ),
             ),
           );
         },

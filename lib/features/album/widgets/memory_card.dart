@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/album_memory.dart';
-import '../../shared/widgets/full_screen_image_viewer.dart';
+import '../../../shared/widgets/full_screen_image_viewer.dart';
 
 class MemoryCard extends StatelessWidget {
   final AlbumMemory memory;

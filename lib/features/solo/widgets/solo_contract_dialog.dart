@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../shared/screens/adventure_map.dart';
+import '../../../shared/screens/adventure_map.dart';
 import '../../couple/screens/adventure_in_progress_screen.dart'; 
 import '../screens/solo_adventure_review_screen.dart'; 
 import '../screens/solo_adventure_memory_screen.dart'; 
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class SoloContractDialog extends StatefulWidget {
   const SoloContractDialog({super.key});

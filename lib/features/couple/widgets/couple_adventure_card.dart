@@ -5,8 +5,8 @@ import 'package:provider/provider.dart';
 import '../providers/couple_provider.dart';
 import 'pairing_dialog.dart';
 import 'contract_dialog.dart';
-import '../../shared/screens/adventure_map.dart';
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/screens/adventure_map.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class CoupleAdventureCard extends StatelessWidget {
   const CoupleAdventureCard({super.key});

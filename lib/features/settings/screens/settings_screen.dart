@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../profile/screens/profile_screen.dart';
-import '../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});

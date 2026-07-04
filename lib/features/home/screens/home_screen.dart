@@ -84,7 +84,7 @@ class _HomeContentState extends State<HomeContent> {
   final List<String> _mascotPhrases = [
     '¡Vive una aventura!',
     '¿Felices por siempre?',
-    '¿Qué plan hay hoy?',
+    '¿Qué vas a hacer hoy?',
     '¡Explora el mundo!',
     '¿Listo para la acción?',
     'El mapa te espera...',
@@ -222,7 +222,7 @@ class _HomeContentState extends State<HomeContent> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Bienvenido,', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w400)),
+                        Text('Bienvenido', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w400)),
                         Text(userName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis, maxLines: 1),
                       ],
                     ),
