@@ -17,7 +17,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   String? _authError;
-
+  bool _isEmailValid = false;
+  bool _emailTouched = false;
   @override
   void dispose() {
     _emailController.dispose();
@@ -28,6 +29,15 @@ class _LoginScreenState extends State<LoginScreen> {
   void _clearError() {
     if (_authError != null) setState(() => _authError = null);
   }
+  
+  void _validateEmail(String value) {
+  final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+
+  setState(() {
+    _emailTouched = true;
+    _isEmailValid = regex.hasMatch(value.trim());
+  });
+}
 
   void _handleLogin() async {
     _clearError();
@@ -268,20 +278,62 @@ class _LoginScreenState extends State<LoginScreen> {
       obscureText: isPassword && !_isPasswordVisible,
       keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),
-      onChanged: (_) => _clearError(),
+      onChanged: (value) {
+  _clearError();
+
+  if (controller == _emailController) {
+    _validateEmail(value);
+  }
+},
       validator: (value) {
-        if (value == null || value.trim().isEmpty) return 'Este campo es obligatorio';
-        return null;
-      },
+  if (value == null || value.trim().isEmpty) {
+    return 'Este campo es obligatorio';
+  }
+
+  // Validación del correo
+  if (controller == _emailController) {
+    final email = value.trim();
+
+    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+
+    if (!regex.hasMatch(email)) {
+      return 'Ingrese un correo Gmail válido';
+    }
+  }
+
+  return null;
+},
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
         filled: true, 
         fillColor: Colors.white.withValues(alpha: 0.15),
         prefixIcon: Icon(icon, color: Colors.white70),
-        suffixIcon: isPassword 
-          ? IconButton(icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility, color: Colors.white70), onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible)) 
-          : null,
+        
+        suffixIcon: controller == _emailController
+    ? (_emailTouched
+        ? Icon(
+            _isEmailValid
+                ? Icons.check_circle
+                : Icons.cancel,
+            color: _isEmailValid
+                ? Colors.greenAccent
+                : Colors.redAccent,
+          )
+        : null)
+    : (isPassword
+        ? IconButton(
+            icon: Icon(
+              _isPasswordVisible
+                  ? Icons.visibility_off
+                  : Icons.visibility,
+              color: Colors.white70,
+            ),
+            onPressed: () => setState(() {
+              _isPasswordVisible = !_isPasswordVisible;
+            }),
+          )
+        : null),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3))),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3))),
