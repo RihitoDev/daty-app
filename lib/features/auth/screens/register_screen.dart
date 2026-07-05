@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:provider/provider.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -38,21 +40,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final errorCode = await authProvider.register(
-      _emailController.text, 
-      _passwordController.text, 
+      _emailController.text,
+      _passwordController.text,
       _usernameController.text
     );
 
     if (mounted) {
       if (errorCode != null) {
-        // Filtro rápido de errores comunes de Firebase para la UI
-        String message = 'Ocurrio un error inesperado.';
-        if (errorCode == 'weak-password') message = 'La contrasena es muy debil (minimo 6 caracteres).';
-        if (errorCode == 'email-already-in-use') message = 'Este correo ya esta registrado.';
+        String message = 'Ocurrió un error inesperado.';
+        if (errorCode == 'weak-password') message = 'La contraseña es muy débil (mínimo 6 caracteres).';
+        if (errorCode == 'email-already-in-use') message = 'Este correo ya está registrado.';
         if (errorCode == 'firestore-error') message = 'Error al crear el perfil. Intenta de nuevo.';
         setState(() => _authError = message);
       } else {
-        // Reseteamos el stack de navegación para evitar que vuelvan al login con el botón de "Atrás"
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     }
@@ -61,15 +61,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = Provider.of<AuthProvider>(context).isLoading;
+    final customTheme = Provider.of<ThemeProvider>(context).currentTheme;
 
     return Scaffold(
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFC14BF1), Color(0xFFE27C9D), Color(0xFFFFD147)], stops: [0.0, 0.5, 1.0]),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [customTheme.primaryLight, customTheme.bg],
+              ),
             ),
           ),
+          _buildBackgroundDecorations(customTheme.primary),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10.0),
@@ -78,11 +84,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   children: [
                     Align(
-                      alignment: Alignment.centerLeft, 
-                      child: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context))
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new, color: customTheme.text, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                      ),
                     ),
-                    const Text('Crear Cuenta', style: TextStyle(fontFamily: 'Serif', fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, shadows: [Shadow(blurRadius: 10, color: Colors.black26)])),
-                    const SizedBox(height: 25),
+                    Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 25),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: customTheme.card.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: customTheme.muted.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: customTheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(Icons.auto_awesome, color: customTheme.primary, size: 32),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Únete a Daty', style: TextStyle(fontSize: 24, color: customTheme.text, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                                Text('Comienza tu aventura hoy', style: TextStyle(fontSize: 13, color: customTheme.text2)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(28),
                       child: BackdropFilter(
@@ -90,35 +128,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(25.0),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: customTheme.card.withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
-                            boxShadow: [BoxShadow(color: Colors.purple.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 5)]
+                            border: Border.all(color: customTheme.muted.withValues(alpha: 0.2)),
+                            boxShadow: [BoxShadow(color: customTheme.primary.withValues(alpha: 0.05), blurRadius: 20, spreadRadius: 5)],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (_authError != null) _buildAuthErrorBanner(_authError!),
-                              _buildInputLabel('Usuario (Apodo)'),
-                              _buildTextField(_usernameController, 'Tu apodo en Daty', Icons.person_outline),
-                              const SizedBox(height: 18),
-                              _buildInputLabel('Correo Electronico'),
-                              _buildTextField(_emailController, 'ejemplo@correo.com', Icons.email_outlined, isEmail: true),
-                              const SizedBox(height: 18),
-                              _buildInputLabel('Contrasena'),
-                              _buildTextField(_passwordController, 'Minimo 6 caracteres', Icons.lock_outline, isPassword: true),
-                              const SizedBox(height: 18),
-                              _buildInputLabel('Confirmar Contrasena'),
-                              _buildTextField(_confirmPasswordController, 'Repite tu contrasena', Icons.lock_outline, isPassword: true, isConfirm: true),
-                              const SizedBox(height: 30),
+                              if (_authError != null) _buildAuthErrorBanner(_authError!, customTheme),
+                              _buildStepIndicator(1, 'Perfil', customTheme),
+                              const SizedBox(height: 12),
+                              _buildTextField(_usernameController, '¿Cómo te llamamos?', Icons.person_outline, customTheme),
+                              const SizedBox(height: 24),
+                              _buildStepIndicator(2, 'Contacto', customTheme),
+                              const SizedBox(height: 12),
+                              _buildTextField(_emailController, 'Tu correo electrónico', Icons.email_outlined, customTheme, isEmail: true),
+                              const SizedBox(height: 24),
+                              _buildStepIndicator(3, 'Seguridad', customTheme),
+                              const SizedBox(height: 12),
+                              _buildTextField(_passwordController, 'Crea una contraseña', Icons.lock_outline, customTheme, isPassword: true),
+                              const SizedBox(height: 12),
+                              _buildTextField(_confirmPasswordController, 'Confirma tu contraseña', Icons.lock_outline, customTheme, isPassword: true, isConfirm: true),
+                              const SizedBox(height: 35),
                               SizedBox(
                                 width: double.infinity, height: 55,
                                 child: ElevatedButton(
                                   onPressed: isLoading ? null : _handleRegister,
-                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4FC3F7), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)), elevation: 5, shadowColor: Colors.blue.withValues(alpha: 0.3)),
-                                  child: isLoading 
-                                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                                    : const Text('Registrarse', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: customTheme.primary,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                    elevation: 5,
+                                    shadowColor: customTheme.primary.withValues(alpha: 0.3),
+                                  ),
+                                  child: isLoading
+                                    ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: customTheme.card, strokeWidth: 3))
+                                    : Text('Crear Cuenta', style: TextStyle(fontSize: 18, color: customTheme.card, fontWeight: FontWeight.bold, letterSpacing: 1)),
                                 ),
                               ),
                             ],
@@ -129,7 +174,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: RichText(text: const TextSpan(style: TextStyle(color: Colors.white, fontSize: 16), children: [TextSpan(text: 'Ya tienes cuenta? '), TextSpan(text: 'Entrar', style: TextStyle(fontWeight: FontWeight.bold, decoration: TextDecoration.underline, decorationColor: Colors.white))])),
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(color: customTheme.text2, fontSize: 14),
+                          children: [
+                            const TextSpan(text: '¿Ya tienes cuenta? '),
+                            TextSpan(text: 'Inicia sesión', style: TextStyle(fontWeight: FontWeight.bold, color: customTheme.primary)),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 40),
                   ],
@@ -142,55 +195,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildAuthErrorBanner(String message) {
+  Widget _buildStepIndicator(int step, String title, AppCustomTheme customTheme) {
+    return Row(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: customTheme.primaryLight,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(step.toString(), style: TextStyle(color: customTheme.primaryDark, fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(title, style: TextStyle(color: customTheme.text, fontWeight: FontWeight.w700, fontSize: 14)),
+      ],
+    );
+  }
+
+  Widget _buildAuthErrorBanner(String message, AppCustomTheme customTheme) {
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5))),
+      decoration: BoxDecoration(
+        color: customTheme.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: customTheme.accent.withValues(alpha: 0.3)),
+      ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.white, size: 20),
+          Icon(Icons.error_outline, color: customTheme.accent, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(message, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(message, style: TextStyle(color: customTheme.accent, fontSize: 13, fontWeight: FontWeight.w600))),
         ],
       ),
     );
   }
 
-  Widget _buildInputLabel(String label) => Padding(
-    padding: const EdgeInsets.only(bottom: 8.0), 
-    child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-  );
-
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isPassword = false, bool isEmail = false, bool isConfirm = false}) {
+  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, AppCustomTheme customTheme, {bool isPassword = false, bool isEmail = false, bool isConfirm = false}) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !_isPasswordVisible,
       keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: customTheme.text),
       onChanged: (_) => _clearError(),
       validator: (value) {
-        // Bloqueo de avance si el input rompe las reglas de negocio
         if (value == null || value.isEmpty) return 'Campo obligatorio';
-        if (isEmail && !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Correo no valido';
-        if (isPassword && value.length < 6) return 'Minimo 6 caracteres';
-        if (isConfirm && value != _passwordController.text) return 'Las contrasenas no coinciden';
+        if (isEmail && !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Correo no válido';
+        if (isPassword && value.length < 6) return 'Mínimo 6 caracteres';
+        if (isConfirm && value != _passwordController.text) return 'Las contraseñas no coinciden';
         return null;
       },
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        filled: true, 
-        fillColor: Colors.white.withValues(alpha: 0.15),
-        prefixIcon: Icon(icon, color: Colors.white70),
-        suffixIcon: isPassword 
-          ? IconButton(icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility, color: Colors.white70), onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible)) : null,
+        hintStyle: TextStyle(color: customTheme.muted),
+        filled: true,
+        fillColor: customTheme.bg.withValues(alpha: 0.5),
+        prefixIcon: Icon(icon, color: customTheme.muted),
+        suffixIcon: isPassword
+          ? IconButton(
+              icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility, color: customTheme.muted),
+              onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+            )
+          : null,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: Colors.white, width: 1.5)),
-        errorStyle: const TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.w600),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.primary, width: 1.5)),
+        errorStyle: TextStyle(color: customTheme.accent, fontWeight: FontWeight.w600),
       ),
+    );
+  }
+
+  Widget _buildBackgroundDecorations(Color primaryColor) {
+    return Stack(
+      children: [
+        Positioned(top: 80, right: -20, child: Icon(Icons.star_rounded, color: primaryColor.withValues(alpha: 0.05), size: 120)),
+        Positioned(bottom: 150, left: -30, child: Icon(Icons.explore_outlined, color: primaryColor.withValues(alpha: 0.05), size: 150)),
+      ],
     );
   }
 }

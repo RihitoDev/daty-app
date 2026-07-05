@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
@@ -128,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                   }
                 },
-                child: const Text('Enviar', style: TextStyle(color: Colors.white)),
+                child: Text('Enviar', style: TextStyle(color: customTheme.card)),
               ),
             ],
           );
@@ -184,15 +185,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
                     Image.asset(
-                      'assets/images/mascot.png', 
-                      height: 200, 
-                      errorBuilder: (context, error, stackTrace) => Icon(Icons.sentiment_very_satisfied, size: 140, color: customTheme.primary)
+                      'assets/images/mascot.png',
+                      height: 180,
+                      errorBuilder: (context, error, stackTrace) => Icon(Icons.sentiment_very_satisfied, size: 260, color: customTheme.primary),
                     ),
-                    const Text('Daty', style: TextStyle(fontSize: 58, color: Colors.black)),
-                    const Text('Explora, Conecta, Comparte', style: TextStyle(fontSize: 16, color: Colors.black87, letterSpacing: 1.5)),
-                    const SizedBox(height: 35),
+                    Text('Daty', style: TextStyle(fontSize: 54, color: customTheme.text, fontWeight: FontWeight.bold)),
+                    Text('Explora, Conecta, Comparte', style: TextStyle(fontSize: 16, color: customTheme.text2, letterSpacing: 1.5)),
+                    const SizedBox(height: 20),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(28),
                       child: BackdropFilter(
@@ -208,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (_authError != null) _buildAuthErrorBanner(_authError!, customTheme.accent),
+                              if (_authError != null) _buildAuthErrorBanner(_authError!, customTheme),
                               _buildInputLabel('Correo', customTheme.text),
                               _buildTextField(_emailController, 'ingresa@correo.com', Icons.email_outlined, customTheme, keyboardType: TextInputType.emailAddress),
                               const SizedBox(height: 20),
@@ -236,8 +237,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     shadowColor: customTheme.primary.withValues(alpha: 0.3),
                                   ),
                                   child: isLoading
-                                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                                      : const Text('Entrar', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                      ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: customTheme.card, strokeWidth: 3))
+                                      : Text('Entrar', style: TextStyle(fontSize: 18, color: customTheme.card, fontWeight: FontWeight.bold, letterSpacing: 1)),
                                 ),
                               ),
                             ],
@@ -284,20 +285,20 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildAuthErrorBanner(String message, Color accentColor) {
+  Widget _buildAuthErrorBanner(String message, AppCustomTheme customTheme) {
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: Colors.redAccent.withValues(alpha: 0.1),
+        color: customTheme.accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+        border: Border.all(color: customTheme.accent.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+          Icon(Icons.error_outline, color: customTheme.accent, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(message, style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(message, style: TextStyle(color: customTheme.accent, fontSize: 13, fontWeight: FontWeight.w600))),
         ],
       ),
     );
@@ -308,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
     child: Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13)),
   );
 
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, dynamic customTheme, {bool isPassword = false, TextInputType? keyboardType}) {
+  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, AppCustomTheme customTheme, {bool isPassword = false, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !_isPasswordVisible,
@@ -335,7 +336,7 @@ class _LoginScreenState extends State<LoginScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.primary, width: 1.5)),
-        errorStyle: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+        errorStyle: TextStyle(color: customTheme.accent, fontWeight: FontWeight.w600),
       ),
     );
   }
