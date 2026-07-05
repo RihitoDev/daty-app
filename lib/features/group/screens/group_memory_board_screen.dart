@@ -20,15 +20,34 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     this.isReviewingPastMemory = false,
   });
 
+  Future<Map<String, String?>> _fetchMemberNames(List<String> uids) async {
+    final Map<String, String?> names = {};
+    final futures = uids.map((uid) async {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        names[uid] = doc.data()?['username'] as String?;
+      } else {
+        names[uid] = null;
+      }
+    });
+    await Future.wait(futures);
+    return names;
+  }
+
   Future<void> _saveToAlbum(BuildContext context) async {
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
     String memoryDocId = '${groupCode}_${adventureData['number']}';
-    
-    // Lo agregamos a guardados y nos aseguramos de sacarlo de descartados por si el usuario cambió de opinión
-    await FirebaseFirestore.instance.collection('users').doc(myUid).update({
-      'savedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
-      'dismissedGroupMemories': FieldValue.arrayRemove([memoryDocId]),
-    });
+
+    final WriteBatch batch = FirebaseFirestore.instance.batch();
+    batch.update(
+      FirebaseFirestore.instance.collection('group_memories').doc(memoryDocId),
+      {'savedBy': FieldValue.arrayUnion([myUid])},
+    );
+    batch.update(
+      FirebaseFirestore.instance.collection('users').doc(myUid),
+      {'dismissedGroupMemories': FieldValue.arrayRemove([memoryDocId])},
+    );
+    await batch.commit();
 
     if (context.mounted) {
       Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
@@ -39,7 +58,6 @@ class GroupMemoryBoardScreen extends StatelessWidget {
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
     String memoryDocId = '${groupCode}_${adventureData['number']}';
     
-    // Lo marcamos como descartado para que este recuerdo no vuelva a saltar como pendiente en el lobby
     await FirebaseFirestore.instance.collection('users').doc(myUid).update({
       'dismissedGroupMemories': FieldValue.arrayUnion([memoryDocId]),
     });
@@ -107,25 +125,24 @@ class GroupMemoryBoardScreen extends StatelessWidget {
                   final data = snapshot.data!.data() as Map<String, dynamic>;
                   final Map<String, dynamic> photos = data['photos'] ?? {};
 
-                  return GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2, 
-                      crossAxisSpacing: 20, 
-                      mainAxisSpacing: 20, 
-                      childAspectRatio: 0.75
-                    ),
-                    itemCount: members.length,
-                    itemBuilder: (context, index) {
-                      final uid = members[index];
-                      final photoUrl = photos[uid];
-                      
-                      // Consultamos el doc de cada usuario para emparejar la foto del grupo con su nombre real
-                      return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
-                        builder: (context, userSnap) {
-                          final userData = userSnap.data?.data() as Map<String, dynamic>?;
-                          final name = userData?['username'] ?? 'Aventurero';
+                  return FutureBuilder<Map<String, String?>>(
+                    future: _fetchMemberNames(members),
+                    builder: (context, namesSnap) {
+                      final memberNames = namesSnap.data ?? {};
+
+                      return GridView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2, 
+                          crossAxisSpacing: 20, 
+                          mainAxisSpacing: 20, 
+                          childAspectRatio: 0.75
+                        ),
+                        itemCount: members.length,
+                        itemBuilder: (context, index) {
+                          final uid = members[index];
+                          final photoUrl = photos[uid];
+                          final name = memberNames[uid] ?? 'Aventurero';
                           
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(20),
@@ -190,7 +207,6 @@ class GroupMemoryBoardScreen extends StatelessWidget {
             ),
             
             Container(
-              // Sumamos el padding de abajo (notch/barra del sistema) para asegurar que el botón nunca quede oculto
               padding: EdgeInsets.only(
                 left: 30, right: 30, top: 20,
                 bottom: MediaQuery.of(context).padding.bottom + 20 

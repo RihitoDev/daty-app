@@ -17,7 +17,6 @@ class AlbumMemory {
     required this.photoUrls,
   });
 
-  // Mapeo directo para aventuras en solitario.
   factory AlbumMemory.fromSoloFirestore(Map<String, dynamic> data) {
     return AlbumMemory(
       type: 'Solo',
@@ -32,7 +31,6 @@ class AlbumMemory {
     );
   }
 
-  // Para las citas, unimos la data de los dos usuarios en un solo objeto.
   factory AlbumMemory.fromCoupleFirestore(Map<String, dynamic> data, String user1Name, String user2Name) {
     List<String> reviews = [];
     if (data['user1_review'] != null && data['user1_review'].toString().isNotEmpty) {
@@ -56,7 +54,6 @@ class AlbumMemory {
     );
   }
 
-  // Manejo del álbum de grupos.
   factory AlbumMemory.fromGroupFirestore(Map<String, dynamic> data) {
     List<String> photos = [];
     if (data['photos'] is List) {
@@ -75,9 +72,9 @@ class AlbumMemory {
     );
   }
 
-  // Parseo seguro del timestamp. 
   static DateTime _parseDate(dynamic timestamp) {
     if (timestamp is Timestamp) return timestamp.toDate();
-    return DateTime.now();
+    if (timestamp is DateTime) return timestamp;
+    return DateTime(2024, 1, 1);
   }
 }

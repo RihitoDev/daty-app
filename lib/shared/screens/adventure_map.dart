@@ -1,14 +1,13 @@
-// ignore_for_file: empty_catches
-
 import 'dart:async';
-import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../features/auth/providers/auth_provider.dart';
+import '../services/map_data_service.dart';
 import '../widgets/candy_path_painter.dart';
 import '../widgets/custom_snackbar.dart';
+import '../widgets/adventure_detail_sheet.dart';
 
 class AdventureMap extends StatefulWidget {
   final String mode;
@@ -37,7 +36,6 @@ class AdventureMap extends StatefulWidget {
 
 class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
-  // Altura total del mapa. Depende de cuántos nodos haya para que todo quepe y se pueda hacer scroll
   late double mapHeight;
 
   List<int> _adventurePath = []; 
@@ -54,7 +52,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
   StreamSubscription? _progressSubscription;
   bool _isFetchingRatings = false; 
 
-  // Animación que hace que los nodos disponibles "respiren" y llamen la atención
   late AnimationController _pulseController;
 
   late List<String> _shuffledDecorationImages;
@@ -86,7 +83,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     
     final List<double> possibleSizes = [210.0, 220.0, 240.0, 230.0, 215.0];
 
-    // Revolvemos las imágenes y tamaños para que el mapa se vea distinto cada vez que se abre
     _shuffledDecorationImages = List.from(allDecoImages)..shuffle();
     _shuffledDecorationSizes = List.from(possibleSizes)..shuffle();
 
@@ -106,7 +102,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       if (!mounted || !_scrollController.hasClients) return;
       
       try {
-        // Buscamos qué nodo mostrar: el activo, o el primero que falte por calificar
         int targetIndex = _adventurePath.isEmpty ? 0 : _adventurePath.length - 1;
         
         if (activeAdventureNumber != null) {
@@ -133,8 +128,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         
         _scrollController.animateTo(targetScrollOffset, duration: const Duration(milliseconds: 800), curve: Curves.easeInOut);
       } catch (e, st) {
-        debugPrint('Error scrolling to node: $e');
-        debugPrint('$st');
+        debugPrint('Error scrolling to node: $e\n$st');
       }
     });
   }
@@ -143,17 +137,16 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final myUid = authProvider.user!.uid;
-      final partnerId = authProvider.userData?['partnerId'] as String?;
-      _partnerId = partnerId;
+      _partnerId = authProvider.userData?['partnerId'] as String?;
+      _coupleDocId = MapDataService.buildCoupleDocId(myUid, _partnerId);
 
-      // Ordenamos los IDs alfabéticamente para que ambos miembros de la pareja encuentren el mismo documento
-      if (widget.mode == 'couple' && partnerId != null) {
-        _coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
-      }
+      // Escuchamos en tiempo real los cambios del progreso (unificado para solo y pareja)
+      DocumentReference? progressRef = MapDataService.getProgressDocRef(
+        mode: widget.mode, myUid: myUid, coupleDocId: _coupleDocId,
+      );
 
-      // Escuchamos en tiempo real los cambios del progreso
-      if (widget.mode == 'solo') {
-        _progressSubscription = FirebaseFirestore.instance.collection('solo_progress').doc(myUid).snapshots().listen(
+      if (progressRef != null) {
+        _progressSubscription = progressRef.snapshots().listen(
           (snapshot) async {
             if (snapshot.exists && mounted) {
               final data = snapshot.data() as Map<String, dynamic>;
@@ -161,148 +154,71 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
               setState(() {
                 activeAdventureNumber = rawActive is int ? rawActive : (rawActive != null ? int.tryParse(rawActive.toString()) : null); 
                 _adventurePath = List<int>.from(data['adventurePath'] ?? []);
+                if (widget.mode == 'couple') {
+                  _reviewCompletedUser1 = data['reviewCompletedUser1'] ?? false;
+                  _reviewCompletedUser2 = data['reviewCompletedUser2'] ?? false;
+                }
               });
-              await _fetchRatings(myUid: myUid);
+              await _fetchRatings();
               _scrollToCurrentNode();
             }
           },
-          onError: (error) { debugPrint('solo progress snapshot error: $error'); },
+          onError: (error) => debugPrint('${widget.mode} progress snapshot error: $error'),
           cancelOnError: false, 
         );
-      } else if (_coupleDocId != null) {
-        _progressSubscription = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!).snapshots().listen(
-          (snapshot) async {
-            if (snapshot.exists && mounted) {
-              final data = snapshot.data() as Map<String, dynamic>;
-              final rawActive = data['activeAdventureNumber'];
-              setState(() {
-                activeAdventureNumber = rawActive is int ? rawActive : (rawActive != null ? int.tryParse(rawActive.toString()) : null); 
-                _adventurePath = List<int>.from(data['adventurePath'] ?? []);
-                _reviewCompletedUser1 = data['reviewCompletedUser1'] ?? false;
-                _reviewCompletedUser2 = data['reviewCompletedUser2'] ?? false;
-              });
-              await _fetchRatings(coupleDocId: _coupleDocId);
-              _scrollToCurrentNode();
-            }
-          },
-          onError: (error) { debugPrint('couple progress snapshot error: $error'); },
-          cancelOnError: false,
-        );
       }
 
-      // Descargamos todas las aventuras disponibles de una vez para tenerlas en caché
-      final snapshot = await FirebaseFirestore.instance 
-          .collection('adventures')
-          .where('type', isEqualTo: widget.mode == 'solo' ? 'solo' : 'pareja')
-          .get()
-          .timeout(const Duration(seconds: 10));
-          
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        if (data.containsKey('number')) {
-          _adventuresCache[data['number']] = data;
-        }
-      }
+      // Descargamos todas las aventuras para la caché local
+      _adventuresCache.addAll(await MapDataService.fetchAdventureCache(widget.mode));
 
     } catch (e, st) {
-      debugPrint('Error $e');
-      debugPrint('$st');
+      debugPrint('Error loading map data: $e\n$st');
     } finally {
       if (mounted) {
         setState(() => _isLoadingData = false);
-        // Si el camino está vacío, generamos el primer nodo para que el usuario tenga algo que hacer
         if (_adventurePath.isEmpty && _adventuresCache.isNotEmpty) {
-          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-          final myUid = authProvider.user!.uid;
-          await _generateNextNode(myUid: myUid, coupleDocId: _coupleDocId);
+          final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
+          await MapDataService.generateNextNode(
+            mode: widget.mode, myUid: myUid, coupleDocId: _coupleDocId,
+            adventuresCache: _adventuresCache, adventurePath: _adventurePath,
+          );
         }
       }
     }
   }
 
-  Future<void> _fetchRatings({String? myUid, String? coupleDocId}) async {
+  Future<void> _fetchRatings() async {
     if (_adventurePath.isEmpty || _isFetchingRatings) return; 
     _isFetchingRatings = true;
 
-    Map<int, double> tempRatings = {};
-    
     try {
-      // La base de datos no deja buscar más de 30 cosas a la vez, así que hacemos la búsqueda por tandas
-      List<List<int>> chunks = [];
-      for (var i = 0; i < _adventurePath.length; i += 30) {
-        chunks.add(_adventurePath.sublist(i, i + 30 > _adventurePath.length ? _adventurePath.length : i + 30));
-      }
-      
-      for (var chunk in chunks) {
-        if (widget.mode == 'solo' && myUid != null) {
-          List<String> docIds = chunk.map((id) => '${myUid}_$id').toList();
-          var snapshot = await FirebaseFirestore.instance.collection('solo_memories').where(FieldPath.documentId, whereIn: docIds).get();
-          for (var doc in snapshot.docs) {
-            final data = doc.data();
-            int advId = data['id_adventure'] is int ? data['id_adventure'] : int.parse(data['id_adventure'].toString());
-            int r1 = data['rating'] ?? 0;
-            if (r1 > 0) tempRatings[advId] = r1.toDouble();
-          }
-        } else if (widget.mode == 'couple' && coupleDocId != null) {
-          List<String> docIds = chunk.map((id) => '${coupleDocId}_$id').toList();
-          var snapshot = await FirebaseFirestore.instance.collection('memories').where(FieldPath.documentId, whereIn: docIds).get();
-          for (var doc in snapshot.docs) {
-            final data = doc.data();
-            int advId = data['id_adventure'] is int ? data['id_adventure'] : int.parse(data['id_adventure'].toString());
-            // En pareja, promediamos las calificaciones. Si uno no ha calificado, usamos la del otro
-            int r1 = data['user1_rating'] ?? 0;
-            int r2 = data['user2_rating'] ?? 0;
-            if (r1 > 0 && r2 > 0) {
-              tempRatings[advId] = (r1 + r2) / 2.0;
-            } else if (r1 > 0){ tempRatings[advId] = r1.toDouble();}
-            else if (r2 > 0){tempRatings[advId] = r2.toDouble();} 
-          }
-        }
-      }
+      final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
+      final tempRatings = await MapDataService.fetchRatings(
+        mode: widget.mode, adventurePath: _adventurePath,
+        myUid: myUid, coupleDocId: _coupleDocId,
+      );
       
       if (mounted) {
         setState(() => _adventureRatings = tempRatings);
         
-        // Si ya se calificó la última aventura del camino, generamos la siguiente automáticamente
+        // Si ya se calificó la última aventura, generamos la siguiente
         if (_adventurePath.isNotEmpty && activeAdventureNumber == null && _adventurePath.length < widget.totalNodes) {
           int lastAdventureId = _adventurePath.last;
           if (tempRatings.containsKey(lastAdventureId)) {
-            await _generateNextNode(myUid: myUid, coupleDocId: coupleDocId);
+            await MapDataService.generateNextNode(
+              mode: widget.mode, myUid: myUid, coupleDocId: _coupleDocId,
+              adventuresCache: _adventuresCache, adventurePath: _adventurePath,
+            );
           }
         }
       }
     } catch (e) {
-      debugPrint('Error $e');
+      debugPrint('Error fetching ratings: $e');
     } finally {
       _isFetchingRatings = false;
     }
   }
 
-  Future<void> _generateNextNode({String? myUid, String? coupleDocId}) async {
-    if (_adventuresCache.isEmpty) return;
-    // Elegimos al azar una aventura que no esté en el camino actual
-    List<int> allIds = _adventuresCache.keys.toList();
-    List<int> availableIds = allIds.where((id) => !_adventurePath.contains(id)).toList();
-    if (availableIds.isEmpty) return; 
-    final random = Random();
-    int nextAdventureId = availableIds[random.nextInt(availableIds.length)];
-    
-    try {
-      if (widget.mode == 'solo' && myUid != null) {
-        await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).set({
-          'adventurePath': FieldValue.arrayUnion([nextAdventureId])
-        }, SetOptions(merge: true));
-      } else if (widget.mode == 'couple' && coupleDocId != null) {
-        await FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId).set({
-          'adventurePath': FieldValue.arrayUnion([nextAdventureId])
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('Error generating next node: $e');
-    }
-  }
-
-  // Dibuja el camino en zig-zag (izquierda, centro, derecha) para que no sea una línea recta aburrida
   List<Offset> _generatePathPoints(double mapWidth) {
     List<Offset> points = [];
     double y = mapHeight - 150; double stepY = -100.0; 
@@ -318,7 +234,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     return points;
   }
 
-  // Pone las decoraciones en el lado contrario del nodo para que no se encimen
   List<Offset> _generateDecorationPoints(List<Offset> pathPoints, double mapWidth) {
     List<Offset> points = [];
     for (int i = 0; i < pathPoints.length; i++) {
@@ -336,210 +251,30 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     return List.generate(widget.mode == 'solo' ? 30 : 40, (i) => Offset(mapWidth * (0.05 + (i * 0.23) % 0.9), mapHeight - (i * 187) % mapHeight));
   }
 
-  Future<void> _rerollAdventure(int nodeIndex, int currentAdventureId) async {
-    DocumentReference docRef;
-    if (widget.mode == 'solo') {
-      final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
-      docRef = FirebaseFirestore.instance.collection('solo_progress').doc(myUid);
-    } else if (_coupleDocId != null) {
-      docRef = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!);
-    } else {
-      return;
-    }
-
-    try {
-      // Usamos transacción para evitar problemas si los dos tocan cambiar a la vez
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final snapshot = await transaction.get(docRef);
-        if (!snapshot.exists) return;
-
-        final data = snapshot.data() as Map<String, dynamic>;
-        int rerollsUsed = data['rerollsUsed'] ?? 0;
-        List<dynamic> skipped = List.from(data['skippedAdventures'] ?? []);
-        List<dynamic> path = List.from(data['adventurePath'] ?? []);
-
-        // Solo hay 2 cambios permitidos
-        if (rerollsUsed >= 2) return;
-
-        List<int> allIds = _adventuresCache.keys.toList();
-        List<int> availableIds = allIds.where((id) => 
-            !path.contains(id) || id == currentAdventureId
-        ).toList();
-        // No volvemos a sugerir las que ya se saltaron
-        availableIds.removeWhere((id) => skipped.contains(id));
-
-        if (availableIds.isEmpty) return;
-
-        final random = Random();
-        int newAdventureId = availableIds[random.nextInt(availableIds.length)];
-
-        path[nodeIndex] = newAdventureId;
-        skipped.add(currentAdventureId);
-        
-        transaction.update(docRef, {
-          'adventurePath': path,
-          'rerollsUsed': rerollsUsed + 1,
-          'skippedAdventures': skipped,
-        });
-      });
-    } catch (e) {}
-  }
-
   void _showAdventureDetail(int nodeIndex) {
-    DocumentReference docRef;
-    if (widget.mode == 'solo') {
-      final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
-      docRef = FirebaseFirestore.instance.collection('solo_progress').doc(myUid);
-    } else if (_coupleDocId != null) {
-      docRef = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!);
-    } else {
-      return;
-    }
+    final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
+    DocumentReference? docRef = MapDataService.getProgressDocRef(
+      mode: widget.mode, myUid: myUid, coupleDocId: _coupleDocId,
+    );
+    if (docRef == null) return;
 
-    showModalBottomSheet(
+    int currentAdventureId = (nodeIndex < _adventurePath.length) ? _adventurePath[nodeIndex] : -1;
+    Map<String, dynamic>? adventure = _adventuresCache[currentAdventureId];
+    if (adventure == null) return;
+
+    AdventureDetailSheet.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (BuildContext bc) {
-        return StreamBuilder<DocumentSnapshot>(
-          stream: docRef.snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const Center(child: CircularProgressIndicator(color: Colors.white));
-            }
-
-            final data = snapshot.data!.data() as Map<String, dynamic>;
-            List<dynamic> path = List.from(data['adventurePath'] ?? []);
-            int rerollsUsed = data['rerollsUsed'] ?? 0;
-            int rerollsLeft = 2 - rerollsUsed;
-
-            int currentAdventureId = (nodeIndex < path.length) ? path[nodeIndex] : -1;
-            Map<String, dynamic>? adventure = _adventuresCache[currentAdventureId];
-
-            if (adventure == null) {
-              return Center(
-                child: Container(
-                  margin: const EdgeInsets.all(30),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: Colors.grey.shade900, borderRadius: BorderRadius.circular(20)),
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.grey, size: 40),
-                      SizedBox(height: 10),
-                      Text('Error al cargar los detalles', textAlign: TextAlign.center, style: TextStyle(color: Colors.white)),
-                    ],
-                  )
-                )
-              );
-            }
-
-            List<int> availableIds = _adventuresCache.keys.where((id) => !path.contains(id)).toList();
-
-            return ClipRRect(
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: Container(
-                  height: MediaQuery.of(context).size.height * 0.75,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF121212).withOpacity(0.85), 
-                    border: Border.all(color: widget.themeColor.withOpacity(0.3), width: 1.5),
-                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(margin: const EdgeInsets.symmetric(vertical: 12), width: 40, height: 5, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10))),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Center(child: ClipRRect(borderRadius: BorderRadius.circular(20), child: Container(height: 180, width: double.infinity, color: Colors.black26, child: Image.asset('assets/images/adventures/${adventure['number']}.png', fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(Icons.image_not_supported_outlined, size: 50, color: Colors.grey.shade800))))),
-                              const SizedBox(height: 15),
-                              Center(child: Text(adventure['title'] ?? '', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: widget.themeColor))),
-                              const SizedBox(height: 15),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _buildInfoChip(Icons.category, adventure['category'] ?? 'General'),
-                                  const SizedBox(width: 10),
-                                  _buildInfoChip(Icons.timer, adventure['estimatedTime'] ?? '1 hora'),
-                                  const SizedBox(width: 10),
-                                  _buildInfoChip(Icons.attach_money, 'Nivel \$${adventure['costLevel'] ?? 1}'),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              const Text('Descripcion', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-                              const SizedBox(height: 5),
-                              Text(adventure['description'] ?? '', style: TextStyle(fontSize: 15, color: Colors.white.withOpacity(0.7))),
-                              const SizedBox(height: 20),
-                              Container(
-                                padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: widget.themeColor.withOpacity(0.15), borderRadius: BorderRadius.circular(15), border: Border.all(color: widget.themeColor.withOpacity(0.3))),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.emoji_events_outlined, color: widget.themeColor, size: 20),
-                                      const SizedBox(width: 6),
-                                      Text('Reto', style: TextStyle(fontWeight: FontWeight.bold, color: widget.themeColor)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(adventure['challenge'] ?? '', style: TextStyle(color: widget.themeColor)),
-                                ]),
-                              ),
-                              const SizedBox(height: 30),
-                              
-                              SizedBox(
-                                width: double.infinity, height: 55,
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.pop(context); 
-                                    _showTipsBeforeStart(adventure, nodeIndex, availableIds);
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: widget.themeColor, 
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                    elevation: 5, shadowColor: widget.themeColor
-                                  ),
-                                  icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
-                                  label: const Text('Empezar Aventura', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                                ),
-                              ),
-                              
-                              // Opción de cambiar aventura si le quedan rerolls y no es grupal
-                              if (widget.mode != 'group' && rerollsLeft > 0) ...[
-                                const SizedBox(height: 15),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _rerollAdventure(nodeIndex, currentAdventureId),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white70,
-                                      side: const BorderSide(color: Colors.white24),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                      padding: const EdgeInsets.symmetric(vertical: 15),
-                                    ),
-                                    icon: const Icon(Icons.casino_outlined),
-                                    label: Text(widget.mode == 'couple' 
-                                      ? 'Cambiar (Compartido: $rerollsLeft restantes)' 
-                                      : 'Cambiar Aventura ($rerollsLeft restantes)'),
-                                  ),
-                                ),
-                              ]
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }
-        );
-      },
+      adventure: adventure,
+      themeColor: widget.themeColor,
+      mode: widget.mode,
+      progressDocRef: docRef,
+      adventuresCache: _adventuresCache,
+      onReroll: () => MapDataService.rerollAdventure(
+        mode: widget.mode, myUid: myUid, coupleDocId: _coupleDocId,
+        adventuresCache: _adventuresCache,
+        nodeIndex: nodeIndex, currentAdventureId: currentAdventureId,
+      ),
+      onStart: (adv, availableIds) => _showTipsBeforeStart(adv, nodeIndex, availableIds),
     );
   }
 
@@ -580,10 +315,14 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                         child: ElevatedButton(
                           onPressed: () async {
                             Navigator.pop(dialogContext); 
-                            // Marcamos la aventura como activa en la base de datos antes de ir a la pantalla de progreso
-                            bool success = await _setAdventureStatus(adventure['number'], true); 
+                            bool success = await MapDataService.setAdventureStatus(
+                              mode: widget.mode, myUid: Provider.of<AuthProvider>(context, listen: false).user!.uid,
+                              coupleDocId: _coupleDocId, adventureNumber: adventure['number'], isActive: true,
+                            ); 
                             if (success && mounted) {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventure, availableIds)));
+                            } else if (mounted) {
+                              CustomSnackBar.showError(context, 'Error de conexión al iniciar.');
                             }
                           },
                           style: ElevatedButton.styleFrom(backgroundColor: widget.themeColor, elevation: 5, shadowColor: widget.themeColor),
@@ -596,56 +335,8 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
               ),
             ),
           ),
-        );
+        ); 
       },
-    );
-  }
-
-  Future<bool> _setAdventureStatus(int adventureNumber, bool isActive) async {
-    try {
-      final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
-      
-      if (widget.mode == 'solo') {
-        DocumentReference docRef = FirebaseFirestore.instance.collection('solo_progress').doc(myUid);
-        if (isActive) {
-          await docRef.set({'activeAdventureNumber': adventureNumber}, SetOptions(merge: true));
-        } else {
-          await docRef.update({'activeAdventureNumber': FieldValue.delete()}).catchError((e) => null);
-        }
-      } else if (_coupleDocId != null) {
-        DocumentReference docRef = FirebaseFirestore.instance.collection('couples_progress').doc(_coupleDocId!);
-        if (isActive) {
-          // Al iniciar, reiniciamos las banderas de quién ya calificó
-          await docRef.set({
-            'activeAdventureNumber': adventureNumber,
-            'reviewCompletedUser1': false, 
-            'reviewCompletedUser2': false,
-          }, SetOptions(merge: true));
-        } else {
-          await docRef.update({
-            'activeAdventureNumber': FieldValue.delete(),
-            'reviewCompletedUser1': false, 
-            'reviewCompletedUser2': false,
-          }).catchError((e) => null);
-        }
-      }
-      return true;
-    } catch (e) {
-      if (mounted) {
-        CustomSnackBar.showError(context, 'Error de conexión al iniciar.');
-      }
-      return false;
-    }
-  }
-
-  Widget _buildInfoChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white24)),
-      child: Row(children: [
-        Icon(icon, size: 16, color: widget.themeColor), const SizedBox(width: 5),
-        Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
-      ]),
     );
   }
 
@@ -661,7 +352,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     double mapProgress = _adventurePath.isEmpty ? 0.0 : _adventurePath.length / widget.totalNodes;
     int completedDates = _adventurePath.length;
 
-    // Calculamos cuánta niebla poner abajo. Cubre desde el último nodo descubierto hacia arriba
     double fogBottom;
     if (_adventurePath.isEmpty) {
       fogBottom = 0; 
@@ -688,13 +378,9 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                 child: Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
-                    // Estrellitas o brillitos de ambiente
                     ...ambientPoints.map((pos) => Positioned(left: pos.dx, top: pos.dy, child: Icon(Icons.auto_awesome, color: Colors.white.withOpacity(0.15), size: 25))),
-                    // La línea que conecta los nodos
                     CustomPaint(size: Size(mapWidth, mapHeight), painter: CandyPathPainter(points: pathPoints, pathColor: neonPathColor)),
-                    // Edificios/iconos decorativos
                     ...decoPoints.asMap().entries.map((entry) => _buildStaticDecoration(entry.value.dx, entry.value.dy, entry.key)),
-                    // Los círculos (nodos) de cada aventura
                     ...pathPoints.asMap().entries.map((entry) {
                       int nodeIndex = entry.key; 
                       int adventureId = nodeIndex < _adventurePath.length ? _adventurePath[nodeIndex] : -1;
@@ -702,7 +388,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                       bool isUnlocked = nodeIndex < _adventurePath.length;
                       return _buildGameNode(entry.value.dx, entry.value.dy, nodeIndex + 1, adventureId, adventureData, isUnlocked, myUid);
                     }),
-                    // Efecto de niebla que cubre la parte del mapa que aún no has descubierto
                     if (_adventurePath.length < widget.totalNodes)
                       Positioned(top: 0, left: 0, right: 0, bottom: fogBottom,
                         child: Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.transparent, bgGradient[0].withOpacity(0.85), bgGradient[0].withOpacity(0.98), bgGradient[0]], stops: const [0.0, 0.15, 0.4, 1.0])))),
@@ -712,7 +397,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
             ),
           ),
           
-          // Barra superior con el progreso general del mapa
           Positioned(
             top: MediaQuery.of(context).padding.top + 10, left: 10, right: 10,
             child: Row(
@@ -803,7 +487,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     bool isCompleted = isUnlocked && _adventureRatings.containsKey(adventureId) && !isInProgress;
     bool isNextStep = isUnlocked && !isCompleted && !isInProgress;
 
-    // Revisamos quién es el usuario 1 y quién el 2 en la relación para leer sus reseñas
     bool isUser1 = _partnerId != null && myUid.compareTo(_partnerId!) < 0;
     
     bool iReviewed = false;
@@ -816,7 +499,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       isWaitingForPartner = iReviewed && !partnerReviewed;
     }
 
-    // Aquí decidimos cómo se ve cada nodo según su estado: bloqueado, por hacer, en progreso, esperando al otro o ya hecho
     Color startColor; Color endColor; Widget iconChild;
     
     if (isWaitingForPartner) {
@@ -856,7 +538,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       ),
     );
 
-    // Solo los nodos importantes respiran, los bloqueados o terminados se quedan quietos
     if (isNextStep || isInProgress || isWaitingForPartner) {
       nodeCircle = ScaleTransition(scale: _pulseController, child: nodeCircle);
     }
@@ -865,7 +546,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       left: x - 30, 
       top: y - (showRating ? 42 : 30), 
       child: GestureDetector(
-        // Dependiendo del estado, al tocar te lleva a ver el detalle, a la aventura o al recuerdo
         onTap: isLocked || adventureData == null ? null : () {
           if (isWaitingForPartner) {
             CustomSnackBar.showInfo(context, 'Ya calificaste. Esperando a tu pareja.');

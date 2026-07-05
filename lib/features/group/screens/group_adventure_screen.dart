@@ -61,8 +61,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
       int expEarned = widget.adventureData['xpBase'] ?? 50;
 
-      // Usamos una transacción porque en expediciones grupales varios pueden darle a "finalizar" a la vez. 
-      // Esto evita que sobreescriban el estado de la sala o se dupliquen las XP.
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final groupSnap = await transaction.get(groupRef);
         
@@ -85,13 +83,17 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
           });
         }
 
-        transaction.set(memoryRef, {
-          'adventure_title': widget.adventureData['title'],
-          'emoji': widget.adventureData['emoji'] ?? '👥',
-          'id_adventure': widget.adventureData['number'].toString(),
-          'members': widget.members,
-          'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true)); 
+        final memorySnap = await transaction.get(memoryRef);
+        if (!memorySnap.exists) {
+          transaction.set(memoryRef, {
+            'adventure_title': widget.adventureData['title'],
+            'emoji': widget.adventureData['emoji'] ?? '👥',
+            'id_adventure': widget.adventureData['number'].toString(),
+            'members': widget.members,
+            'timestamp': FieldValue.serverTimestamp(),
+            'savedBy': <String>[],
+          });
+        }
       });
 
       if (mounted) {
@@ -112,7 +114,6 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
   @override
   void dispose() {
-    // Vital matar el timer al desmontar la vista para no dejar procesos colgados consumiendo memoria
     _tipTimer?.cancel();
     super.dispose();
   }

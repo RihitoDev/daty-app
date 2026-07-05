@@ -16,6 +16,7 @@ class GroupProvider extends ChangeNotifier {
 
   GroupProvider(this._authProvider);
 
+  // ─── Crear grupo (sin cambios drásticos, ya que escribe un doc nuevo) ───
   Future<String?> createGroup() async {
     _isLoading = true;
     notifyListeners();
@@ -24,7 +25,6 @@ class GroupProvider extends ChangeNotifier {
       final myUid = _authProvider.user!.uid;
       final code = _generateGroupCode();
 
-      // Inicializamos el doc del grupo, nos asignamos como creador y abrimos la sala en modo espera
       await FirebaseFirestore.instance.collection('groups').doc(code).set({
         'code': code,
         'creatorId': myUid,
@@ -46,31 +46,54 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
+  // ─── Unirse al grupo — TRANSACCIÓN que lee + valida + escribe atómicamente ───
   Future<String?> joinGroup(String code) async {
     _isLoading = true;
     notifyListeners();
 
+    final myUid = _authProvider.user!.uid;
+    final docRef = FirebaseFirestore.instance
+        .collection('groups')
+        .doc(code.toUpperCase());
+
     try {
-      final myUid = _authProvider.user!.uid;
-      final docRef = FirebaseFirestore.instance.collection('groups').doc(code.toUpperCase());
-      final docSnap = await docRef.get();
+      // ── Firestore Transaction: todo se ejecuta en el servidor de forma atómica ──
+      final result = await FirebaseFirestore.instance.runTransaction<String?>(
+        (transaction) async {
+          final docSnap = await transaction.get(docRef);
 
-      // Filtros clave antes de dejar entrar a alguien a la sala para evitar bugs visuales o sobrecupos
-      if (!docSnap.exists) return 'El código no existe';
-      if (docSnap.data()!['status'] != 'waiting') return 'La partida ya comenzó';
+          if (!docSnap.exists) return 'El código no existe';
 
-      List<dynamic> members = docSnap.data()!['members'] ?? [];
-      int maxMembers = docSnap.data()!['maxMembers'] ?? 12;
-      
-      if (members.contains(myUid)) return 'Ya estás en este grupo';
-      if (members.length >= maxMembers) return 'El grupo está lleno (Máx. $maxMembers)';
+          final data = docSnap.data()!;
+          if (data['status'] != 'waiting') return 'La partida ya comenzó';
 
-      await docRef.update({'members': FieldValue.arrayUnion([myUid])});
-      
-      _currentGroupCode = code.toUpperCase();
+          final List<dynamic> members = List<dynamic>.from(data['members'] ?? []);
+          final int maxMembers = (data['maxMembers'] as int?) ?? 12;
+
+          if (members.contains(myUid)) return 'Ya estás en este grupo';
+          if (members.length >= maxMembers) {
+            return 'El grupo está lleno (Máx. $maxMembers)';
+          }
+
+          // Todo validó → escribimos dentro de la misma transacción.
+          // Si otro miembro se unió entre nuestro get y este punto,
+          // Firestore re-ejecuta la transacción automáticamente (hasta 5 intentos).
+          transaction.update(docRef, {
+            'members': FieldValue.arrayUnion([myUid]),
+          });
+
+          return null; // null = éxito, sin error
+        },
+      );
+
+      if (result == null) {
+        // Éxito
+        _currentGroupCode = code.toUpperCase();
+      }
+
       _isLoading = false;
       notifyListeners();
-      return null; 
+      return result; // null si todo ok, string con el mensaje de error si falló
     } catch (e) {
       debugPrint('Rebote al intentar unirse a la sala: $e');
       _isLoading = false;
@@ -79,65 +102,117 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
+  // ─── Cambiar límite de miembros (sin cambios, es una operación simple) ───
   Future<void> updateMaxMembers(String groupCode, int newMax) async {
     try {
-      await FirebaseFirestore.instance.collection('groups').doc(groupCode).update({'maxMembers': newMax});
+      await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(groupCode)
+          .update({'maxMembers': newMax});
     } catch (e) {
       debugPrint('Fallo al cambiar el límite de integrantes: $e');
     }
   }
 
+  // ─── Iniciar expedición — TRANSACCIÓN + validación de aventura antes de cambiar estado ───
   Future<Map<String, dynamic>?> startExpedition(String groupCode) async {
+    final groupRef = FirebaseFirestore.instance
+        .collection('groups')
+        .doc(groupCode);
+
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('adventures').where('type', isEqualTo: 'grupo').get();
-      if (snapshot.docs.isEmpty) return null;
+      // 1) Primero verificamos que existan aventuras grupales disponibles
+      final adventureSnap = await FirebaseFirestore.instance
+          .collection('adventures')
+          .where('type', isEqualTo: 'grupo')
+          .get();
 
-      // Sorteamos una aventura aleatoria del pool de grupos y bloqueamos la sala para que no entre nadie más
-      final randomIndex = Random().nextInt(snapshot.docs.length);
-      final adventureData = snapshot.docs[randomIndex].data();
+      if (adventureSnap.docs.isEmpty) return null;
 
-      await FirebaseFirestore.instance.collection('groups').doc(groupCode).update({
-        'status': 'active',
-        'activeAdventureId': adventureData['number'],
-      });
+      // 2) Sorteo de aventura
+      final randomIndex = Random().nextInt(adventureSnap.docs.length);
+      final adventureData = adventureSnap.docs[randomIndex].data();
 
-      return adventureData;
+      // 3) Transacción: cambiamos status SOLO si sigue en 'waiting' y hay >= 2 miembros
+      final success = await FirebaseFirestore.instance.runTransaction<bool>(
+        (transaction) async {
+          final groupSnap = await transaction.get(groupRef);
+          if (!groupSnap.exists) return false;
+
+          final data = groupSnap.data()!;
+          if (data['status'] != 'waiting') return false;
+
+          final members = List<dynamic>.from(data['members'] ?? []);
+          if (members.length < 2) return false;
+
+          // Todo ok → actualizamos atómicamente
+          transaction.update(groupRef, {
+            'status': 'active',
+            'activeAdventureId': adventureData['number'],
+          });
+          return true;
+        },
+      );
+
+      // Si la transacción no se completó (ej. otro ya la inició o muy pocos miembros),
+      // devolvemos null para que el UI no navegue.
+      return success ? adventureData : null;
     } catch (e) {
       debugPrint('Fallo al dar el pitazo de salida: $e');
       return null;
     }
   }
 
+  // ─── Abandonar grupo — TRANSACCIÓN para evitar lecturas/escrituras desincronizadas ───
   Future<void> leaveGroup() async {
     if (_currentGroupCode == null) return;
     final myUid = _authProvider.user!.uid;
-    final docRef = FirebaseFirestore.instance.collection('groups').doc(_currentGroupCode!);
+    final docRef = FirebaseFirestore.instance
+        .collection('groups')
+        .doc(_currentGroupCode!);
 
     try {
-      final docSnap = await docRef.get();
-      if (docSnap.exists) {
-        List<dynamic> members = docSnap.data()!['members'];
-        
-        // Si somos el último en salir, apagamos la luz y borramos el grupo de la BD. 
-        // Si no, nos borramos del array y le pasamos la batuta de creador al siguiente en la lista.
-        if (members.length <= 1) {
-          await docRef.delete();
-        } else {
-          await docRef.update({'members': FieldValue.arrayRemove([myUid])});
-          if (docSnap.data()!['creatorId'] == myUid) {
-            await docRef.update({'creatorId': members.firstWhere((m) => m != myUid)});
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final docSnap = await transaction.get(docRef);
+        if (!docSnap.exists) return; // Ya no existe, nada que hacer
+
+        final data = docSnap.data()!;
+        final List<dynamic> members = List<dynamic>.from(data['members'] ?? []);
+
+        if (members.length <= 1 && members.contains(myUid)) {
+          // Soy el último → borramos el grupo entero de forma atómica
+          transaction.delete(docRef);
+        } else if (members.contains(myUid)) {
+          // Hay más gente → me quito y, si era creador, transfiero la batuta
+          final batchOps = <String, dynamic>{};
+          batchOps['members'] = FieldValue.arrayRemove([myUid]);
+
+          if (data['creatorId'] == myUid) {
+            // Buscamos el siguiente miembro válido que NO sea yo
+            final nextCreator = members.cast<String>().firstWhere(
+              (m) => m != myUid,
+              orElse: () => '',
+            );
+            if (nextCreator.isNotEmpty) {
+              batchOps['creatorId'] = nextCreator;
+            }
           }
+
+          transaction.update(docRef, batchOps);
         }
-      }
+        // Si no estoy en la lista (caso raro), no hacemos nada
+      });
     } catch (e) {
       debugPrint('Problema al intentar abandonar la sala: $e');
     } finally {
       _currentGroupCode = null;
       _groupSubscription?.cancel();
+      _groupSubscription = null;
       notifyListeners();
     }
   }
 
+  // ─── Generador de código alfanumérico (sin cambios) ───
   String _generateGroupCode() {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';

@@ -5,7 +5,6 @@ import '../models/album_memory.dart';
 class AlbumService {
   
   static Stream<List<AlbumMemory>> soloMemoriesStream(String myUid) {
-    // Traemos las aventuras en solitario y limitamos a 50 para no reventar las lecturas en Firebase
     return FirebaseFirestore.instance
         .collection('solo_memories')
         .where('userId', isEqualTo: myUid)
@@ -22,7 +21,6 @@ class AlbumService {
   }
 
   static Stream<List<AlbumMemory>> coupleMemoriesStream(String coupleDocId, String user1Name, String user2Name) {
-    // Filtramos directo por el ID del documento de la pareja
     return FirebaseFirestore.instance
         .collection('memories')
         .where('coupleDocId', isEqualTo: coupleDocId)
@@ -39,38 +37,42 @@ class AlbumService {
   }
 
   static Stream<List<AlbumMemory>> groupMemoriesStream(String myUid) {
-    // Primero escuchamos el doc del usuario para sacar la lista de IDs de los recuerdos grupales
     return FirebaseFirestore.instance
         .collection('users')
         .doc(myUid)
         .snapshots()
-        .asyncExpand((userSnap) {
-          
+        .asyncExpand((userSnap) async* {
+      
       final List<dynamic> savedIds = userSnap.data()?['savedGroupMemories'] ?? [];
       
       if (savedIds.isEmpty) {
-        return Stream.value([]);
+        yield [];
+        return;
       }
 
-      // Consultamos los documentos específicos que guardó el usuario.
-      // Ojo: whereIn en Firestore soporta máximo 10 elementos. Si guardan más, tocará paginar o cambiar la lógica.
-      return FirebaseFirestore.instance
-          .collection('group_memories')
-          .where(FieldPath.documentId, whereIn: savedIds)
-          .snapshots()
-          .map((snapshot) {
-            final list = snapshot.docs
-                .map((doc) => AlbumMemory.fromGroupFirestore(doc.data()))
-                .toList();
-            
-            // Ordenamos en local porque whereIn te los devuelve en cualquier orden
-            list.sort((a, b) => b.date.compareTo(a.date));
-            return list;
-          })
-          .handleError((error) {
-            debugPrint('Fallo en el stream de grupo (revisa si pasaste de los 10 items en whereIn): $error');
-            return <AlbumMemory>[];
-          });
+      List<List<dynamic>> chunks = [];
+      for (var i = 0; i < savedIds.length; i += 10) {
+        chunks.add(savedIds.sublist(i, i + 10 > savedIds.length ? savedIds.length : i + 10));
+      }
+
+      try {
+        List<QuerySnapshot> snapshots = await Future.wait(
+          chunks.map((chunk) => FirebaseFirestore.instance
+              .collection('group_memories')
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get()),
+        );
+
+        List<AlbumMemory> all = [];
+        for (var snap in snapshots) {
+          all.addAll(snap.docs.map((doc) => AlbumMemory.fromGroupFirestore(doc.data() as Map<String, dynamic>)));
+        }
+        all.sort((a, b) => b.date.compareTo(a.date));
+        yield all;
+      } catch (e) {
+        debugPrint('Fallo al traer recuerdos grupales: $e');
+        yield <AlbumMemory>[];
+      }
     });
   }
 }

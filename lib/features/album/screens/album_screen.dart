@@ -74,10 +74,10 @@ class _AllAlbumList extends StatelessWidget {
         }
         
         if (snapshot.hasError) {
-          return Center(
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Text('Algo falló al cargar los recuerdos:\n${snapshot.error}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+              padding: EdgeInsets.all(20.0),
+              child: Text('Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', textAlign: TextAlign.center, style: TextStyle(color: Colors.red)),
             ),
           );
         }
@@ -115,7 +115,7 @@ class _SoloAlbumList extends StatelessWidget {
         }
         
         if (snapshot.hasError) {
-          return Center(child: Text('Fallo al cargar aventuras en solitario: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+          return const Center(child: Text('Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', style: TextStyle(color: Colors.red)));
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -151,7 +151,7 @@ class _CoupleAlbumList extends StatelessWidget {
         }
         
         if (snapshot.hasError) {
-          return Center(child: Text('Fallo al cargar el álbum de pareja: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+          return const Center(child: Text('Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', style: TextStyle(color: Colors.red)));
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -182,13 +182,13 @@ class _GroupAlbumList extends StatelessWidget {
         }
         
         if (snapshot.hasError) {
-          return Center(
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(16.0),
               child: Text(
-                'Fallo al cargar las aventuras del grupo: ${snapshot.error}', 
+                'Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', 
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
               ),
             ),
           );
