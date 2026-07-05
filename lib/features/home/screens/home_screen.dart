@@ -109,13 +109,18 @@ class _HomeContentState extends State<HomeContent> {
     super.dispose();
   }
 
+  bool _fetchFailed = false;
+
   Future<List<Map<String, dynamic>>> _fetchRandomAdventures() async {
     try {
       final snapshot = await FirebaseFirestore.instance.collection('adventures').limit(15).get();
       final adventures = snapshot.docs.map((doc) => doc.data()).toList();
       adventures.shuffle();
+      _fetchFailed = false;
       return adventures;
     } catch (e) {
+      _fetchFailed = true;
+      debugPrint('Error cargando aventuras del carrusel: $e');
       return [];
     }
   }
@@ -352,7 +357,21 @@ class _HomeContentState extends State<HomeContent> {
                 children: [
                   Icon(Icons.explore_off_outlined, color: Colors.grey.shade400, size: 40),
                   const SizedBox(height: 10),
-                  Text('No hay aventuras disponibles', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                  Text(
+                    _fetchFailed ? 'Error al cargar aventuras' : 'No hay aventuras disponibles', 
+                    style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600)
+                  ),
+                  if (_fetchFailed) ...[
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _randomAdventuresFuture = _fetchRandomAdventures();
+                        });
+                      },
+                      child: const Text('Reintentar', style: TextStyle(color: Color(0xFF9C27B0), fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ],
               )
             );

@@ -7,8 +7,31 @@ import '../../../core/data/achievements_data.dart';
 import '../../../core/utils/achievement_mapper.dart';
 import '../widgets/achievements_list.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Iniciamos el listener para que el nivel/XP se actualice en tiempo real
+    // (ej. si el usuario gana XP en otra pantalla y vuelve al perfil)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+      profileProvider.startListeningToUserDoc();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Detenemos el listener para no gastar lecturas innecesarias
+    Provider.of<ProfileProvider>(context, listen: false).stopListeningToUserDoc();
+    super.dispose();
+  }
 
   AchievementDefinition? _getAchById(String id) {
     for (var mode in AchievementMode.values) {
@@ -57,7 +80,6 @@ class ProfileScreen extends StatelessWidget {
                         CircleAvatar(
                           radius: 55,
                           backgroundColor: const Color(0xFF9C27B0),
-                          // Prioridad de la foto: imagen local (mientras sube) -> foto de internet -> iniciales
                           backgroundImage: provider.selectedImageBytes != null 
                             ? MemoryImage(provider.selectedImageBytes!) 
                             : (provider.photoUrl != null ? null : null), 
@@ -136,7 +158,6 @@ class ProfileScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildStatCard('Solitario', provider.soloDates, Icons.person, Colors.blue),
-                      // Solo mostramos las citas de pareja si el usuario está vinculado
                       if (provider.isLinked) _buildStatCard('Pareja', provider.coupleDates, Icons.favorite, Colors.pink),
                       _buildStatCard('Grupo', provider.groupOutings, Icons.group, Colors.purple),
                     ],
@@ -145,7 +166,6 @@ class ProfileScreen extends StatelessWidget {
                     const Divider(height: 30),
                     const Text('Mis Pines Equipados', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54, fontSize: 12)),
                     const SizedBox(height: 10),
-                    // Convertimos los IDs de los pines guardados en íconos y colores reales
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: provider.equippedPins.map((pinId) {
@@ -197,7 +217,7 @@ class ProfileScreen extends StatelessWidget {
                         labelColor: Color(0xFF9C27B0),
                         unselectedLabelColor: Colors.grey,
                         indicatorColor: Color(0xFF9C27B0),
-                        isScrollable: true, // Para que los 4 tabs quepan bien en pantallas pequeñas
+                        isScrollable: true,
                         tabs: [
                           Tab(text: 'General'),
                           Tab(text: 'Solitario'),

@@ -20,12 +20,16 @@ class AdventureMemoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final myUid = authProvider.user!.uid;
-    final partnerId = authProvider.userData!['partnerId'];
+    final partnerId = authProvider.userData?['partnerId'] as String?;
     
-    // Mantenemos la regla alfabética para saber qué posición ocupamos en el documento
-    bool isUser1 = myUid.compareTo(partnerId) < 0;
+    if (partnerId == null) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: Text('Ya no estás vinculado con esta persona.')),
+      );
+    }
 
-    // El ID del documento del recuerdo siempre es la combinación de la pareja y el ID de la aventura
+    bool isUser1 = myUid.compareTo(partnerId) < 0;
     String memoryDocId = '${coupleDocId}_$adventureId';
 
     return Scaffold(
@@ -37,7 +41,6 @@ class AdventureMemoryScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFFC2185B)),
       ),
-      // Usamos FutureBuilder porque este dato es histórico, no necesitamos escuchar cambios en tiempo real
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('memories').doc(memoryDocId).get(),
         builder: (context, snapshot) {
@@ -58,8 +61,6 @@ class AdventureMemoryScreen extends StatelessWidget {
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
-
-          // Identificamos los prefijos para saber qué campos de Firebase leer para cada uno
           String myPrefix = isUser1 ? 'user1' : 'user2';
           String partnerPrefix = isUser1 ? 'user2' : 'user1';
 

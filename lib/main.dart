@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'features/album/providers/album_provider.dart';
-import 'features/couple/providers/couple_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
+import 'core/providers/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/profile/providers/profile_provider.dart';
+import 'features/album/providers/album_provider.dart';
+import 'features/couple/providers/couple_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/home/screens/home_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Cargamos las variables de entorno antes de conectar a Firebase
   await dotenv.load(fileName: ".env");
 
-  // Conectamos con Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -24,13 +23,17 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // Les inyectamos AuthProvider a los demás para que puedan ver quién está logueado
         ChangeNotifierProvider(
           create: (context) => ProfileProvider(context.read<AuthProvider>()),
         ),
-        ChangeNotifierProvider(create: (context) => AlbumProvider(context.read<AuthProvider>())),
-        ChangeNotifierProvider(create: (context) => CoupleProvider(context.read<AuthProvider>())), 
+        ChangeNotifierProvider(
+          create: (context) => AlbumProvider(context.read<AuthProvider>()),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => CoupleProvider(context.read<AuthProvider>()),
+        ),
       ],
       child: const DatyApp(),
     ),
@@ -42,17 +45,13 @@ class DatyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
     return MaterialApp(
       title: 'Daty',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFC14BF1), 
-          secondary: const Color(0xFFFFD147), 
-        ),
-        useMaterial3: true,
-      ),
-      home: const AuthWrapper(), 
+      theme: themeProvider.currentTheme.flutterTheme,
+      home: const AuthWrapper(),
     );
   }
 }
@@ -64,12 +63,10 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
-    // Muestra una rueda de carga mientras Firebase verifica si hay una sesión guardada
     if (authProvider.isInitializing) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Si ya entró, va a la app; si no, al login
     if (authProvider.user != null) {
       return const HomeScreen();
     } else {

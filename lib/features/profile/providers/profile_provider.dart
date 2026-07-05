@@ -4,6 +4,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/models/achievement_definition.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/services/image_upload_service.dart';
+import 'dart:async';
 
 class ProfileProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
@@ -25,6 +26,9 @@ class ProfileProvider extends ChangeNotifier {
   Uint8List? _selectedImageBytes;
   bool _isUploadingPhoto = false;
 
+  // Cuánta XP se necesita para pasar de nivel. Cambiar aquí si se ajusta la curva.
+  static const int _expPerLevel = 100;
+
   bool get isLoading => _isLoading;
   String get userName => _userName;
   String get initials => _initials;
@@ -42,7 +46,6 @@ class ProfileProvider extends ChangeNotifier {
   bool get isUploadingPhoto => _isUploadingPhoto;
 
   ProfileProvider(this._authProvider) {
-    // Nos conectamos a AuthProvider para usar su caché y no hacer lecturas extra a Firestore
     _authProvider.addListener(_onAuthDataChanged);
     _onAuthDataChanged(); 
   }
@@ -66,7 +69,6 @@ class ProfileProvider extends ChangeNotifier {
       }
     }
 
-    // Extraemos directo del caché para no gastar lecturas en la base de datos
     _exp = userData['exp'] ?? 0;
     _soloDates = userData['soloDatesCompleted'] ?? 0;
     _groupOutings = userData['groupOutingsCompleted'] ?? 0;
@@ -85,16 +87,59 @@ class ProfileProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Cada 100 puntos de experiencia sube un nivel
+  // ─── Cálculo centralizado del nivel. Todo pasa por aquí. ───
+  // Si en el futuro la curva cambia (ej. niveles exponenciales), 
+  // solo se toca este método.
   void _calculateLevel() {
-    _level = (_exp / 100).floor() + 1;
-    _progress = (_exp % 100) / 100.0;
-    _nextExp = ((_exp ~/ 100) + 1) * 100;
+    _level = (_exp ~/ _expPerLevel) + 1;
+    _progress = (_exp % _expPerLevel) / _expPerLevel;
+    _nextExp = (_level) * _expPerLevel;
+  }
+
+
+  StreamSubscription<DocumentSnapshot>? _userDocSub;
+
+  void startListeningToUserDoc() {
+    final myUid = _authProvider.user?.uid;
+    if (myUid == null) return;
+
+    _userDocSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(myUid)
+        .snapshots()
+        .listen((doc) {
+      if (!doc.exists) return;
+      final data = doc.data();
+
+      final newExp = data?['exp'] ?? 0;
+      final newSoloDates = data?['soloDatesCompleted'] ?? 0;
+      final newGroupOutings = data?['groupOutingsCompleted'] ?? 0;
+      final newPins = List<String>.from(data?['equippedPins'] ?? []);
+      final newPhotoUrl = data?['photoUrl'];
+
+      // Solo notificamos si algo cambió para evitar rebuilds innecesarios
+      if (newExp != _exp || newSoloDates != _soloDates || newGroupOutings != _groupOutings) {
+        _exp = newExp;
+        _soloDates = newSoloDates;
+        _groupOutings = newGroupOutings;
+        _calculateLevel();
+      }
+
+      _equippedPins = newPins;
+      _photoUrl = newPhotoUrl;
+
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  void stopListeningToUserDoc() {
+    _userDocSub?.cancel();
+    _userDocSub = null;
   }
 
   Future<void> _fetchCoupleData(String myUid, String partnerId) async {
     try {
-      // Ordenamos los UIDs alfabéticamente para que ambos miembros de la pareja lleguen al mismo documento
       String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
       
       final coupleDoc = await FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId).get();
@@ -107,7 +152,6 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  // Conecta el ID de cada logro con su contador correspondiente
   int getCurrentValue(AchievementDefinition ach) {
     switch (ach.id) {
       case 'gen_welcome': return 1;
@@ -122,26 +166,36 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  void togglePin(String pinId, bool isEquipped) {
+  // ─── Toggle pin con rollback si falla la escritura ───
+  Future<void> togglePin(String pinId, bool isEquipped) async {
+    final myUid = _authProvider.user!.uid;
+    final userRef = FirebaseFirestore.instance.collection('users').doc(myUid);
+
+    // Optimistic update: cambiamos el UI inmediatamente
+    final previousPins = List<String>.from(_equippedPins);
+
     if (isEquipped) {
       _equippedPins.remove(pinId);
     } else {
-      if (_equippedPins.length < 3) { // Máximo 3 pines equipados
+      if (_equippedPins.length < 3) {
         _equippedPins.add(pinId);
       } else {
-        return;
+        return; // No hay espacio, no hacemos nada
       }
     }
-    
-    // Actualizamos la interfaz primero y luego guardamos en la base de datos para que se sienta rápido
     notifyListeners();
 
-    final myUid = _authProvider.user!.uid;
-    final userRef = FirebaseFirestore.instance.collection('users').doc(myUid);
-    if (isEquipped) {
-      userRef.update({'equippedPins': FieldValue.arrayRemove([pinId])});
-    } else {
-      userRef.update({'equippedPins': FieldValue.arrayUnion([pinId])});
+    try {
+      if (isEquipped) {
+        await userRef.update({'equippedPins': FieldValue.arrayRemove([pinId])});
+      } else {
+        await userRef.update({'equippedPins': FieldValue.arrayUnion([pinId])});
+      }
+    } catch (e) {
+      debugPrint('Fallo al actualizar pin: $e');
+      // Rollback: restauramos el estado anterior si la escritura falló
+      _equippedPins = previousPins;
+      notifyListeners();
     }
   }
 
@@ -149,7 +203,6 @@ class ProfileProvider extends ChangeNotifier {
     final XFile? image = await ImageUploadService.pickImage();
     if (image == null) return;
 
-    // Mostramos la imagen localmente mientras se sube a la nube
     _selectedImageBytes = await image.readAsBytes();
     _isUploadingPhoto = true;
     notifyListeners();
@@ -171,6 +224,7 @@ class ProfileProvider extends ChangeNotifier {
   @override
   void dispose() {
     _authProvider.removeListener(_onAuthDataChanged);
+    _userDocSub?.cancel();
     super.dispose();
   }
 }

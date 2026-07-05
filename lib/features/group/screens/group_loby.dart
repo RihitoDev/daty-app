@@ -42,7 +42,6 @@ class GroupLobby extends StatelessWidget {
                       }
 
                       final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-                      final List<dynamic> savedMemories = userData['savedGroupMemories'] ?? [];
                       final List<dynamic> dismissedMemories = userData['dismissedGroupMemories'] ?? [];
 
                       return FutureBuilder<QuerySnapshot>(
@@ -58,8 +57,10 @@ class GroupLobby extends StatelessWidget {
 
                           final lastDoc = snapshot.data!.docs.first;
                           final String memoryDocId = lastDoc.id;
-                          
-                          bool wasSaved = savedMemories.contains(memoryDocId);
+                          final memoryData = lastDoc.data() as Map<String, dynamic>?;
+                          final List<dynamic> savedBy = List<dynamic>.from(memoryData?['savedBy'] ?? []);
+
+                          bool wasSaved = savedBy.contains(myUid);
                           bool wasDismissed = dismissedMemories.contains(memoryDocId);
 
                           if (wasDismissed) {

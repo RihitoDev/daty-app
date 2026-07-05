@@ -64,7 +64,6 @@ class AuthProvider extends ChangeNotifier {
         "equippedPins": [],        
         "rachaDias": 0,           
         "fechaRegistro": FieldValue.serverTimestamp(),
-        "savedGroupMemories": [],
         "dismissedGroupMemories": [],
       });
     }
