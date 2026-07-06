@@ -5,6 +5,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
+import '../widgets/reset_password_dialog.dart';
+import '../../../core/validators/email_validator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,11 +35,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
   
   void _validateEmail(String value) {
-  final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
-
   setState(() {
     _emailTouched = true;
-    _isEmailValid = regex.hasMatch(value.trim());
+    _isEmailValid = EmailValidator.isValid(value);
   });
 }
 
@@ -67,86 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showResetPasswordDialog(BuildContext context) {
-    final customTheme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    final TextEditingController resetEmailController = TextEditingController();
-    String? dialogError;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: customTheme.card,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                Icon(Icons.lock_outline, color: customTheme.primary),
-                const SizedBox(width: 10),
-                Text('Recuperar Contraseña', style: TextStyle(fontWeight: FontWeight.bold, color: customTheme.text)),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Ingresa tu correo y te enviaremos un enlace para restablecerla.', style: TextStyle(color: customTheme.text2)),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: resetEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: TextStyle(color: customTheme.text),
-                  decoration: InputDecoration(
-                    hintText: 'correo@ejemplo.com',
-                    hintStyle: TextStyle(color: customTheme.muted),
-                    prefixIcon: Icon(Icons.email_outlined, color: customTheme.muted),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.3))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: customTheme.primary)),
-                    errorText: dialogError,
-                  ),
-                  onChanged: (_) => setDialogState(() => dialogError = null),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  resetEmailController.dispose();
-                  Navigator.pop(dialogContext);
-                },
-                child: Text('Cancelar', style: TextStyle(color: customTheme.text2)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: customTheme.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                onPressed: () async {
-                  if (resetEmailController.text.trim().isEmpty) {
-                    setDialogState(() => dialogError = 'El correo es obligatorio');
-                    return;
-                  }
-
-                  final authProvider = Provider.of<AuthProvider>(dialogContext, listen: false);
-                  final error = await authProvider.resetPassword(resetEmailController.text.trim());
-
-                  if (dialogContext.mounted) {
-                    resetEmailController.dispose();
-                    Navigator.pop(dialogContext);
-                    if (error == null) {
-                      _showSuccessDialog('Correo Enviado', 'Revisa tu bandeja de entrada para restablecer tu contraseña.');
-                    } else {
-                      String msg = 'No se pudo enviar el correo.';
-                      if (error == 'not-found') msg = 'No existe una cuenta con este correo.';
-                      setState(() => _authError = msg);
-                    }
-                  }
-                },
-                child: Text('Enviar', style: TextStyle(color: customTheme.card)),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+  
 
   void _showSuccessDialog(String title, String message) {
     final customTheme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
@@ -229,7 +150,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
-                                  onPressed: () => _showResetPasswordDialog(context),
+                                  onPressed: () {
+  showDialog(
+    context: context,
+    builder: (_) => const ResetPasswordDialog(),
+  );
+},
                                   style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 30)),
                                   child: Text('Olvidé mi contraseña', style: TextStyle(color: customTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
                                 ),
