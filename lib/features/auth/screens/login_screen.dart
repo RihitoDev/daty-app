@@ -142,10 +142,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             children: [
                               if (_authError != null) _buildAuthErrorBanner(_authError!, customTheme),
                               _buildInputLabel('Correo', customTheme.text),
-                              _buildTextField(_emailController, 'ingresa@correo.com', Icons.email_outlined, customTheme, keyboardType: TextInputType.emailAddress),
+                              _buildTextField(_emailController, 'Ingresa tu correo', Icons.email_outlined, customTheme, keyboardType: TextInputType.emailAddress),
                               const SizedBox(height: 20),
                               _buildInputLabel('Contraseña', customTheme.text),
-                              _buildTextField(_passwordController, 'Tu contraseña', Icons.lock_outline, customTheme, isPassword: true),
+                              _buildTextField(_passwordController, 'Ingresa tu contraseña', Icons.lock_outline, customTheme, isPassword: true),
                               const SizedBox(height: 5),
                               Align(
                                 alignment: Alignment.centerRight,
