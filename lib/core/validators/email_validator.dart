@@ -2,8 +2,8 @@ class EmailValidator {
   EmailValidator._();
 
   static final RegExp _emailRegex = RegExp(
-  r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(com|org|net|edu)$',
-);
+    r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(com|org|net|edu)$',
+  );
 
   /// Devuelve true si el correo tiene un formato válido.
   static bool isValid(String email) {
