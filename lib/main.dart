@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+
 import 'firebase_options.dart';
 import 'core/providers/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -9,12 +10,13 @@ import 'features/profile/providers/profile_provider.dart';
 import 'features/album/providers/album_provider.dart';
 import 'features/couple/providers/couple_provider.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/email_verification_screen.dart';
 import 'features/home/screens/home_screen.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -23,16 +25,32 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(
-          create: (context) => ProfileProvider(context.read<AuthProvider>()),
+          create: (_) => ThemeProvider(),
         ),
         ChangeNotifierProvider(
-          create: (context) => AlbumProvider(context.read<AuthProvider>()),
+          create: (_) => AuthProvider(),
         ),
         ChangeNotifierProvider(
-          create: (context) => CoupleProvider(context.read<AuthProvider>()),
+          create: (context) {
+            return ProfileProvider(
+              context.read<AuthProvider>(),
+            );
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) {
+            return AlbumProvider(
+              context.read<AuthProvider>(),
+            );
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) {
+            return CoupleProvider(
+              context.read<AuthProvider>(),
+            );
+          },
         ),
       ],
       child: const DatyApp(),
@@ -62,15 +80,26 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.user;
 
     if (authProvider.isInitializing) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
 
-    if (authProvider.user != null) {
-      return const HomeScreen();
-    } else {
+    if (user == null) {
       return const LoginScreen();
     }
+
+    if (!user.emailVerified) {
+      return EmailVerificationScreen(
+        email: user.email ?? '',
+      );
+    }
+
+    return const HomeScreen();
   }
 }

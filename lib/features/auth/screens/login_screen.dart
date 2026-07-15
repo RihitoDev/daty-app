@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
+import '../../../core/validators/email_validator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,28 +32,33 @@ class _LoginScreenState extends State<LoginScreen> {
   void _clearError() {
     if (_authError != null) setState(() => _authError = null);
   }
-  
-  void _validateEmail(String value) {
-  final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
 
-  setState(() {
-    _emailTouched = true;
-    _isEmailValid = regex.hasMatch(value.trim());
-  });
-}
+  void _validateEmail(String value) {
+    setState(() {
+      _emailTouched = value.trim().isNotEmpty;
+      _isEmailValid = EmailValidator.isValidForLogin(value);
+    });
+  }
 
   void _handleLogin() async {
     _clearError();
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final errorCode = await authProvider.signIn(_emailController.text, _passwordController.text);
+    final errorCode = await authProvider.signIn(
+        _emailController.text, _passwordController.text);
 
     if (mounted && errorCode != null) {
       String message = 'Correo o contraseña incorrectos';
-      if (errorCode == 'user-not-found') message = 'No existe una cuenta con este correo';
-      if (errorCode == 'wrong-password') message = 'La contraseña es incorrecta';
-      if (errorCode == 'invalid-email') message = 'El formato del correo no es válido';
+      if (errorCode == 'user-not-found') {
+        message = 'No existe una cuenta con este correo';
+      }
+      if (errorCode == 'wrong-password') {
+        message = 'La contraseña es incorrecta';
+      }
+      if (errorCode == 'invalid-email') {
+        message = 'El formato del correo no es válido';
+      }
       setState(() => _authError = message);
     }
   }
@@ -68,7 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showResetPasswordDialog(BuildContext context) {
-    final customTheme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    final customTheme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
     final TextEditingController resetEmailController = TextEditingController();
     String? dialogError;
 
@@ -78,19 +85,24 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: customTheme.card,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
                 Icon(Icons.lock_outline, color: customTheme.primary),
                 const SizedBox(width: 10),
-                Text('Recuperar Contraseña', style: TextStyle(fontWeight: FontWeight.bold, color: customTheme.text)),
+                Text('Recuperar Contraseña',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: customTheme.text)),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ingresa tu correo y te enviaremos un enlace para restablecerla.', style: TextStyle(color: customTheme.text2)),
+                Text(
+                    'Ingresa tu correo y te enviaremos un enlace para restablecerla.',
+                    style: TextStyle(color: customTheme.text2)),
                 const SizedBox(height: 15),
                 TextFormField(
                   controller: resetEmailController,
@@ -99,9 +111,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     hintText: 'correo@ejemplo.com',
                     hintStyle: TextStyle(color: customTheme.muted),
-                    prefixIcon: Icon(Icons.email_outlined, color: customTheme.muted),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.3))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: customTheme.primary)),
+                    prefixIcon:
+                        Icon(Icons.email_outlined, color: customTheme.muted),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide(
+                            color: customTheme.muted.withValues(alpha: 0.3))),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide(color: customTheme.primary)),
                     errorText: dialogError,
                   ),
                   onChanged: (_) => setDialogState(() => dialogError = null),
@@ -114,32 +132,43 @@ class _LoginScreenState extends State<LoginScreen> {
                   resetEmailController.dispose();
                   Navigator.pop(dialogContext);
                 },
-                child: Text('Cancelar', style: TextStyle(color: customTheme.text2)),
+                child: Text('Cancelar',
+                    style: TextStyle(color: customTheme.text2)),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: customTheme.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: customTheme.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15))),
                 onPressed: () async {
                   if (resetEmailController.text.trim().isEmpty) {
-                    setDialogState(() => dialogError = 'El correo es obligatorio');
+                    setDialogState(
+                        () => dialogError = 'El correo es obligatorio');
                     return;
                   }
 
-                  final authProvider = Provider.of<AuthProvider>(dialogContext, listen: false);
-                  final error = await authProvider.resetPassword(resetEmailController.text.trim());
+                  final authProvider =
+                      Provider.of<AuthProvider>(dialogContext, listen: false);
+                  final error = await authProvider
+                      .resetPassword(resetEmailController.text.trim());
 
                   if (dialogContext.mounted) {
                     resetEmailController.dispose();
                     Navigator.pop(dialogContext);
                     if (error == null) {
-                      _showSuccessDialog('Correo Enviado', 'Revisa tu bandeja de entrada para restablecer tu contraseña.');
+                      _showSuccessDialog('Correo Enviado',
+                          'Revisa tu bandeja de entrada para restablecer tu contraseña.');
                     } else {
                       String msg = 'No se pudo enviar el correo.';
-                      if (error == 'not-found') msg = 'No existe una cuenta con este correo.';
+                      if (error == 'not-found') {
+                        msg = 'No existe una cuenta con este correo.';
+                      }
                       setState(() => _authError = msg);
                     }
                   }
                 },
-                child: Text('Enviar', style: TextStyle(color: customTheme.card)),
+                child:
+                    Text('Enviar', style: TextStyle(color: customTheme.card)),
               ),
             ],
           );
@@ -149,20 +178,28 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showSuccessDialog(String title, String message) {
-    final customTheme = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    final customTheme =
+        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: customTheme.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: Icon(Icons.check_circle_outline, color: customTheme.primary, size: 40),
-        title: Text(title, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: customTheme.text)),
-        content: Text(message, textAlign: TextAlign.center, style: TextStyle(color: customTheme.text2)),
+        icon: Icon(Icons.check_circle_outline,
+            color: customTheme.primary, size: 40),
+        title: Text(title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: customTheme.text)),
+        content: Text(message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: customTheme.text2)),
         actions: [
           Center(
             child: TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Entendido', style: TextStyle(color: customTheme.primary)),
+              child: Text('Entendido',
+                  style: TextStyle(color: customTheme.primary)),
             ),
           )
         ],
@@ -199,10 +236,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     Image.asset(
                       'assets/images/mascot.png',
                       height: 180,
-                      errorBuilder: (context, error, stackTrace) => Icon(Icons.sentiment_very_satisfied, size: 260, color: customTheme.primary),
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.sentiment_very_satisfied,
+                          size: 260,
+                          color: customTheme.primary),
                     ),
-                    Text('Daty', style: TextStyle(fontSize: 54, color: customTheme.text, fontWeight: FontWeight.bold)),
-                    Text('Explora, Conecta, Comparte', style: TextStyle(fontSize: 16, color: customTheme.text2, letterSpacing: 1.5)),
+                    Text('Daty',
+                        style: TextStyle(
+                            fontSize: 54,
+                            color: customTheme.text,
+                            fontWeight: FontWeight.bold)),
+                    Text('Explora, Conecta, Comparte',
+                        style: TextStyle(
+                            fontSize: 16,
+                            color: customTheme.text2,
+                            letterSpacing: 1.5)),
                     const SizedBox(height: 20),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(28),
@@ -213,25 +261,51 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: BoxDecoration(
                             color: customTheme.card.withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: customTheme.muted.withValues(alpha: 0.2)),
-                            boxShadow: [BoxShadow(color: customTheme.primary.withValues(alpha: 0.05), blurRadius: 20, spreadRadius: 5)],
+                            border: Border.all(
+                                color:
+                                    customTheme.muted.withValues(alpha: 0.2)),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: customTheme.primary
+                                      .withValues(alpha: 0.05),
+                                  blurRadius: 20,
+                                  spreadRadius: 5)
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (_authError != null) _buildAuthErrorBanner(_authError!, customTheme),
+                              if (_authError != null)
+                                _buildAuthErrorBanner(_authError!, customTheme),
                               _buildInputLabel('Correo', customTheme.text),
-                              _buildTextField(_emailController, 'Ingresa tu correo', Icons.email_outlined, customTheme, keyboardType: TextInputType.emailAddress),
+                              _buildTextField(
+                                  _emailController,
+                                  'Ingresa tu correo',
+                                  Icons.email_outlined,
+                                  customTheme,
+                                  keyboardType: TextInputType.emailAddress),
                               const SizedBox(height: 20),
                               _buildInputLabel('Contraseña', customTheme.text),
-                              _buildTextField(_passwordController, 'Ingresa tu contraseña', Icons.lock_outline, customTheme, isPassword: true),
+                              _buildTextField(
+                                  _passwordController,
+                                  'Ingresa tu contraseña',
+                                  Icons.lock_outline,
+                                  customTheme,
+                                  isPassword: true),
                               const SizedBox(height: 5),
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
-                                  onPressed: () => _showResetPasswordDialog(context),
-                                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 30)),
-                                  child: Text('Olvidé mi contraseña', style: TextStyle(color: customTheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  onPressed: () =>
+                                      _showResetPasswordDialog(context),
+                                  style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: const Size(50, 30)),
+                                  child: Text('Olvidé mi contraseña',
+                                      style: TextStyle(
+                                          color: customTheme.primary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12)),
                                 ),
                               ),
                               const SizedBox(height: 15),
@@ -242,13 +316,26 @@ class _LoginScreenState extends State<LoginScreen> {
                                   onPressed: isLoading ? null : _handleLogin,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: customTheme.primary,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(18)),
                                     elevation: 5,
-                                    shadowColor: customTheme.primary.withValues(alpha: 0.3),
+                                    shadowColor: customTheme.primary
+                                        .withValues(alpha: 0.3),
                                   ),
                                   child: isLoading
-                                      ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: customTheme.card, strokeWidth: 3))
-                                      : Text('Entrar', style: TextStyle(fontSize: 18, color: customTheme.card, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                      ? SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                              color: customTheme.card,
+                                              strokeWidth: 3))
+                                      : Text('Entrar',
+                                          style: TextStyle(
+                                              fontSize: 18,
+                                              color: customTheme.card,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1)),
                                 ),
                               ),
                             ],
@@ -262,24 +349,40 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 55,
                       child: OutlinedButton.icon(
                         onPressed: isLoading ? null : _handleGoogleLogin,
-                        icon: Icon(Icons.g_mobiledata, size: 30, color: customTheme.text),
-                        label: Text('Continuar con Google', style: TextStyle(color: customTheme.text, fontWeight: FontWeight.w600, fontSize: 16)),
+                        icon: Icon(Icons.g_mobiledata,
+                            size: 30, color: customTheme.text),
+                        label: Text('Continuar con Google',
+                            style: TextStyle(
+                                color: customTheme.text,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16)),
                         style: OutlinedButton.styleFrom(
-                          backgroundColor: customTheme.card.withValues(alpha: 0.5),
-                          side: BorderSide(color: customTheme.muted.withValues(alpha: 0.3)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          backgroundColor:
+                              customTheme.card.withValues(alpha: 0.5),
+                          side: BorderSide(
+                              color: customTheme.muted.withValues(alpha: 0.3)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18)),
                         ),
                       ),
                     ),
                     const SizedBox(height: 15),
                     TextButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen())),
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const RegisterScreen())),
                       child: RichText(
                         text: TextSpan(
-                          style: TextStyle(color: customTheme.text2, fontSize: 14),
+                          style:
+                              TextStyle(color: customTheme.text2, fontSize: 14),
                           children: [
                             const TextSpan(text: '¿No tienes cuenta? '),
-                            TextSpan(text: 'Regístrate', style: TextStyle(fontWeight: FontWeight.bold, color: customTheme.primary)),
+                            TextSpan(
+                                text: 'Regístrate',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: customTheme.primary)),
                           ],
                         ),
                       ),
@@ -308,84 +411,92 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           Icon(Icons.error_outline, color: customTheme.accent, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(message, style: TextStyle(color: customTheme.accent, fontSize: 13, fontWeight: FontWeight.w600))),
+          Expanded(
+              child: Text(message,
+                  style: TextStyle(
+                      color: customTheme.accent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600))),
         ],
       ),
     );
   }
 
   Widget _buildInputLabel(String label, Color textColor) => Padding(
-    padding: const EdgeInsets.only(bottom: 8.0),
-    child: Text(label, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13)),
-  );
+        padding: const EdgeInsets.only(bottom: 8.0),
+        child: Text(label,
+            style: TextStyle(
+                color: textColor, fontWeight: FontWeight.w700, fontSize: 13)),
+      );
 
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon, AppCustomTheme customTheme, {bool isPassword = false, TextInputType? keyboardType}) {
+  Widget _buildTextField(TextEditingController controller, String hint,
+      IconData icon, AppCustomTheme customTheme,
+      {bool isPassword = false, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !_isPasswordVisible,
       keyboardType: keyboardType,
-style: TextStyle(color: customTheme.text),
-onChanged: (value) {
-  _clearError();
+      style: TextStyle(color: customTheme.text),
+      onChanged: (value) {
+        _clearError();
 
-  if (controller == _emailController) {
-    _validateEmail(value);
-  }
-},
+        if (controller == _emailController) {
+          _validateEmail(value);
+        }
+      },
       validator: (value) {
-  if (value == null || value.trim().isEmpty) {
-    return 'Este campo es obligatorio';
-  }
+        if (controller == _emailController) {
+          return EmailValidator.validateForLogin(value);
+        }
 
-  // Validación del correo
-  if (controller == _emailController) {
-    final email = value.trim();
+        if (value == null || value.trim().isEmpty) {
+          return 'Este campo es obligatorio';
+        }
 
-    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
-
-    if (!regex.hasMatch(email)) {
-      return 'Ingrese un correo Gmail válido';
-    }
-  }
-
-  return null;
-},
+        return null;
+      },
       decoration: InputDecoration(
         hintText: hint,
-hintStyle: TextStyle(color: customTheme.muted),
-filled: true,
-fillColor: customTheme.bg.withValues(alpha: 0.5),
-prefixIcon: Icon(icon, color: customTheme.muted),
-
-suffixIcon: controller == _emailController
-    ? (_emailTouched
-        ? Icon(
-            _isEmailValid
-                ? Icons.check_circle
-                : Icons.cancel,
-            color: _isEmailValid
-                ? Colors.greenAccent
-                : Colors.redAccent,
-          )
-        : null)
-    : (isPassword
-        ? IconButton(
-            icon: Icon(
-              _isPasswordVisible
-                  ? Icons.visibility_off
-                  : Icons.visibility,
-              color: customTheme.muted,
-            ),
-            onPressed: () => setState(() {
-              _isPasswordVisible = !_isPasswordVisible;
-            }),
-          )
-        : null),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.primary, width: 1.5)),
-        errorStyle: TextStyle(color: customTheme.accent, fontWeight: FontWeight.w600),
+        hintStyle: TextStyle(color: customTheme.muted),
+        filled: true,
+        fillColor: customTheme.bg.withValues(alpha: 0.5),
+        prefixIcon: Icon(icon, color: customTheme.muted),
+        suffixIcon: controller == _emailController
+            ? (_emailTouched
+                ? Icon(
+                    _isEmailValid ? Icons.check_circle : Icons.cancel,
+                    color:
+                        _isEmailValid ? Colors.greenAccent : Colors.redAccent,
+                  )
+                : null)
+            : (isPassword
+                ? IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: customTheme.muted,
+                    ),
+                    onPressed: () => setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    }),
+                  )
+                : null),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide:
+                BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide:
+                BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: BorderSide(color: customTheme.primary, width: 1.5)),
+        errorStyle:
+            TextStyle(color: customTheme.accent, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -393,10 +504,26 @@ suffixIcon: controller == _emailController
   Widget _buildBackgroundDecorations(Color primaryColor) {
     return Stack(
       children: [
-        Positioned(top: 80, left: 20, child: Icon(Icons.explore_outlined, color: primaryColor.withValues(alpha: 0.05), size: 60)),
-        Positioned(top: 220, right: 20, child: Icon(Icons.favorite_outline, color: primaryColor.withValues(alpha: 0.05), size: 80)),
-        Positioned(bottom: 200, left: 40, child: Icon(Icons.backpack_outlined, color: primaryColor.withValues(alpha: 0.05), size: 70)),
-        Positioned(bottom: 80, right: 40, child: Icon(Icons.star_outline, color: primaryColor.withValues(alpha: 0.05), size: 50)),
+        Positioned(
+            top: 80,
+            left: 20,
+            child: Icon(Icons.explore_outlined,
+                color: primaryColor.withValues(alpha: 0.05), size: 60)),
+        Positioned(
+            top: 220,
+            right: 20,
+            child: Icon(Icons.favorite_outline,
+                color: primaryColor.withValues(alpha: 0.05), size: 80)),
+        Positioned(
+            bottom: 200,
+            left: 40,
+            child: Icon(Icons.backpack_outlined,
+                color: primaryColor.withValues(alpha: 0.05), size: 70)),
+        Positioned(
+            bottom: 80,
+            right: 40,
+            child: Icon(Icons.star_outline,
+                color: primaryColor.withValues(alpha: 0.05), size: 50)),
       ],
     );
   }
