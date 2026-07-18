@@ -7,6 +7,7 @@ import 'pairing_dialog.dart';
 import 'contract_dialog.dart';
 import '../../../shared/screens/adventure_map.dart';
 import '../../../shared/widgets/custom_snackbar.dart';
+import '../../../core/providers/theme_provider.dart';
 
 class CoupleAdventureCard extends StatelessWidget {
   const CoupleAdventureCard({super.key});
@@ -128,38 +129,39 @@ class CoupleAdventureCard extends StatelessWidget {
     required IconData icon,
     required VoidCallback? onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-          boxShadow: [BoxShadow(color: gradientColors.last.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 8), spreadRadius: 2)],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), shape: BoxShape.circle),
-              child: Icon(icon, size: 40, color: Colors.white)
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, _) {
+        final customTheme = themeProvider.currentTheme;
+        final enabled = onTap != null;
+        final accent = gradientColors.last;
+        return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(colors: [accent.withValues(alpha: 0.16), customTheme.card], stops: const [0, 0.62]),
+              border: Border.all(color: accent.withValues(alpha: 0.24)),
+              boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.1), blurRadius: 18, offset: const Offset(0, 7))],
             ),
-            const SizedBox(width: 25),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))])),
-                  const SizedBox(height: 6),
-                  Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600))
-                ]
-              )
-            ),
-            const Icon(Icons.chevron_right, color: Colors.white70, size: 28)
-          ],
-        ),
-      ),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: accent.withValues(alpha: enabled ? 0.16 : 0.08), borderRadius: BorderRadius.circular(18)),
+                child: Icon(icon, size: 30, color: enabled ? accent : customTheme.muted),
+              ),
+              const SizedBox(width: 16),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: TextStyle(color: customTheme.text, fontSize: 17, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Text(subtitle, style: TextStyle(color: customTheme.text2, fontSize: 13, fontWeight: FontWeight.w600)),
+              ])),
+              Icon(Icons.arrow_forward_ios_rounded, color: enabled ? accent : customTheme.muted, size: 18),
+            ]),
+          ),
+        );
+      },
     );
   }
 }

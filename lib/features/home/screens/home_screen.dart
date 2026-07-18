@@ -4,6 +4,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../../../core/providers/theme_provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../solo/widgets/solo_adventure_card.dart'; 
@@ -30,32 +32,117 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF1E5F5),
+      backgroundColor: customTheme.bg,
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-          boxShadow: [BoxShadow(color: Colors.black12, spreadRadius: 0, blurRadius: 10)],
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-          child: BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) => setState(() => _currentIndex = index),
-            backgroundColor: Colors.white,
-            selectedItemColor: const Color(0xFF9C27B0),
-            unselectedItemColor: Colors.grey,
-            showUnselectedLabels: true,
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home_outlined, size: 30), activeIcon: Icon(Icons.home_rounded, size: 30), label: 'Home'),
-              BottomNavigationBarItem(icon: Icon(Icons.photo_library_outlined, size: 30), activeIcon: Icon(Icons.photo_library_rounded, size: 30), label: 'Album'),
-              BottomNavigationBarItem(icon: Icon(Icons.tune_rounded, size: 30), label: 'Ajustes'),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(18, 4, 18, 12),
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: customTheme.card,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: customTheme.muted.withValues(alpha: 0.16),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: customTheme.primary.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
             ],
+          ),
+          child: Row(
+            children: [
+              _buildNavigationItem(
+                index: 0,
+                icon: Icons.explore_outlined,
+                activeIcon: Icons.explore_rounded,
+                label: 'Inicio',
+                customTheme: customTheme,
+              ),
+              _buildNavigationItem(
+                index: 1,
+                icon: Icons.auto_stories_outlined,
+                activeIcon: Icons.auto_stories_rounded,
+                label: 'Álbum',
+                customTheme: customTheme,
+              ),
+              _buildNavigationItem(
+                index: 2,
+                icon: Icons.settings_outlined,
+                activeIcon: Icons.settings_rounded,
+                label: 'Ajustes',
+                customTheme: customTheme,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavigationItem({
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required AppCustomTheme customTheme,
+  }) {
+    final isSelected = _currentIndex == index;
+
+    return Expanded(
+      child: Semantics(
+        selected: isSelected,
+        button: true,
+        label: label,
+        child: InkWell(
+          onTap: () => setState(() => _currentIndex = index),
+          borderRadius: BorderRadius.circular(19),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? customTheme.primary.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(19),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedScale(
+                  scale: isSelected ? 1.08 : 1,
+                  duration: const Duration(milliseconds: 240),
+                  child: Icon(
+                    isSelected ? activeIcon : icon,
+                    size: 24,
+                    color: isSelected
+                        ? customTheme.primary
+                        : customTheme.muted,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected
+                        ? customTheme.primary
+                        : customTheme.text2,
+                    fontSize: 11,
+                    fontWeight:
+                        isSelected ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -98,7 +185,7 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     _randomAdventuresFuture = _fetchRandomAdventures();
-    _pageController = PageController(initialPage: _currentPage, viewportFraction: 0.6);
+    _pageController = PageController(initialPage: _currentPage, viewportFraction: 0.84);
   }
 
   @override
@@ -174,128 +261,48 @@ class _HomeContentState extends State<HomeContent> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
     
     final String userName = authProvider.userData?['username'] ?? authProvider.user?.displayName ?? 'Aventurero';
     final String? photoUrl = authProvider.userData?['photoUrl'];
     final String initials = getInitials(userName);
 
-    return Column(
+    return Stack(
       children: [
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + 30, 
-            left: 20, 
-            right: 20, 
-            bottom: 20
-          ),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)],
-            ),
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Fila principal
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Mascota
-                  GestureDetector(
-                    onTap: _onMascotTapped,
-                    child: Container(
-                      padding: const EdgeInsets.all(4.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(40),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Image.asset(
-                        'assets/images/mascot.png', 
-                        height: 45, 
-                        errorBuilder: (c, e, s) => const Icon(Icons.pets, color: Colors.white, size: 35)
-                      ),
-                    ),
-                  ),
-                  
-                  // Saludo centrado en el espacio restante
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Bienvenido', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w400)),
-                        Text(userName, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis, maxLines: 1),
-                      ],
-                    ),
-                  ),
-                  
-                  // Avatar
-                  GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())),
-                    child: Container(
-                      padding: const EdgeInsets.all(2.5),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 4))
-                        ]
-                      ),
-                      child: CircleAvatar(
-                        radius: 25,
-                        backgroundColor: const Color(0xFF81D4FA),
-                        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? CachedNetworkImageProvider(photoUrl) : null,
-                        child: (photoUrl == null || photoUrl.isEmpty) 
-                          ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)) 
-                          : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              if (_showBubble)
-                Positioned(
-                  left: 30, 
-                  bottom: 40, 
-                  child: _buildSpeechBubble(_currentPhrase),
-                ),
-            ],
-          ),
-        ),
-   
-
-        Expanded(
+        ColoredBox(color: customTheme.bg),
+        _buildBackgroundDecorations(customTheme),
+        SafeArea(
+          bottom: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.only(top: 25.0, left: 25.0, right: 25.0, bottom: 25.0),
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 30),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildHeader(customTheme, userName, photoUrl, initials),
+                const SizedBox(height: 30),
+                Text('Elige tu aventura', style: TextStyle(color: customTheme.text, fontSize: 24, fontWeight: FontWeight.w900, height: 1.12)),
+                const SizedBox(height: 7),
+                Text('Tres formas de salir de la rutina.', style: TextStyle(color: customTheme.text2, fontSize: 14, height: 1.4)),
+                const SizedBox(height: 22),
                 const SoloAdventureCard(),
                 const CoupleAdventureCard(),
-                
                 _buildAdventureCard(
-                  title: 'Aventura Grupal', 
-                  subtitle: 'Expedicion en grupo', 
-                  gradientColors: const [Color(0xFFBA68C8), Color(0xFF8E24AA)],
-                  icon: Icons.groups_rounded, 
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupLobby()))
+                  customTheme: customTheme,
+                  title: 'Aventura grupal',
+                  subtitle: 'Una expedición para compartir',
+                  icon: Icons.groups_rounded,
+                  accent: const Color(0xFF8E24AA),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GroupLobby())),
                 ),
-
-                const SizedBox(height: 20),
-                
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Conoce estos lugares', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(child: Text('Inspírate', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: customTheme.text))),
+                    Text('Conoce estos lugares', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: customTheme.text2)),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                
-                _buildAdventureCarousel(),
-
-                const SizedBox(height: 30),
+                const SizedBox(height: 12),
+                _buildAdventureCarousel(customTheme),
               ],
             ),
           ),
@@ -304,7 +311,78 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  Widget _buildSpeechBubble(String text) {
+  Widget _buildHeader(AppCustomTheme customTheme, String userName, String? photoUrl, String initials) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [customTheme.primary, customTheme.primaryDark],
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [BoxShadow(color: customTheme.primary.withValues(alpha: 0.28), blurRadius: 24, offset: const Offset(0, 12))],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(right: -36, bottom: -50, child: _decorativeCircle(125, Colors.white.withValues(alpha: 0.08))),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+                GestureDetector(
+                  onTap: _onMascotTapped,
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(18)),
+                    child: Image.asset('assets/images/mascot.png', fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.pets, color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('TU PRÓXIMA HISTORIA', style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+                  const SizedBox(height: 2),
+                  Text('Hola, $userName', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+                ])),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white.withValues(alpha: 0.75), width: 2)),
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      backgroundImage: photoUrl != null && photoUrl.isNotEmpty ? CachedNetworkImageProvider(photoUrl) : null,
+                      child: photoUrl == null || photoUrl.isEmpty ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)) : null,
+                    ),
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 18),
+            Row(children: [
+              const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Hoy puede convertirse en un gran recuerdo.', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13, fontWeight: FontWeight.w600))),
+            ]),
+          ]),
+          if (_showBubble) Positioned(left: 42, top: 50, child: _buildSpeechBubble(_currentPhrase, customTheme)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackgroundDecorations(AppCustomTheme customTheme) => IgnorePointer(
+    child: Stack(children: [
+      Positioned(top: 270, right: -45, child: _decorativeCircle(145, customTheme.primary.withValues(alpha: 0.06))),
+      Positioned(top: 620, left: -55, child: _decorativeCircle(125, customTheme.accent.withValues(alpha: 0.06))),
+    ]),
+  );
+
+  Widget _decorativeCircle(double size, Color color) => Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: color));
+
+  Widget _buildSpeechBubble(String text, AppCustomTheme customTheme) {
     return AnimatedOpacity(
       opacity: _showBubble ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 300),
@@ -317,7 +395,7 @@ class _HomeContentState extends State<HomeContent> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: customTheme.card,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -329,8 +407,8 @@ class _HomeContentState extends State<HomeContent> {
             ),
             child: Text(
               text,
-              style: const TextStyle(
-                color: Color(0xFF9C27B0), 
+              style: TextStyle(
+                color: customTheme.primary,
                 fontWeight: FontWeight.bold, 
                 fontSize: 13
               ),
@@ -341,25 +419,25 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  Widget _buildAdventureCarousel() {
+  Widget _buildAdventureCarousel(AppCustomTheme customTheme) {
     return SizedBox(
-      height: 220,
+      height: 248,
       child: FutureBuilder<List<Map<String, dynamic>>>(
         future: _randomAdventuresFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
+            return Center(child: CircularProgressIndicator(color: customTheme.primary));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.explore_off_outlined, color: Colors.grey.shade400, size: 40),
+                  Icon(Icons.explore_off_outlined, color: customTheme.muted, size: 40),
                   const SizedBox(height: 10),
                   Text(
                     _fetchFailed ? 'Error al cargar aventuras' : 'No hay aventuras disponibles', 
-                    style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600)
+                    style: TextStyle(color: customTheme.text2, fontWeight: FontWeight.w600)
                   ),
                   if (_fetchFailed) ...[
                     const SizedBox(height: 10),
@@ -369,7 +447,7 @@ class _HomeContentState extends State<HomeContent> {
                           _randomAdventuresFuture = _fetchRandomAdventures();
                         });
                       },
-                      child: const Text('Reintentar', style: TextStyle(color: Color(0xFF9C27B0), fontWeight: FontWeight.bold)),
+                      child: Text('Reintentar', style: TextStyle(color: customTheme.primary, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ],
@@ -406,7 +484,7 @@ class _HomeContentState extends State<HomeContent> {
               itemBuilder: (context, index) {
                 final realIndex = index % _adventuresCount;
                 final adv = adventures[realIndex];
-                return _buildCarouselCard(adv);
+                return _buildCarouselCard(adv, customTheme);
               },
             ),
           );
@@ -415,19 +493,20 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  Widget _buildCarouselCard(Map<String, dynamic> adventure) {
+  Widget _buildCarouselCard(Map<String, dynamic> adventure, AppCustomTheme customTheme) {
     final String title = adventure['title'] ?? 'Aventura';
     final String description = adventure['description'] ?? '';
     final int number = adventure['number'] ?? 0;
 
     return GestureDetector(
-      onTap: () => _showDescriptionDialog(title, description),
+      onTap: () => _showDescriptionDialog(title, description, customTheme),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: Colors.white,
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(2, 4))],
+          color: customTheme.card,
+          border: Border.all(color: customTheme.muted.withValues(alpha: 0.18)),
+          boxShadow: [BoxShadow(color: customTheme.primary.withValues(alpha: 0.1), blurRadius: 16, offset: const Offset(0, 6))],
         ),
         child: Column(
           children: [
@@ -442,8 +521,8 @@ class _HomeContentState extends State<HomeContent> {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(colors: [Color(0xFFCE93D8), Color(0xFF9C27B0)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [customTheme.primaryLight, customTheme.primary], begin: Alignment.topLeft, end: Alignment.bottomRight),
                           ),
                           child: const Center(child: Icon(Icons.photo_camera_back_outlined, color: Colors.white30, size: 50)),
                         );
@@ -457,11 +536,20 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     ),
                     Positioned(
-                      bottom: 10, left: 10, right: 10,
-                      child: Text(
-                        title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, shadows: [Shadow(color: Colors.black, blurRadius: 4)]),
+                      top: 12, left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.42), borderRadius: BorderRadius.circular(20)),
+                        child: const Text('IDEA PARA HOY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 9, letterSpacing: 0.8)),
                       ),
+                    ),
+                    Positioned(
+                      bottom: 14, left: 14, right: 14,
+                      child: Row(children: [
+                        Expanded(child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17, shadows: [Shadow(color: Colors.black, blurRadius: 4)]))),
+                        const SizedBox(width: 8),
+                        Container(padding: const EdgeInsets.all(7), decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Icon(Icons.arrow_outward_rounded, color: customTheme.primary, size: 17)),
+                      ]),
                     ),
                   ],
                 ),
@@ -473,20 +561,21 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  void _showDescriptionDialog(String title, String description) {
+  void _showDescriptionDialog(String title, String description, AppCustomTheme customTheme) {
     _stopAutoScroll();
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: customTheme.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         contentPadding: const EdgeInsets.all(20),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF9C27B0))),
+            Text(title, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: customTheme.text)),
             const SizedBox(height: 15),
-            Text(description, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade700, fontSize: 14)),
+            Text(description, textAlign: TextAlign.center, style: TextStyle(color: customTheme.text2, fontSize: 14)),
           ],
         ),
         actions: [
@@ -497,26 +586,27 @@ class _HomeContentState extends State<HomeContent> {
                 if (mounted) _startAutoScroll();
               });
             }, 
-            child: const Text('Cerrar', style: TextStyle(color: Color(0xFF9C27B0)))
+            child: Text('Cerrar', style: TextStyle(color: customTheme.primary))
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAdventureCard({required String title, required String subtitle, required List<Color> gradientColors, required IconData icon, required VoidCallback onTap}) {
+  Widget _buildAdventureCard({required AppCustomTheme customTheme, required String title, required String subtitle, required IconData icon, required Color accent, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 20), 
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(colors: [accent.withValues(alpha: 0.16), customTheme.card], stops: const [0, 0.62]),
+          border: Border.all(color: accent.withValues(alpha: 0.24)),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.last.withValues(alpha: 0.4),
-              blurRadius: 15, offset: const Offset(0, 8), spreadRadius: 2
+              color: accent.withValues(alpha: 0.1),
+              blurRadius: 18, offset: const Offset(0, 7),
             )
           ],
         ),
@@ -524,21 +614,21 @@ class _HomeContentState extends State<HomeContent> {
           children: [
             Container(
               padding: const EdgeInsets.all(14), 
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.25), shape: BoxShape.circle), 
-              child: Icon(icon, size: 40, color: Colors.white)
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(18)),
+              child: Icon(icon, size: 30, color: accent)
             ),
-            const SizedBox(width: 25),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start, 
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2))])),
+                  Text(title, style: TextStyle(color: customTheme.text, fontSize: 17, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6), 
-                  Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 15, fontWeight: FontWeight.w600))
+                  Text(subtitle, style: TextStyle(color: customTheme.text2, fontSize: 13, fontWeight: FontWeight.w600))
                 ]
               )
             ),
-            const Icon(Icons.chevron_right, color: Colors.white70, size: 28)
+            Icon(Icons.arrow_forward_ios_rounded, color: accent, size: 18)
           ],
         ),
       ),
