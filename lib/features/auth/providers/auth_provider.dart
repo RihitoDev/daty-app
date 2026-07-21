@@ -47,26 +47,25 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  // Prepara el documento del usuario con los campos base si es su primera vez
+  // Prepara el documento del usuario con los campos base si es su primera vez.
+  // Usamos merge: true para evitar el race condition TOCTOU entre el get() y el set():
+  // si un registro duplicado (o un Cloud Function) creara el doc entre ambos, no lo sobreescribiríamos.
   Future<void> _createUserDocument(User user, {String? usernameOverride}) async {
     final userDoc = _firestore.collection('users').doc(user.uid);
-    final docSnapshot = await userDoc.get();
 
-    if (!docSnapshot.exists) {
-      await userDoc.set({
-        "username": usernameOverride ?? user.displayName ?? "Aventurero",
-        "email": user.email ?? "",
-        "photoUrl": user.photoURL,
-        "partnerId": null,         
-        "exp": 0,                  
-        "soloDatesCompleted": 0,   
-        "groupOutingsCompleted": 0,
-        "equippedPins": [],        
-        "rachaDias": 0,           
-        "fechaRegistro": FieldValue.serverTimestamp(),
-        "dismissedGroupMemories": [],
-      });
-    }
+    await userDoc.set({
+      "username": usernameOverride ?? user.displayName ?? "Aventurero",
+      "email": user.email ?? "",
+      "photoUrl": user.photoURL,
+      "partnerId": null,
+      "exp": 0,
+      "soloDatesCompleted": 0,
+      "groupOutingsCompleted": 0,
+      "equippedPins": [],
+      "rachaDias": 0,
+      "fechaRegistro": FieldValue.serverTimestamp(),
+      "dismissedGroupMemories": [],
+    }, SetOptions(merge: true));
   }
 
   Future<String?> signIn(String email, String password) async {
@@ -155,10 +154,11 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     _setLoading(true);
     try {
+      // Delegamos la limpieza de _user y _userData al listener authStateChanges(),
+      // que es la única fuente de verdad para el estado de sesión. Esto evita el doble
+      // notifyListeners() y el posible flicker de loading que generaba setearlos a mano.
       await _auth.signOut();
       await _googleSignIn.signOut();
-      _user = null;
-      _userData = null;
     } catch (e) {
       debugPrint('Fallo al cerrar sesión: $e');
     } finally {

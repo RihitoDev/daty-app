@@ -21,6 +21,9 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _authError;
   bool _isEmailValid = false;
   bool _emailTouched = false;
+  // Guard local anti double-tap: isLoading del provider no es instantáneo,
+  // así que bloqueamos toques duplicados hasta que el provider marque loading.
+  bool _isSubmitting = false;
   @override
   void dispose() {
     _emailController.dispose();
@@ -33,7 +36,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
   
   void _validateEmail(String value) {
-  final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+  // Mismo regex que register_screen.dart para mantener consistencia entre pantallas.
+  final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
 
   setState(() {
     _emailTouched = true;
@@ -42,11 +46,14 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
   void _handleLogin() async {
+    if (_isSubmitting) return;
     _clearError();
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _isSubmitting = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final errorCode = await authProvider.signIn(_emailController.text, _passwordController.text);
+    if (mounted) setState(() => _isSubmitting = false);
 
     if (mounted && errorCode != null) {
       String message = 'Correo o contraseña incorrectos';
@@ -58,9 +65,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleGoogleLogin() async {
+    if (_isSubmitting) return;
     _clearError();
+
+    setState(() => _isSubmitting = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final result = await authProvider.signInWithGoogle();
+    if (mounted) setState(() => _isSubmitting = false);
 
     if (mounted && result != null && result != 'cancelled') {
       setState(() => _authError = 'No se pudo iniciar sesión con Google');
@@ -72,6 +83,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final TextEditingController resetEmailController = TextEditingController();
     String? dialogError;
 
+    // Garantizamos el dispose del controller sin importar cómo se cierre el diálogo
+    // (botón Cancelar, botón Enviar, tap fuera o botón físico Atrás).
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -110,10 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  resetEmailController.dispose();
-                  Navigator.pop(dialogContext);
-                },
+                onPressed: () => Navigator.pop(dialogContext),
                 child: Text('Cancelar', style: TextStyle(color: customTheme.text2)),
               ),
               ElevatedButton(
@@ -128,7 +138,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   final error = await authProvider.resetPassword(resetEmailController.text.trim());
 
                   if (dialogContext.mounted) {
-                    resetEmailController.dispose();
                     Navigator.pop(dialogContext);
                     if (error == null) {
                       _showSuccessDialog('Correo Enviado', 'Revisa tu bandeja de entrada para restablecer tu contraseña.');
@@ -145,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         },
       ),
-    );
+    ).then((_) => resetEmailController.dispose());
   }
 
   void _showSuccessDialog(String title, String message) {
@@ -174,6 +183,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final isLoading = Provider.of<AuthProvider>(context).isLoading;
     final customTheme = Provider.of<ThemeProvider>(context).currentTheme;
+    // Bloqueamos los botones mientras el provider o nuestro guard local estén activos.
+    final isBusy = isLoading || _isSubmitting;
 
     return Scaffold(
       body: Stack(
@@ -239,14 +250,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: double.infinity,
                                 height: 55,
                                 child: ElevatedButton(
-                                  onPressed: isLoading ? null : _handleLogin,
+                                  onPressed: isBusy ? null : _handleLogin,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: customTheme.primary,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                                     elevation: 5,
                                     shadowColor: customTheme.primary.withValues(alpha: 0.3),
                                   ),
-                                  child: isLoading
+                                  child: isBusy
                                       ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: customTheme.card, strokeWidth: 3))
                                       : Text('Entrar', style: TextStyle(fontSize: 18, color: customTheme.card, fontWeight: FontWeight.bold, letterSpacing: 1)),
                                 ),
@@ -261,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       height: 55,
                       child: OutlinedButton.icon(
-                        onPressed: isLoading ? null : _handleGoogleLogin,
+                        onPressed: isBusy ? null : _handleGoogleLogin,
                         icon: Icon(Icons.g_mobiledata, size: 30, color: customTheme.text),
                         label: Text('Continuar con Google', style: TextStyle(color: customTheme.text, fontWeight: FontWeight.w600, fontSize: 16)),
                         style: OutlinedButton.styleFrom(
@@ -337,14 +348,14 @@ onChanged: (value) {
     return 'Este campo es obligatorio';
   }
 
-  // Validación del correo
+  // Validación del correo (mismo patrón que register_screen.dart)
   if (controller == _emailController) {
     final email = value.trim();
 
-    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+    final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
 
     if (!regex.hasMatch(email)) {
-      return 'Ingrese un correo Gmail válido';
+      return 'Ingrese un correo válido';
     }
   }
 
