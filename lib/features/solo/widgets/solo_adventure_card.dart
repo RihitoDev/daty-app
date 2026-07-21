@@ -85,8 +85,11 @@ class SoloAdventureCard extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(colors: [accent.withValues(alpha: 0.16), customTheme.card], stops: const [0, 0.62]),
-              border: Border.all(color: accent.withValues(alpha: 0.24)),
+              gradient: LinearGradient(
+                colors: [accent.withValues(alpha: 0.27), accent.withValues(alpha: 0.13), customTheme.card],
+                stops: const [0, 0.7, 1],
+              ),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
               boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.1), blurRadius: 18, offset: const Offset(0, 7))],
             ),
             child: Row(children: [

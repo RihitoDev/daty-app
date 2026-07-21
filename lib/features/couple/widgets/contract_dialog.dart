@@ -1,6 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/daty_contract_header.dart';
+import '../../../core/providers/theme_provider.dart';
+import 'package:provider/provider.dart';
+import '../../../shared/widgets/contract_rule_tile.dart';
 
 class ContractDialog extends StatefulWidget {
   final String myUid;
@@ -71,82 +76,87 @@ class _ContractDialogState extends State<ContractDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
     // PopScope bloquea el botón físico de "Atrás" en Android para forzar que el usuario tome una decisión explícita en el diálogo
     return PopScope(
-      canPop: false,
+      canPop: true,
       child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(25.0),
+        backgroundColor: Colors.transparent,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.handshake_outlined, color: Color(0xFF66BB6A), size: 50),
-                const SizedBox(height: 15),
-                const Text('Pacto de Pareja', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
-                const SizedBox(height: 20),
-                
-                CheckboxListTile(
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _rule1Checked,
-                  onChanged: (val) => setState(() => _rule1Checked = val ?? false),
-                  title: const Row(
+                DatyContractHeader(
+                  title: 'Nuestro pacto',
+                  icon: Icons.favorite_rounded,
+                  accent: const Color(0xFFC2185B),
+                  customTheme: customTheme,
+                  isComplete: _allChecked,
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(width: 6),
-                      Expanded(child: Text('Nos comprometemos a no usar el celular durante las citas, salvo emergencias o fotos.', style: TextStyle(fontSize: 13))),
+                      ContractRuleTile(
+                        value: _rule1Checked,
+                        text: 'Guardar el celular y estar presentes.',
+                        accent: const Color(0xFFC2185B),
+                        textColor: customTheme.text,
+                        onChanged: (value) => setState(() => _rule1Checked = value),
+                      ),
+                      ContractRuleTile(
+                        value: _rule2Checked,
+                        text: 'Probar algo nuevo con la mente abierta.',
+                        accent: const Color(0xFFC2185B),
+                        textColor: customTheme.text,
+                        onChanged: (value) => setState(() => _rule2Checked = value),
+                      ),
+                      ContractRuleTile(
+                        value: _rule3Checked,
+                        text: 'Disfrutar juntos sin buscar que todo sea perfecto.',
+                        accent: const Color(0xFFC2185B),
+                        textColor: customTheme.text,
+                        onChanged: (value) => setState(() => _rule3Checked = value),
+                      ),
                     ],
                   ),
-                ),
-                CheckboxListTile(
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _rule2Checked,
-                  onChanged: (val) => setState(() => _rule2Checked = val ?? false),
-                  title: const Row(
+                  onClose: () => Navigator.pop(context),
+                  actions: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(width: 6),
-                      Expanded(child: Text('Mantenemos la mente abierta para probar nuevas actividades sin juzgar antes.', style: TextStyle(fontSize: 13))),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _allChecked ? const Color(0xFFC2185B) : Colors.grey.shade300,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          ),
+                          onPressed: _allChecked && !_isProcessing ? _signContract : null,
+                          icon: _isProcessing
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Icon(Icons.check_circle_outline, color: Colors.white),
+                          label: const Text('Firmo y acepto', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _isProcessing ? null : _rejectAndUnlink,
+                        child: const Text('No estoy de acuerdo', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
                     ],
                   ),
-                ),
-                CheckboxListTile(
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _rule3Checked,
-                  onChanged: (val) => setState(() => _rule3Checked = val ?? false),
-                  title: const Row(
-                    children: [
-                      SizedBox(width: 6),
-                      Expanded(child: Text('El objetivo principal es la complicidad y el disfrute juntos, no que todo salga perfecto.', style: TextStyle(fontSize: 13))),
-                    ],
-                  ),
-                ),
-
-                const Divider(height: 30),
-
-                SizedBox(
-                  width: double.infinity, height: 50,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _allChecked ? const Color(0xFF66BB6A) : Colors.grey.shade300,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                    ),
-                    onPressed: _allChecked && !_isProcessing ? _signContract : null,
-                    icon: _isProcessing 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.check_circle_outline, color: Colors.white),
-                    label: const Text('Firmo y Acepto', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _isProcessing ? null : _rejectAndUnlink,
-                  child: const Text('No estoy de acuerdo', style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
           ),
         ),
+        ),
       ),
     );
   }
+
 }

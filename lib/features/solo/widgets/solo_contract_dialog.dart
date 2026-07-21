@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,9 @@ import '../../couple/screens/adventure_in_progress_screen.dart';
 import '../screens/solo_adventure_review_screen.dart'; 
 import '../screens/solo_adventure_memory_screen.dart'; 
 import '../../../shared/widgets/custom_snackbar.dart';
+import '../../../shared/widgets/daty_contract_header.dart';
+import '../../../core/providers/theme_provider.dart';
+import '../../../shared/widgets/contract_rule_tile.dart';
 
 class SoloContractDialog extends StatefulWidget {
   const SoloContractDialog({super.key});
@@ -66,54 +70,56 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
     // Bloqueamos el botón de atrás para obligar al usuario a aceptar las reglas o quedarse aquí
     return PopScope(
-      canPop: false,
+      canPop: true,
       child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(25.0),
+        backgroundColor: Colors.transparent,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.backpack, color: Color(0xFF1976D2), size: 50),
-                const SizedBox(height: 15),
-                const Text('Compromiso Personal', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1976D2))),
-                const SizedBox(height: 20),
-                
-                CheckboxListTile(
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: _ruleChecked,
-                  onChanged: (val) => setState(() => _ruleChecked = val ?? false),
-                  title: const Row(
-                    children: [
-                      SizedBox(width: 6),
-                      Expanded(child: Text('Me comprometo a disfrutar y vivir nuevas experiencias solo y sin excusas.', style: TextStyle(fontSize: 13))),
-                    ],
+                DatyContractHeader(
+                  title: 'Compromiso personal',
+                  icon: Icons.backpack_rounded,
+                  accent: const Color(0xFF1976D2),
+                  customTheme: customTheme,
+                  isComplete: _ruleChecked,
+                  content: ContractRuleTile(
+                    value: _ruleChecked,
+                    accent: const Color(0xFF1976D2),
+                    textColor: customTheme.text,
+                    text: 'Me comprometo a disfrutar y vivir nuevas experiencias solo y sin excusas.',
+                    onChanged: (value) => setState(() => _ruleChecked = value),
                   ),
-                ),
-
-                const Divider(height: 30),
-
-                SizedBox(
-                  width: double.infinity, height: 50,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _ruleChecked ? const Color(0xFF1976D2) : Colors.grey.shade300,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                  onClose: () => Navigator.pop(context),
+                  actions: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _ruleChecked ? const Color(0xFF1976D2) : Colors.grey.shade300,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      ),
+                      onPressed: _ruleChecked && !_isProcessing ? _signContract : null,
+                      icon: _isProcessing
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.check_circle_outline, color: Colors.white),
+                      label: const Text('Iniciar mi aventura', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                     ),
-                    onPressed: _ruleChecked && !_isProcessing ? _signContract : null,
-                    icon: _isProcessing 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.check_circle_outline, color: Colors.white),
-                    label: const Text('Iniciar mi Aventura', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
           ),
+        ),
         ),
       ),
     );

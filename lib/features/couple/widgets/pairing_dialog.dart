@@ -144,22 +144,39 @@ class _PairingDialogState extends State<PairingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final keyboardVisible = mediaQuery.viewInsets.bottom > 0;
+    final availableHeight = mediaQuery.size.height -
+        mediaQuery.viewInsets.bottom -
+        mediaQuery.padding.top -
+        mediaQuery.padding.bottom -
+        32;
+
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
       backgroundColor: Colors.white,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(25.0, 30.0, 25.0, 25.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.favorite, color: Color(0xFFFF4B12), size: 60),
-                const SizedBox(height: 15),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: availableHeight.clamp(240.0, 680.0).toDouble()),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                25,
+                keyboardVisible ? 22 : 30,
+                25,
+                keyboardVisible ? 16 : 25,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                Icon(Icons.favorite, color: const Color(0xFFFF4B12), size: keyboardVisible ? 46 : 60),
+                SizedBox(height: keyboardVisible ? 8 : 15),
                 const Text('Una aventura de dos\nesta por comenzar', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
-                const SizedBox(height: 25),
+                SizedBox(height: keyboardVisible ? 14 : 25),
 
                 if (_isShowingMyCode) ...[
                   const Text('Comparte tu codigo:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
@@ -194,11 +211,23 @@ class _PairingDialogState extends State<PairingDialog> {
                   const Text('Ingresa el codigo de tu pareja:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 10),
                   TextField(
-                    controller: _codeController, textCapitalization: TextCapitalization.characters, textAlign: TextAlign.center, maxLength: 6, autofocus: true,
+                    controller: _codeController,
+                    textCapitalization: TextCapitalization.characters,
+                    textAlign: TextAlign.center,
+                    maxLength: 6,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    onSubmitted: (_) {
+                      if (!_isLinking) _handleLink();
+                    },
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3),
                     decoration: InputDecoration(hintText: 'ABC123', counterText: "", filled: true, fillColor: Colors.grey.shade100, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)),
                   ),
-                  const SizedBox(height: 25),
+                  SizedBox(height: keyboardVisible ? 14 : 25),
                   SizedBox(
                     width: double.infinity, height: 50,
                     child: ElevatedButton(
@@ -214,17 +243,19 @@ class _PairingDialogState extends State<PairingDialog> {
                     child: const Text('Ver mi codigo de nuevo', style: TextStyle(color: Colors.grey)),
                   )
                 ],
-              ],
+                ],
+              ),
             ),
-          ),
-          Positioned(
-            top: 0, right: 0,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.grey, size: 24),
-              onPressed: () => Navigator.pop(context),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey, size: 24),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

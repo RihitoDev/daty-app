@@ -13,6 +13,7 @@ import '../../couple/widgets/couple_adventure_card.dart';
 import '../../group/screens/group_loby.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../album/screens/album_screen.dart';
+import '../../../shared/widgets/pressable_scale.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -426,7 +427,7 @@ class _HomeContentState extends State<HomeContent> {
         future: _randomAdventuresFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: customTheme.primary));
+            return _buildCarouselLoading(customTheme);
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
@@ -475,20 +476,88 @@ class _HomeContentState extends State<HomeContent> {
               }
               return false;
             },
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _adventuresCount * 10000,
-              onPageChanged: (index) {
-                _currentPage = index;
-              },
-              itemBuilder: (context, index) {
-                final realIndex = index % _adventuresCount;
-                final adv = adventures[realIndex];
-                return _buildCarouselCard(adv, customTheme);
-              },
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _adventuresCount * 10000,
+                    onPageChanged: (index) {
+                      setState(() => _currentPage = index);
+                    },
+                    itemBuilder: (context, index) {
+                      final realIndex = index % _adventuresCount;
+                      final adv = adventures[realIndex];
+                      return _buildCarouselCard(adv, customTheme);
+                    },
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      adventures.length > 5 ? 5 : adventures.length,
+                      (index) {
+                        final visibleCount = adventures.length > 5 ? 5 : adventures.length;
+                        final activeIndex = (_currentPage % adventures.length) % visibleCount;
+                        final isActive = activeIndex == index;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          width: isActive ? 18 : 6,
+                          height: 6,
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          decoration: BoxDecoration(
+                            color: isActive ? customTheme.primary : customTheme.muted.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCarouselLoading(AppCustomTheme customTheme) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 5, 48, 25),
+      decoration: BoxDecoration(
+        color: customTheme.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: customTheme.muted.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: customTheme.primaryLight.withValues(alpha: 0.35),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Container(
+              width: 150,
+              height: 12,
+              decoration: BoxDecoration(
+                color: customTheme.muted.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -498,8 +567,9 @@ class _HomeContentState extends State<HomeContent> {
     final String description = adventure['description'] ?? '';
     final int number = adventure['number'] ?? 0;
 
-    return GestureDetector(
+    return PressableScale(
       onTap: () => _showDescriptionDialog(title, description, customTheme),
+      semanticsLabel: 'Ver aventura: $title',
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
@@ -594,15 +664,19 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   Widget _buildAdventureCard({required AppCustomTheme customTheme, required String title, required String subtitle, required IconData icon, required Color accent, required VoidCallback onTap}) {
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
+      semanticsLabel: title,
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(colors: [accent.withValues(alpha: 0.16), customTheme.card], stops: const [0, 0.62]),
-          border: Border.all(color: accent.withValues(alpha: 0.24)),
+          gradient: LinearGradient(
+            colors: [accent.withValues(alpha: 0.27), accent.withValues(alpha: 0.13), customTheme.card],
+            stops: const [0, 0.7, 1],
+          ),
+          border: Border.all(color: accent.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
               color: accent.withValues(alpha: 0.1),
