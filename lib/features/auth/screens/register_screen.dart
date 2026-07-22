@@ -29,6 +29,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   double _passwordStrength = 0;
   String _passwordStrengthLabel = '';
   Color _passwordStrengthColor = Colors.grey;
+  // Guard local anti double-tap: el isLoading del provider no es instantáneo,
+  // así que bloqueamos toques duplicados hasta que el provider marque loading.
 
   @override
   void initState() {
