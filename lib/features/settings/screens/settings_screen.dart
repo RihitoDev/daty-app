@@ -102,6 +102,8 @@ class SettingsScreen extends StatelessWidget {
                               final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (dialogContext) => AlertDialog(
+                                        scrollable: true,
+                                        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                                         title:
                                             const Text('¿Reiniciar progreso?'),
                                         content: const Text(
@@ -192,6 +194,8 @@ class SettingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Cerrar Sesión'),
         content: const Text('¿Estás seguro de que quieres salir de tu cuenta?'),
@@ -228,6 +232,8 @@ class SettingsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('💔 Romper Vínculo',
             style: TextStyle(color: Colors.redAccent)),

@@ -19,7 +19,8 @@ class AdventureInProgressScreen extends StatefulWidget {
   });
 
   @override
-  State<AdventureInProgressScreen> createState() => _AdventureInProgressScreenState();
+  State<AdventureInProgressScreen> createState() =>
+      _AdventureInProgressScreenState();
 }
 
 class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
@@ -56,7 +57,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   void _startTipTimer() {
     _tipTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (mounted) {
-        setState(() => _currentTipIndex = (_currentTipIndex + 1) % _dateTips.length);
+        setState(
+            () => _currentTipIndex = (_currentTipIndex + 1) % _dateTips.length);
       }
     });
   }
@@ -65,21 +67,22 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
     final userData = authProvider.userData;
-    
+
     if (user == null || userData == null) return;
     final partnerId = userData['partnerId'] as String?;
     if (partnerId == null) return;
 
     final myUid = user.uid;
-    
+
     // Mantenemos la regla alfabética para asegurar que leemos el mismo documento
-    final String coupleDocId = myUid.compareTo(partnerId) < 0 
-        ? '${myUid}_$partnerId' 
+    final String coupleDocId = myUid.compareTo(partnerId) < 0
+        ? '${myUid}_$partnerId'
         : '${partnerId}_$myUid';
     final bool isUser1 = myUid.compareTo(partnerId) < 0;
-    
+
     // Escuchamos el campo del OTRO usuario para saber si ya terminó
-    final String partnerReviewField = isUser1 ? 'reviewCompletedUser2' : 'reviewCompletedUser1';
+    final String partnerReviewField =
+        isUser1 ? 'reviewCompletedUser2' : 'reviewCompletedUser1';
 
     _partnerReviewListener = FirebaseFirestore.instance
         .collection('couples_progress')
@@ -111,7 +114,7 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
   void _goToReviewScreen() {
     if (_hasNavigated) return;
     _hasNavigated = true;
-    
+
     // Es vital matar estos procesos antes de saltar de pantalla para evitar memory leaks
     _tipTimer?.cancel();
     _partnerReviewListener?.cancel();
@@ -140,17 +143,21 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String adventureTitle = (widget.adventureData['title'] ?? 'AVENTURA').toUpperCase();
+    final String adventureTitle =
+        (widget.adventureData['title'] ?? 'AVENTURA').toUpperCase();
     final String adventureEmoji = widget.adventureData['emoji'] ?? '✨';
     final String challenge = widget.adventureData['challenge'] ?? '';
     final String description = widget.adventureData['description'] ?? '';
-    final String location = widget.adventureData['location'] ?? ''; 
-    
+    final String location = widget.adventureData['location'] ?? '';
+
     final bool isSolo = widget.onSoloFinish != null;
-    
-    final Color primaryColor = isSolo ? const Color(0xFF1976D2) : const Color(0xFFC2185B);
-    final Color darkBgColor = isSolo ? const Color(0xFF0A1124) : const Color(0xFF240618);
-    final Color midBgColor = isSolo ? const Color(0xFF0F2744) : const Color(0xFF3E0C24);
+
+    final Color primaryColor =
+        isSolo ? const Color(0xFF1976D2) : const Color(0xFFC2185B);
+    final Color darkBgColor =
+        isSolo ? const Color(0xFF0A1124) : const Color(0xFF240618);
+    final Color midBgColor =
+        isSolo ? const Color(0xFF0F2744) : const Color(0xFF3E0C24);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -190,7 +197,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: primaryColor.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(20),
@@ -213,25 +221,20 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                   ],
                 ),
               ),
-              
               const SizedBox(height: 30),
               Text(adventureEmoji, style: const TextStyle(fontSize: 80)),
               const SizedBox(height: 15),
-              Text(
-                adventureTitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2
-                ),
-                textAlign: TextAlign.center
-              ),
-              
+              Text(adventureTitle,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 30),
-              
               GestureDetector(
-                onTap: () => setState(() => _isDetailExpanded = !_isDetailExpanded),
+                onTap: () =>
+                    setState(() => _isDetailExpanded = !_isDetailExpanded),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: BackdropFilter(
@@ -243,7 +246,10 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _isDetailExpanded ? primaryColor.withOpacity(0.8) : Colors.white.withOpacity(0.15)),
+                        border: Border.all(
+                            color: _isDetailExpanded
+                                ? primaryColor.withOpacity(0.8)
+                                : Colors.white.withOpacity(0.15)),
                       ),
                       child: Column(
                         children: [
@@ -252,18 +258,21 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.menu_book_outlined, color: primaryColor, size: 20),
+                                  Icon(Icons.menu_book_outlined,
+                                      color: primaryColor, size: 20),
                                   const SizedBox(width: 10),
-                                  const Text(
-                                    "Detalles y Reto",
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
-                                  ),
+                                  const Text("Detalles y Reto",
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
                                 ],
                               ),
                               AnimatedRotation(
                                 duration: const Duration(milliseconds: 300),
                                 turns: _isDetailExpanded ? 0.5 : 0,
-                                child: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+                                child: const Icon(Icons.keyboard_arrow_down,
+                                    color: Colors.white70),
                               ),
                             ],
                           ),
@@ -271,26 +280,35 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                             duration: const Duration(milliseconds: 300),
                             curve: Curves.easeInOut,
                             alignment: Alignment.topCenter,
-                            child: _isDetailExpanded 
+                            child: _isDetailExpanded
                                 ? Container(
                                     width: double.infinity,
                                     margin: const EdgeInsets.only(top: 20),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         if (location.isNotEmpty) ...[
-                                          _DetailRow(icon: Icons.location_on_outlined, text: location, color: primaryColor),
+                                          _DetailRow(
+                                              icon: Icons.location_on_outlined,
+                                              text: location,
+                                              color: primaryColor),
                                           const SizedBox(height: 15),
                                         ],
                                         if (challenge.isNotEmpty) ...[
-                                          _DetailRow(icon: Icons.flag_outlined, text: "Reto: $challenge", color: primaryColor),
+                                          _DetailRow(
+                                              icon: Icons.flag_outlined,
+                                              text: "Reto: $challenge",
+                                              color: primaryColor),
                                           const SizedBox(height: 15),
                                         ],
                                         if (description.isNotEmpty)
-                                          Text(
-                                            description,
-                                            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14, height: 1.5)
-                                          ),
+                                          Text(description,
+                                              style: TextStyle(
+                                                  color: Colors.white
+                                                      .withOpacity(0.7),
+                                                  fontSize: 14,
+                                                  height: 1.5)),
                                       ],
                                     ),
                                   )
@@ -302,9 +320,7 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                   ),
                 ),
               ),
-              
               const SizedBox(height: 30),
-              
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 600),
                 child: ClipRRect(
@@ -315,33 +331,30 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(25),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: primaryColor.withOpacity(0.3))
-                      ),
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border:
+                              Border.all(color: primaryColor.withOpacity(0.3))),
                       child: Column(
                         children: [
-                          Icon(Icons.lightbulb_outline, color: primaryColor, size: 28),
+                          Icon(Icons.lightbulb_outline,
+                              color: primaryColor, size: 28),
                           const SizedBox(height: 15),
-                          Text(
-                            _dateTips[_currentTipIndex],
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 17,
-                              fontStyle: FontStyle.italic,
-                              height: 1.4,
-                            )
-                          ),
+                          Text(_dateTips[_currentTipIndex],
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 17,
+                                fontStyle: FontStyle.italic,
+                                height: 1.4,
+                              )),
                         ],
                       ),
                     ),
                   ),
                 ),
               ),
-              
               const SizedBox(height: 50),
-
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -366,12 +379,15 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
                     ),
                     child: Text(
-                      isSolo ? 'Finalizar Aventura' : 'Finalizar Cita',
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
-                    ),
+                        isSolo ? 'Finalizar Aventura' : 'Finalizar Cita',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ),
               ),
@@ -388,7 +404,8 @@ class _DetailRow extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _DetailRow({required this.icon, required this.text, required this.color});
+  const _DetailRow(
+      {required this.icon, required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -400,7 +417,8 @@ class _DetailRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -416,7 +434,8 @@ class _PulsingDot extends StatefulWidget {
   State<_PulsingDot> createState() => _PulsingDotState();
 }
 
-class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -442,15 +461,14 @@ class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderState
         width: 8,
         height: 8,
         decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: widget.color.withOpacity(0.6),
-              blurRadius: 4,
-            )
-          ]
-        ),
+            color: widget.color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withOpacity(0.6),
+                blurRadius: 4,
+              )
+            ]),
       ),
     );
   }

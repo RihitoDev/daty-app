@@ -14,7 +14,10 @@ class AdventureReviewScreen extends StatefulWidget {
   final Map<String, dynamic> adventureData;
   final List<int> availableAdventuresIds;
 
-  const AdventureReviewScreen({super.key, required this.adventureData, required this.availableAdventuresIds});
+  const AdventureReviewScreen(
+      {super.key,
+      required this.adventureData,
+      required this.availableAdventuresIds});
 
   @override
   State<AdventureReviewScreen> createState() => _AdventureReviewScreenState();
@@ -40,7 +43,8 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
       final url = await ImageUploadService.uploadImage(image);
       if (mounted) {
         if (url == null) {
-          CustomSnackBar.showError(context, 'Error al subir la foto. Intenta de nuevo.');
+          CustomSnackBar.showError(
+              context, 'Error al subir la foto. Intenta de nuevo.');
           setState(() {
             _selectedImageBytes[index] = null;
             _isUploading[index] = false;
@@ -57,29 +61,47 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
 
   Future<void> _submitReview() async {
     if (_rating == 0) {
-      if (mounted) CustomSnackBar.showError(context, 'Debes seleccionar al menos 1 estrella.');
+      if (mounted) {
+        CustomSnackBar.showError(
+            context, 'Debes seleccionar al menos 1 estrella.');
+      }
       return;
     }
 
-    List<String> words = _reviewController.text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    List<String> words = _reviewController.text
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
     if (words.length < 3) {
-      if (mounted) CustomSnackBar.showError(context, 'Describe tu experiencia (minimo 3 palabras).');
+      if (mounted) {
+        CustomSnackBar.showError(
+            context, 'Describe tu experiencia (minimo 3 palabras).');
+      }
       return;
     }
 
     if (_uploadedPhotoUrls.every((url) => url == null)) {
-      if (mounted) CustomSnackBar.showError(context, 'Debes subir al menos 1 foto de la cita.');
+      if (mounted) {
+        CustomSnackBar.showError(
+            context, 'Debes subir al menos 1 foto de la cita.');
+      }
       return;
     }
 
     if (_isUploading.any((u) => u)) {
-      if (mounted) CustomSnackBar.showWarning(context, 'Espera a que las fotos terminen de subir.');
+      if (mounted) {
+        CustomSnackBar.showWarning(
+            context, 'Espera a que las fotos terminen de subir.');
+      }
       return;
     }
 
     bool hasConnection = await NetworkService.isConnected;
     if (!hasConnection) {
-      if (mounted) CustomSnackBar.showError(context, 'Sin conexion a internet.');
+      if (mounted) {
+        CustomSnackBar.showError(context, 'Sin conexion a internet.');
+      }
       return;
     }
 
@@ -90,19 +112,25 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
       final myUid = authProvider.user!.uid;
       final partnerId = authProvider.userData!['partnerId'];
 
-      String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
+      String coupleDocId = myUid.compareTo(partnerId) < 0
+          ? '${myUid}_$partnerId'
+          : '${partnerId}_$myUid';
       int adventureId = widget.adventureData['number'];
       String memoryDocId = '${coupleDocId}_$adventureId';
 
       bool isUser1 = myUid.compareTo(partnerId) < 0;
       String userPrefix = isUser1 ? 'user1' : 'user2';
-      String myReviewField = isUser1 ? 'reviewCompletedUser1' : 'reviewCompletedUser2';
-      String partnerReviewField = isUser1 ? 'reviewCompletedUser2' : 'reviewCompletedUser1';
+      String myReviewField =
+          isUser1 ? 'reviewCompletedUser1' : 'reviewCompletedUser2';
+      String partnerReviewField =
+          isUser1 ? 'reviewCompletedUser2' : 'reviewCompletedUser1';
 
       bool partnerJustReviewed = false;
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final coupleSnap = await transaction.get(FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId));
+        final coupleSnap = await transaction.get(FirebaseFirestore.instance
+            .collection('couples_progress')
+            .doc(coupleDocId));
         final coupleData = coupleSnap.data() as Map<String, dynamic>;
         bool partnerReviewed = coupleData[partnerReviewField] ?? false;
 
@@ -113,20 +141,30 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
           'timestamp': FieldValue.serverTimestamp(),
           '${userPrefix}_rating': _rating,
           '${userPrefix}_review': _reviewController.text.trim(),
-          '${userPrefix}_photos': _uploadedPhotoUrls.whereType<String>().toList(),
+          '${userPrefix}_photos':
+              _uploadedPhotoUrls.whereType<String>().toList(),
         };
-        transaction.set(FirebaseFirestore.instance.collection('memories').doc(memoryDocId), memoryData, SetOptions(merge: true));
-        transaction.update(FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId), {myReviewField: true});
+        transaction.set(
+            FirebaseFirestore.instance.collection('memories').doc(memoryDocId),
+            memoryData,
+            SetOptions(merge: true));
+        transaction.update(
+            FirebaseFirestore.instance
+                .collection('couples_progress')
+                .doc(coupleDocId),
+            {myReviewField: true});
 
         if (partnerReviewed) {
           partnerJustReviewed = true;
           int expEarned = widget.adventureData['xpBase'] ?? 50;
 
-          transaction.update(FirebaseFirestore.instance.collection('users').doc(myUid), {
+          transaction.update(
+              FirebaseFirestore.instance.collection('users').doc(myUid), {
             'exp': FieldValue.increment(expEarned),
             'coupleDatesCompleted': FieldValue.increment(1)
           });
-          transaction.update(FirebaseFirestore.instance.collection('users').doc(partnerId), {
+          transaction.update(
+              FirebaseFirestore.instance.collection('users').doc(partnerId), {
             'exp': FieldValue.increment(expEarned),
             'coupleDatesCompleted': FieldValue.increment(1)
           });
@@ -138,26 +176,34 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
           };
           if (widget.availableAdventuresIds.isNotEmpty) {
             final random = Random();
-            int nextAdventureId = widget.availableAdventuresIds[random.nextInt(widget.availableAdventuresIds.length)];
-            updateData['adventurePath'] = FieldValue.arrayUnion([nextAdventureId]);
+            int nextAdventureId = widget.availableAdventuresIds[
+                random.nextInt(widget.availableAdventuresIds.length)];
+            updateData['adventurePath'] =
+                FieldValue.arrayUnion([nextAdventureId]);
           }
-          transaction.update(FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId), updateData);
+          transaction.update(
+              FirebaseFirestore.instance
+                  .collection('couples_progress')
+                  .doc(coupleDocId),
+              updateData);
         }
       });
 
       if (mounted) {
         if (partnerJustReviewed) {
           int expEarned = widget.adventureData['xpBase'] ?? 50;
-          CustomSnackBar.showSuccess(context, 'Ambos calificaron! +$expEarned EXP');
+          CustomSnackBar.showSuccess(
+              context, 'Ambos calificaron! +$expEarned EXP');
         } else {
-          CustomSnackBar.showWarning(context, 'Calificacion guardada! Esperando a tu pareja...');
+          CustomSnackBar.showWarning(
+              context, 'Calificacion guardada! Esperando a tu pareja...');
         }
         Navigator.pop(context);
       }
-
     } catch (e) {
       if (mounted) {
-        CustomSnackBar.showError(context, 'Error al guardar. Intenta de nuevo.');
+        CustomSnackBar.showError(
+            context, 'Error al guardar. Intenta de nuevo.');
         setState(() => _isSubmitting = false);
       }
     }
@@ -168,7 +214,9 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Como estuvo la cita?', style: TextStyle(color: Color(0xFFC2185B), fontWeight: FontWeight.bold)),
+        title: const Text('Como estuvo la cita?',
+            style: TextStyle(
+                color: Color(0xFFC2185B), fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
@@ -181,27 +229,46 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
           children: [
             Icon(Icons.favorite, size: 60, color: Colors.pink.shade300),
             const SizedBox(height: 10),
-            Text(widget.adventureData['title'] ?? '', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFFC2185B)), textAlign: TextAlign.center),
+            Text(widget.adventureData['title'] ?? '',
+                style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFC2185B)),
+                textAlign: TextAlign.center),
             const SizedBox(height: 25),
-            const Text('Califica tu experiencia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Califica tu experiencia',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) => IconButton(
-                icon: Icon(index < _rating ? Icons.star : Icons.star_border, color: Colors.amber, size: 40),
-                onPressed: () => setState(() => _rating = index + 1),
-              )),
+              children: List.generate(
+                  5,
+                  (index) => IconButton(
+                        icon: Icon(
+                            index < _rating ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 40),
+                        onPressed: () => setState(() => _rating = index + 1),
+                      )),
             ),
             const SizedBox(height: 20),
-            const Align(alignment: Alignment.centerLeft, child: Text('Describe en 3 o mas palabras:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Describe en 3 o mas palabras:',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
             const SizedBox(height: 10),
             TextField(
               controller: _reviewController,
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Ej: Divertida, romantica, inolvidable...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFFC2185B), width: 2)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide:
+                        const BorderSide(color: Color(0xFFC2185B), width: 2)),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -210,9 +277,12 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
               alignment: Alignment.centerLeft,
               child: Row(
                 children: [
-                  Icon(Icons.photo_library_outlined, size: 18, color: Color(0xFFC2185B)),
+                  Icon(Icons.photo_library_outlined,
+                      size: 18, color: Color(0xFFC2185B)),
                   SizedBox(width: 6),
-                  Text('Sube hasta 2 fotos (1 obligatoria):', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Sube hasta 2 fotos (1 obligatoria):',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -232,12 +302,22 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
                 onPressed: !_isSubmitting ? _submitReview : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFC2185B),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
                 ),
                 icon: _isSubmitting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
                     : const Icon(Icons.save_outlined, color: Colors.white),
-                label: Text(_isSubmitting ? 'Guardando...' : 'Enviar Calificacion', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                label: Text(
+                    _isSubmitting ? 'Guardando...' : 'Enviar Calificacion',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -251,7 +331,11 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
       child: GestureDetector(
         onTap: () {
           if (_uploadedPhotoUrls[index] != null) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImageViewer(imageUrl: _uploadedPhotoUrls[index]!)));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => FullScreenImageViewer(
+                        imageUrl: _uploadedPhotoUrls[index]!)));
           } else {
             _pickPhoto(index);
           }
@@ -269,27 +353,34 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
               if (_selectedImageBytes[index] != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(15),
-                  child: Image.memory(_selectedImageBytes[index]!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                  child: Image.memory(_selectedImageBytes[index]!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity),
                 )
               else
                 const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo_outlined, color: Color(0xFFC2185B), size: 40),
+                    Icon(Icons.add_a_photo_outlined,
+                        color: Color(0xFFC2185B), size: 40),
                     SizedBox(height: 5),
                     Text('Foto', style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               if (_isUploading[index])
                 Container(
-                  decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(15)),
+                  decoration: BoxDecoration(
+                      color: Colors.black45,
+                      borderRadius: BorderRadius.circular(15)),
                   alignment: Alignment.center,
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       CircularProgressIndicator(color: Colors.white),
                       SizedBox(height: 5),
-                      Text('Subiendo...', style: TextStyle(color: Colors.white, fontSize: 10)),
+                      Text('Subiendo...',
+                          style: TextStyle(color: Colors.white, fontSize: 10)),
                     ],
                   ),
                 ),
@@ -299,8 +390,10 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
                   right: 5,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
-                    child: const Icon(Icons.check, color: Colors.white, size: 12),
+                    decoration: const BoxDecoration(
+                        color: Colors.green, shape: BoxShape.circle),
+                    child:
+                        const Icon(Icons.check, color: Colors.white, size: 12),
                   ),
                 ),
             ],

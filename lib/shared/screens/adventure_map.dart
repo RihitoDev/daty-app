@@ -284,11 +284,13 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       builder: (dialogContext) { 
         return Dialog(
           backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
+              child: SingleChildScrollView(
+                child: Container(
                 padding: const EdgeInsets.all(20.0),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E1E).withOpacity(0.9),
@@ -331,6 +333,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                       ),
                     ])
                   ],
+                ),
                 ),
               ),
             ),

@@ -36,13 +36,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _validateEmail(String value) {
-  final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
 
-  setState(() {
-    _emailTouched = true;
-    _isEmailValid = regex.hasMatch(value.trim());
-  });
-}
+    setState(() {
+      _emailTouched = true;
+      _isEmailValid = regex.hasMatch(value.trim());
+    });
+  }
 
   void _handleLogin() async {
     if (_isSubmitting) return;
@@ -51,7 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isSubmitting = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final errorCode = await authProvider.signIn(_emailController.text, _passwordController.text);
+    final errorCode = await authProvider.signIn(
+        _emailController.text, _passwordController.text);
 
     if (mounted && errorCode != null) {
       String message = 'Correo o contraseña incorrectos';
@@ -82,138 +83,189 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showResetPasswordDialog(BuildContext context) {
+  Future<void> _showResetPasswordDialog(BuildContext context) async {
     final customTheme =
         Provider.of<ThemeProvider>(context, listen: false).currentTheme;
     final TextEditingController resetEmailController = TextEditingController();
     String? dialogError;
+    bool emailSent = false;
+    bool isSending = false;
 
     // Garantizamos el dispose del controller sin importar cómo se cierre el diálogo
     // (botón Cancelar, botón Enviar, tap fuera o botón físico Atrás).
-    showDialog(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: customTheme.card,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 24,
+            ),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                Icon(Icons.lock_outline, color: customTheme.primary),
-                const SizedBox(width: 10),
-                Text('Recuperar Contraseña',
+            scrollable: true,
+            icon: emailSent
+                ? Icon(Icons.check_circle_outline,
+                    color: customTheme.primary, size: 40)
+                : null,
+            title: emailSent
+                ? Text(
+                    'Correo enviado',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontWeight: FontWeight.bold, color: customTheme.text)),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                    'Ingresa tu correo y te enviaremos un enlace para restablecerla.',
-                    style: TextStyle(color: customTheme.text2)),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: resetEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: TextStyle(color: customTheme.text),
-                  decoration: InputDecoration(
-                    hintText: 'correo@ejemplo.com',
-                    hintStyle: TextStyle(color: customTheme.muted),
-                    prefixIcon:
-                        Icon(Icons.email_outlined, color: customTheme.muted),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                            color: customTheme.muted.withValues(alpha: 0.3))),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(color: customTheme.primary)),
-                    errorText: dialogError,
+                      fontWeight: FontWeight.bold,
+                      color: customTheme.text,
+                    ),
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        color: customTheme.primary,
+                        size: 27,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Recuperar contraseña',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: customTheme.text,
+                              height: 1.15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  onChanged: (_) => setDialogState(() => dialogError = null),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  resetEmailController.dispose();
-                  Navigator.pop(dialogContext);
-                },
-                child: Text('Cancelar', style: TextStyle(color: customTheme.text2)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: customTheme.primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15))),
-                onPressed: () async {
-                  if (resetEmailController.text.trim().isEmpty) {
-                    setDialogState(
-                        () => dialogError = 'El correo es obligatorio');
-                    return;
-                  }
+            content: emailSent
+                ? Text(
+                    'Revisa tu bandeja de entrada para restablecer tu contraseña.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: customTheme.text2),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                          'Ingresa tu correo y te enviaremos un enlace para restablecerla.',
+                          style: TextStyle(color: customTheme.text2)),
+                      const SizedBox(height: 15),
+                      TextFormField(
+                        controller: resetEmailController,
+                        keyboardType: TextInputType.emailAddress,
+                        style: TextStyle(color: customTheme.text),
+                        decoration: InputDecoration(
+                          hintText: 'correo@ejemplo.com',
+                          hintStyle: TextStyle(color: customTheme.muted),
+                          prefixIcon: Icon(Icons.email_outlined,
+                              color: customTheme.muted),
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                  color: customTheme.muted
+                                      .withValues(alpha: 0.3))),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide:
+                                  BorderSide(color: customTheme.primary)),
+                          errorText: dialogError,
+                        ),
+                        onChanged: (_) =>
+                            setDialogState(() => dialogError = null),
+                      ),
+                    ],
+                  ),
+            actions: emailSent
+                ? [
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: Text(
+                          'Entendido',
+                          style: TextStyle(color: customTheme.primary),
+                        ),
+                      ),
+                    ),
+                  ]
+                : [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                      },
+                      child: Text('Cancelar',
+                          style: TextStyle(color: customTheme.text2)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: customTheme.primary,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15))),
+                      onPressed: isSending
+                          ? null
+                          : () async {
+                              if (resetEmailController.text.trim().isEmpty) {
+                                setDialogState(() =>
+                                    dialogError = 'El correo es obligatorio');
+                                return;
+                              }
 
-                  final authProvider =
-                      Provider.of<AuthProvider>(dialogContext, listen: false);
-                  final error = await authProvider
-                      .resetPassword(resetEmailController.text.trim());
+                              FocusScope.of(dialogContext).unfocus();
+                              setDialogState(() => isSending = true);
 
-                  if (dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                    if (error == null) {
-                      _showSuccessDialog('Correo Enviado',
-                          'Revisa tu bandeja de entrada para restablecer tu contraseña.');
-                    } else {
-                      String msg = 'No se pudo enviar el correo.';
-                      if (error == 'not-found') {
-                        msg = 'No existe una cuenta con este correo.';
-                      }
-                      setState(() => _authError = msg);
-                    }
-                  }
-                },
-                child:
-                    Text('Enviar', style: TextStyle(color: customTheme.card)),
-              ),
-            ],
+                              final authProvider = Provider.of<AuthProvider>(
+                                  dialogContext,
+                                  listen: false);
+                              final error = await authProvider.resetPassword(
+                                  resetEmailController.text.trim());
+
+                              if (!dialogContext.mounted) return;
+
+                              if (error == null) {
+                                setDialogState(() {
+                                  emailSent = true;
+                                  isSending = false;
+                                });
+                              } else {
+                                String msg = 'No se pudo enviar el correo.';
+                                if (error == 'not-found') {
+                                  msg = 'No existe una cuenta con este correo.';
+                                }
+                                setDialogState(() {
+                                  dialogError = msg;
+                                  isSending = false;
+                                });
+                              }
+                            },
+                      child: isSending
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: customTheme.card,
+                              ),
+                            )
+                          : Text('Enviar',
+                              style: TextStyle(color: customTheme.card)),
+                    ),
+                  ],
           );
         },
       ),
-    ).then((_) => resetEmailController.dispose());
-  }
-
-  void _showSuccessDialog(String title, String message) {
-    final customTheme =
-        Provider.of<ThemeProvider>(context, listen: false).currentTheme;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: customTheme.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: Icon(Icons.check_circle_outline,
-            color: customTheme.primary, size: 40),
-        title: Text(title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontWeight: FontWeight.bold, color: customTheme.text)),
-        content: Text(message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: customTheme.text2)),
-        actions: [
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Entendido',
-                  style: TextStyle(color: customTheme.primary)),
-            ),
-          )
-        ],
-      ),
     );
+
+    resetEmailController.dispose();
   }
 
   @override
@@ -335,8 +387,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                         .withValues(alpha: 0.3),
                                   ),
                                   child: isLoading
-                                      ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: customTheme.card, strokeWidth: 3))
-                                      : Text('Entrar', style: TextStyle(fontSize: 18, color: customTheme.card, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                      ? SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                              color: customTheme.card,
+                                              strokeWidth: 3))
+                                      : Text('Entrar',
+                                          style: TextStyle(
+                                              fontSize: 18,
+                                              color: customTheme.card,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1)),
                                 ),
                               ),
                             ],
@@ -350,8 +412,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 55,
                       child: OutlinedButton.icon(
                         onPressed: isLoading ? null : _handleGoogleLogin,
-                        icon: Icon(Icons.g_mobiledata, size: 30, color: customTheme.text),
-                        label: Text('Continuar con Google', style: TextStyle(color: customTheme.text, fontWeight: FontWeight.w600, fontSize: 16)),
+                        icon: Icon(Icons.g_mobiledata,
+                            size: 30, color: customTheme.text),
+                        label: Text('Continuar con Google',
+                            style: TextStyle(
+                                color: customTheme.text,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16)),
                         style: OutlinedButton.styleFrom(
                           backgroundColor:
                               customTheme.card.withValues(alpha: 0.5),
@@ -441,20 +508,20 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       },
       validator: (value) {
-  if (value == null || value.trim().isEmpty) {
-    return 'Este campo es obligatorio';
-  }
+        if (value == null || value.trim().isEmpty) {
+          return 'Este campo es obligatorio';
+        }
 
-  // Validación del correo
-  if (controller == _emailController) {
-    final email = value.trim();
+        // Validación del correo
+        if (controller == _emailController) {
+          final email = value.trim();
 
-    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+          final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
 
-    if (!regex.hasMatch(email)) {
-      return 'Ingrese un correo Gmail válido';
-    }
-  }
+          if (!regex.hasMatch(email)) {
+            return 'Ingrese un correo Gmail válido';
+          }
+        }
 
         return null;
       },

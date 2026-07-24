@@ -209,6 +209,8 @@ class GroupLobby extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        scrollable: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Ingresar Código', textAlign: TextAlign.center),
         content: TextField(
@@ -222,9 +224,10 @@ class GroupLobby extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(_), child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8E24AA), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), 
-            onPressed: () async { 
-              Navigator.pop(_); 
-              final error = await provider.joinGroup(controller.text.trim()); 
+            onPressed: () async {
+              final code = controller.text.trim();
+              Navigator.pop(_);
+              final error = await provider.joinGroup(code);
               if (error != null && context.mounted) { 
                 CustomSnackBar.showError(context, error); 
               } 
@@ -233,6 +236,6 @@ class GroupLobby extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).then((_) => controller.dispose());
   }
 }

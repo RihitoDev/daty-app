@@ -37,10 +37,12 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
       }, SetOptions(merge: true));
       
       if (mounted) {
-        Navigator.pop(context); // Cerramos el diálogo
-        
-        // Lo mandamos directo al mapa para que vea su primera aventura
-        Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMap(
+        final navigator = Navigator.of(context);
+        navigator.pop();
+
+        // Abrimos el mapa después de que el diálogo termine de desmontarse.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          navigator.push(MaterialPageRoute(builder: (_) => AdventureMap(
           mode: 'solo',
           themeColor: const Color(0xFF1976D2),
           pathColor: const Color(0xFF64B5F6),
@@ -58,7 +60,8 @@ class _SoloContractDialogState extends State<SoloContractDialog> {
             adventureId: adventureId, 
             adventureData: adventureData
           ),
-        )));
+          )));
+        });
       }
     } catch (e) {
       if(mounted) {

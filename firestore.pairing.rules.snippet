@@ -1,0 +1,9 @@
+// Integra estos bloques dentro del match /databases/{database}/documents
+// de tus reglas existentes. No reemplaces tus reglas completas sin revisarlas.
+match /pairInvites/{code} {
+  allow read, write: if false;
+}
+
+match /pairInviteOwners/{uid} {
+  allow read, write: if false;
+}

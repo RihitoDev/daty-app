@@ -29,21 +29,25 @@ class CoupleProvider with ChangeNotifier {
 
   String? get coupleDocId {
     if (_currentPartnerId == null) return null;
-    return myUid.compareTo(_currentPartnerId!) < 0 
-        ? '${myUid}_$_currentPartnerId' 
+    return myUid.compareTo(_currentPartnerId!) < 0
+        ? '${myUid}_$_currentPartnerId'
         : '${_currentPartnerId}_$myUid';
   }
 
   bool get iSigned {
     if (_coupleData == null || _currentPartnerId == null) return false;
     bool isUser1 = myUid.compareTo(_currentPartnerId!) < 0;
-    return isUser1 ? (_coupleData?['contractSignedUser1'] ?? false) : (_coupleData?['contractSignedUser2'] ?? false);
+    return isUser1
+        ? (_coupleData?['contractSignedUser1'] ?? false)
+        : (_coupleData?['contractSignedUser2'] ?? false);
   }
 
   bool get partnerSigned {
     if (_coupleData == null || _currentPartnerId == null) return false;
     bool isUser1 = myUid.compareTo(_currentPartnerId!) < 0;
-    return isUser1 ? (_coupleData?['contractSignedUser2'] ?? false) : (_coupleData?['contractSignedUser1'] ?? false);
+    return isUser1
+        ? (_coupleData?['contractSignedUser2'] ?? false)
+        : (_coupleData?['contractSignedUser1'] ?? false);
   }
 
   void _onAuthUpdate() {
@@ -74,30 +78,34 @@ class CoupleProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
+    String coupleDocId = myUid.compareTo(partnerId) < 0
+        ? '${myUid}_$partnerId'
+        : '${partnerId}_$myUid';
 
-    _coupleSub = _firestore.collection('couples_progress').doc(coupleDocId).snapshots().listen(
-      (snapshot) {
-        if (snapshot.exists) {
-          _coupleData = snapshot.data()!;
-          _isLoading = false;
-          _retryTimer?.cancel();
-          notifyListeners();
-        } else {
-          _coupleData = null;
-          _isLoading = false;
-          notifyListeners();
-          _fetchCoupleDataWithRetry(coupleDocId);
-        }
-      },
-      onError: (e) {
+    _coupleSub = _firestore
+        .collection('couples_progress')
+        .doc(coupleDocId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        _coupleData = snapshot.data()!;
         _isLoading = false;
-        _coupleData = null;
+        _retryTimer?.cancel();
         notifyListeners();
+      } else {
+        _coupleData = null;
+        _isLoading = false;
+        notifyListeners();
+        _fetchCoupleDataWithRetry(coupleDocId);
       }
-    );
+    }, onError: (e) {
+      _isLoading = false;
+      _coupleData = null;
+      notifyListeners();
+    });
 
-    _partnerSub = _firestore.collection('users').doc(partnerId).snapshots().listen(
+    _partnerSub =
+        _firestore.collection('users').doc(partnerId).snapshots().listen(
       (snapshot) {
         if (snapshot.exists) {
           _partnerName = snapshot.data()?['username'] ?? 'tu pareja';
@@ -115,11 +123,16 @@ class CoupleProvider with ChangeNotifier {
     const maxAttempts = 3;
 
     void attemptFetch() {
-      if (_coupleData != null || _currentPartnerId == null || attempts >= maxAttempts) return;
+      if (_coupleData != null ||
+          _currentPartnerId == null ||
+          attempts >= maxAttempts) {
+        return;
+      }
       attempts++;
       _retryTimer = Timer(Duration(seconds: attempts * 2), () async {
         try {
-          final doc = await _firestore.collection('couples_progress').doc(docId).get();
+          final doc =
+              await _firestore.collection('couples_progress').doc(docId).get();
           if (doc.exists && _coupleData == null) {
             _coupleData = doc.data()!;
             notifyListeners();

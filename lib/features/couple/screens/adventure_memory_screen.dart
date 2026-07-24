@@ -10,9 +10,9 @@ class AdventureMemoryScreen extends StatelessWidget {
   final Map<String, dynamic> adventureData;
 
   const AdventureMemoryScreen({
-    super.key, 
-    required this.coupleDocId, 
-    required this.adventureId, 
+    super.key,
+    required this.coupleDocId,
+    required this.adventureId,
     required this.adventureData,
   });
 
@@ -21,7 +21,7 @@ class AdventureMemoryScreen extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final myUid = authProvider.user!.uid;
     final partnerId = authProvider.userData?['partnerId'] as String?;
-    
+
     if (partnerId == null) {
       return const Scaffold(
         backgroundColor: Colors.white,
@@ -35,29 +35,36 @@ class AdventureMemoryScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(adventureData['title'] ?? 'Nuestro Recuerdo', style: const TextStyle(color: Color(0xFFC2185B), fontWeight: FontWeight.bold)),
+        title: Text(adventureData['title'] ?? 'Nuestro Recuerdo',
+            style: const TextStyle(
+                color: Color(0xFFC2185B), fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFFC2185B)),
       ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('memories').doc(memoryDocId).get(),
+        future: FirebaseFirestore.instance
+            .collection('memories')
+            .doc(memoryDocId)
+            .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFFC2185B)));
+            return const Center(
+                child: CircularProgressIndicator(color: Color(0xFFC2185B)));
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.history_rounded, size: 60, color: Colors.grey),
-                  const SizedBox(height: 15),
-                  Text('Aun no hay recuerdos guardados de esta cita.', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                ],
-              )
-            );
+                child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.history_rounded, size: 60, color: Colors.grey),
+                const SizedBox(height: 15),
+                Text('Aun no hay recuerdos guardados de esta cita.',
+                    style:
+                        TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+              ],
+            ));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -78,12 +85,25 @@ class AdventureMemoryScreen extends StatelessWidget {
               children: [
                 Icon(Icons.favorite, size: 60, color: Colors.pink.shade300),
                 const SizedBox(height: 10),
-                const Text('Cita Completada', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+                const Text('Cita Completada',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey)),
                 const SizedBox(height: 30),
-                
-                _buildReviewCard(context, title: 'Mi experiencia', rating: myRating, review: myReview, photos: myPhotos, isMe: true),
+                _buildReviewCard(context,
+                    title: 'Mi experiencia',
+                    rating: myRating,
+                    review: myReview,
+                    photos: myPhotos,
+                    isMe: true),
                 const SizedBox(height: 20),
-                _buildReviewCard(context, title: 'Experiencia de tu pareja', rating: partnerRating, review: partnerReview, photos: partnerPhotos, isMe: false),
+                _buildReviewCard(context,
+                    title: 'Experiencia de tu pareja',
+                    rating: partnerRating,
+                    review: partnerReview,
+                    photos: partnerPhotos,
+                    isMe: false),
               ],
             ),
           );
@@ -92,36 +112,58 @@ class AdventureMemoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildReviewCard(BuildContext context, {required String title, required int rating, required String review, required List<dynamic> photos, required bool isMe}) {
+  Widget _buildReviewCard(BuildContext context,
+      {required String title,
+      required int rating,
+      required String review,
+      required List<dynamic> photos,
+      required bool isMe}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isMe ? const Color(0xFFFCE4EC) : const Color(0xFFE3F2FD),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isMe ? Colors.pink.shade100 : Colors.blue.shade100)
-      ),
+          color: isMe ? const Color(0xFFFCE4EC) : const Color(0xFFE3F2FD),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: isMe ? Colors.pink.shade100 : Colors.blue.shade100)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFFC2185B))),
-              Row(children: List.generate(5, (index) => Icon(index < rating ? Icons.star : Icons.star_border, color: Colors.amber, size: 20))),
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: Color(0xFFC2185B))),
+              Row(
+                  children: List.generate(
+                      5,
+                      (index) => Icon(
+                          index < rating ? Icons.star : Icons.star_border,
+                          color: Colors.amber,
+                          size: 20))),
             ],
           ),
           const SizedBox(height: 15),
           if (review.isNotEmpty)
-            Text('"$review"', style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 15, color: Colors.black87))
+            Text('"$review"',
+                style: const TextStyle(
+                    fontStyle: FontStyle.italic,
+                    fontSize: 15,
+                    color: Colors.black87))
           else
-            const Text('Sin comentario', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
-          
+            const Text('Sin comentario',
+                style:
+                    TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
           const SizedBox(height: 20),
           const Row(
             children: [
-              Icon(Icons.photo_library_outlined, size: 16, color: Color(0xFFC2185B)),
+              Icon(Icons.photo_library_outlined,
+                  size: 16, color: Color(0xFFC2185B)),
               SizedBox(width: 6),
-              Text('Recuerdos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('Recuerdos:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
           const SizedBox(height: 10),
@@ -142,13 +184,20 @@ class AdventureMemoryScreen extends StatelessWidget {
       child: AspectRatio(
         aspectRatio: 1,
         child: Container(
-          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.shade300)),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.grey.shade300)),
           child: photoUrl != null && photoUrl.isNotEmpty
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: CachedNetworkImage(imageUrl: photoUrl, fit: BoxFit.cover, placeholder: (_, __) => const Center(child: CircularProgressIndicator()), errorWidget: (_, __, ___) => _buildPhotoPlaceholder())
-              )
-            : _buildPhotoPlaceholder(),
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: CachedNetworkImage(
+                      imageUrl: photoUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (_, __, ___) => _buildPhotoPlaceholder()))
+              : _buildPhotoPlaceholder(),
         ),
       ),
     );

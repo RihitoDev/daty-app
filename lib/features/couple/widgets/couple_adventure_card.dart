@@ -23,47 +23,51 @@ class CoupleAdventureCard extends StatelessWidget {
         subtitle: 'Vinculate con alguien',
         gradientColors: const [Color(0xFFF48FB1), Color(0xFFD81B60)],
         icon: Icons.favorite_border_rounded,
-        onTap: () => showDialog(context: context, builder: (context) => PairingDialog(myUid: coupleProvider.myUid)),
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => const PairingDialog(),
+        ),
       );
     }
 
     // Mientras esperamos respuesta de la base de datos, bloqueamos los toques
     if (coupleProvider.isLoading) {
       return _buildPremiumCard(
-        title: 'Cargando...',
-        subtitle: '',
-        gradientColors: [Colors.grey, Colors.grey.shade700],
-        icon: Icons.hourglass_empty,
-        onTap: null
-      );
+          title: 'Cargando...',
+          subtitle: '',
+          gradientColors: [Colors.grey, Colors.grey.shade700],
+          icon: Icons.hourglass_empty,
+          onTap: null);
     }
 
     // Si hubo un fallo raro o se quedaron a medias en la vinculación
     if (coupleProvider.coupleData == null) {
       if (!coupleProvider.isLoading) {
         return _buildPremiumCard(
-          title: 'Error de Datos',
-          subtitle: 'Ve a Ajustes y desvinculate para reiniciar',
-          gradientColors: const [Colors.redAccent, Colors.red],
-          icon: Icons.error_outline,
-          onTap: null
-        );
+            title: 'Error de Datos',
+            subtitle: 'Ve a Ajustes y desvinculate para reiniciar',
+            gradientColors: const [Colors.redAccent, Colors.red],
+            icon: Icons.error_outline,
+            onTap: null);
       }
-      
+
       return _buildPremiumCard(
-        title: 'Sincronizando...',
-        subtitle: 'Conectando con tu pareja',
-        gradientColors: const [Colors.orange, Colors.deepOrange],
-        icon: Icons.sync,
-        onTap: null
-      );
+          title: 'Sincronizando...',
+          subtitle: 'Conectando con tu pareja',
+          gradientColors: const [Colors.orange, Colors.deepOrange],
+          icon: Icons.sync,
+          onTap: null);
     }
 
     // El usuario actual todavía no acepta las reglas de la app
     if (!coupleProvider.iSigned) {
       return _buildPremiumCard(
         title: 'Aventura en pareja',
-        subtitle: 'Firma el contrato con ${coupleProvider.partnerName}',
+        subtitle:
+            'Vinculado con ${coupleProvider.partnerName} · Firma el contrato',
         gradientColors: const [Color(0xFFFFB74D), Color(0xFFF57C00)],
         icon: Icons.history_edu,
         onTap: () => _showContractDialog(context, coupleProvider),
@@ -74,50 +78,56 @@ class CoupleAdventureCard extends StatelessWidget {
     if (coupleProvider.iSigned && !coupleProvider.partnerSigned) {
       return _buildPremiumCard(
         title: 'Aventura en pareja',
-        subtitle: 'Esperando firma de ${coupleProvider.partnerName}',
+        subtitle:
+            'Vinculado con ${coupleProvider.partnerName} · Esperando su firma',
         gradientColors: const [Color(0xFF90A4AE), Color(0xFF546E7A)],
         icon: Icons.hourglass_top,
         onTap: () {
-          CustomSnackBar.showInfo(context, 'Esperando que ${coupleProvider.partnerName} firme el contrato...');
+          CustomSnackBar.showInfo(context,
+              'Esperando que ${coupleProvider.partnerName} firme el contrato...');
         },
       );
     }
 
     // Todo listo: Ambos están vinculados y firmaron. Abrimos el mapa principal
     return _buildPremiumCard(
-      title: 'Aventura en pareja',
-      subtitle: 'Nuestra aventura junto a ${coupleProvider.partnerName}',
-      gradientColors: const [Color(0xFFF06292), Color(0xFFC2185B)],
-      icon: Icons.favorite,
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureMap(
-        mode: 'couple',
-        themeColor: const Color(0xFFC2185B),
-        pathColor: const Color(0xFFF48FB1),
-        totalNodes: 50,
-        headerTitle: 'Nuestro Viaje',
-        onNavigateToProgress: (adventureData, availableIds) => AdventureInProgressScreen(
-          adventureData: adventureData,
-          availableAdventuresIds: availableIds,
-          onSoloFinish: null,
-        ),
-        onNavigateToMemory: (adventureId, adventureData) => AdventureMemoryScreen(
-          coupleDocId: coupleProvider.coupleDocId!,
-          adventureId: adventureId,
-          adventureData: adventureData,
-        ),
-      )))
-    );
+        title: 'Aventura en pareja',
+        subtitle: 'Vinculado con ${coupleProvider.partnerName}',
+        gradientColors: const [Color(0xFFF06292), Color(0xFFC2185B)],
+        icon: Icons.favorite,
+        onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => AdventureMap(
+                      mode: 'couple',
+                      themeColor: const Color(0xFFC2185B),
+                      pathColor: const Color(0xFFF48FB1),
+                      totalNodes: 50,
+                      headerTitle: 'Nuestro Viaje',
+                      onNavigateToProgress: (adventureData, availableIds) =>
+                          AdventureInProgressScreen(
+                        adventureData: adventureData,
+                        availableAdventuresIds: availableIds,
+                        onSoloFinish: null,
+                      ),
+                      onNavigateToMemory: (adventureId, adventureData) =>
+                          AdventureMemoryScreen(
+                        coupleDocId: coupleProvider.coupleDocId!,
+                        adventureId: adventureId,
+                        adventureData: adventureData,
+                      ),
+                    ))));
   }
 
-  void _showContractDialog(BuildContext context, CoupleProvider coupleProvider) {
+  void _showContractDialog(
+      BuildContext context, CoupleProvider coupleProvider) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => ContractDialog(
-        myUid: coupleProvider.myUid,
-        partnerUid: coupleProvider.partnerId!,
-        coupleDocId: coupleProvider.coupleDocId!
-      ),
+          myUid: coupleProvider.myUid,
+          partnerUid: coupleProvider.partnerId!,
+          coupleDocId: coupleProvider.coupleDocId!),
     );
   }
 
@@ -142,25 +152,49 @@ class CoupleAdventureCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
               gradient: LinearGradient(
-                colors: [accent.withValues(alpha: 0.27), accent.withValues(alpha: 0.13), customTheme.card],
+                colors: [
+                  accent.withValues(alpha: 0.27),
+                  accent.withValues(alpha: 0.13),
+                  customTheme.card
+                ],
                 stops: const [0, 0.7, 1],
               ),
               border: Border.all(color: accent.withValues(alpha: 0.3)),
-              boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.1), blurRadius: 18, offset: const Offset(0, 7))],
+              boxShadow: [
+                BoxShadow(
+                    color: accent.withValues(alpha: 0.1),
+                    blurRadius: 18,
+                    offset: const Offset(0, 7))
+              ],
             ),
             child: Row(children: [
               Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: accent.withValues(alpha: enabled ? 0.16 : 0.08), borderRadius: BorderRadius.circular(18)),
-                child: Icon(icon, size: 30, color: enabled ? accent : customTheme.muted),
+                decoration: BoxDecoration(
+                    color: accent.withValues(alpha: enabled ? 0.16 : 0.08),
+                    borderRadius: BorderRadius.circular(18)),
+                child: Icon(icon,
+                    size: 30, color: enabled ? accent : customTheme.muted),
               ),
               const SizedBox(width: 16),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: TextStyle(color: customTheme.text, fontSize: 17, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(subtitle, style: TextStyle(color: customTheme.text2, fontSize: 13, fontWeight: FontWeight.w600)),
-              ])),
-              Icon(Icons.arrow_forward_ios_rounded, color: enabled ? accent : customTheme.muted, size: 18),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: customTheme.text,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 6),
+                    Text(subtitle,
+                        style: TextStyle(
+                            color: customTheme.text2,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600)),
+                  ])),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  color: enabled ? accent : customTheme.muted, size: 18),
             ]),
           ),
         );
