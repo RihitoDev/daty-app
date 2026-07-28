@@ -13,6 +13,7 @@ import '../../couple/widgets/couple_adventure_card.dart';
 import '../../group/screens/group_loby.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../album/screens/album_screen.dart';
+import '../../../shared/widgets/adventure_action_card.dart';
 import '../../../shared/widgets/pressable_scale.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -47,17 +48,23 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 72,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
-            color: customTheme.card,
+            color: customTheme.elevatedSurface,
             borderRadius: BorderRadius.circular(26),
             border: Border.all(
-              color: customTheme.muted.withValues(alpha: 0.16),
+              color: customTheme.outline,
             ),
             boxShadow: [
               BoxShadow(
-                color: customTheme.primary.withValues(alpha: 0.12),
-                blurRadius: 24,
+                color: customTheme.shadow,
+                blurRadius: customTheme.isDark ? 28 : 24,
                 offset: const Offset(0, 8),
               ),
+              if (customTheme.isDark)
+                BoxShadow(
+                  color: customTheme.primary.withValues(alpha: 0.08),
+                  blurRadius: 24,
+                  spreadRadius: -5,
+                ),
             ],
           ),
           child: Row(
@@ -111,10 +118,20 @@ class _HomeScreenState extends State<HomeScreen> {
             duration: const Duration(milliseconds: 240),
             curve: Curves.easeOutCubic,
             decoration: BoxDecoration(
-              color: isSelected
-                  ? customTheme.primary.withValues(alpha: 0.12)
-                  : Colors.transparent,
+              gradient: isSelected
+                  ? LinearGradient(
+                      colors: [
+                        customTheme.primary.withValues(alpha: 0.2),
+                        customTheme.primary.withValues(alpha: 0.08),
+                      ],
+                    )
+                  : null,
               borderRadius: BorderRadius.circular(19),
+              border: isSelected && customTheme.isDark
+                  ? Border.all(
+                      color: customTheme.primary.withValues(alpha: 0.18),
+                    )
+                  : null,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -670,13 +687,24 @@ class _HomeContentState extends State<HomeContent> {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: customTheme.card,
-          border: Border.all(color: customTheme.muted.withValues(alpha: 0.18)),
+          color: customTheme.elevatedSurface,
+          border: Border.all(
+            color: customTheme.isDark
+                ? customTheme.primary.withValues(alpha: 0.22)
+                : customTheme.outline,
+          ),
           boxShadow: [
             BoxShadow(
-                color: customTheme.primary.withValues(alpha: 0.1),
-                blurRadius: 16,
-                offset: const Offset(0, 6))
+              color: customTheme.shadow,
+              blurRadius: customTheme.isDark ? 22 : 16,
+              offset: const Offset(0, 7),
+            ),
+            if (customTheme.isDark)
+              BoxShadow(
+                color: customTheme.primary.withValues(alpha: 0.07),
+                blurRadius: 20,
+                spreadRadius: -5,
+              ),
           ],
         ),
         child: Column(
@@ -822,60 +850,13 @@ class _HomeContentState extends State<HomeContent> {
       required IconData icon,
       required Color accent,
       required VoidCallback onTap}) {
-    return PressableScale(
+    return AdventureActionCard(
+      theme: customTheme,
+      title: title,
+      subtitle: subtitle,
+      icon: icon,
+      accent: accent,
       onTap: onTap,
-      semanticsLabel: title,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            colors: [
-              accent.withValues(alpha: 0.27),
-              accent.withValues(alpha: 0.13),
-              customTheme.card
-            ],
-            stops: const [0, 0.7, 1],
-          ),
-          border: Border.all(color: accent.withValues(alpha: 0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withValues(alpha: 0.1),
-              blurRadius: 18,
-              offset: const Offset(0, 7),
-            )
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(18)),
-                child: Icon(icon, size: 30, color: accent)),
-            const SizedBox(width: 16),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(title,
-                      style: TextStyle(
-                          color: customTheme.text,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 6),
-                  Text(subtitle,
-                      style: TextStyle(
-                          color: customTheme.text2,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600))
-                ])),
-            Icon(Icons.arrow_forward_ios_rounded, color: accent, size: 18)
-          ],
-        ),
-      ),
     );
   }
 }

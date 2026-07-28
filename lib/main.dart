@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 import 'core/providers/theme_provider.dart';
@@ -18,15 +19,17 @@ Future<void> main() async {
 
   await dotenv.load(fileName: '.env');
 
+  final preferencesFuture = SharedPreferences.getInstance();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  final preferences = await preferencesFuture;
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => ThemeProvider(),
+          create: (_) => ThemeProvider(preferences),
         ),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(),
@@ -69,6 +72,7 @@ class DatyApp extends StatelessWidget {
       title: 'Daty',
       debugShowCheckedModeBanner: false,
       theme: themeProvider.currentTheme.flutterTheme,
+      themeAnimationDuration: Duration.zero,
       home: const AuthWrapper(),
     );
   }

@@ -243,8 +243,13 @@ class AuthProvider extends ChangeNotifier {
     try {
       final cleanUsername = username.trim();
 
-      if (cleanUsername.isEmpty) {
+      if (cleanUsername.isEmpty ||
+          RegExp(r'\s').allMatches(cleanUsername).length > 1) {
         return 'invalid-username';
+      }
+
+      if (password.contains(RegExp(r'\s'))) {
+        return 'invalid-password';
       }
 
       final usernameTaken = await isUsernameTaken(cleanUsername);

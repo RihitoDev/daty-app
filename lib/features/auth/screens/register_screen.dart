@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
@@ -153,7 +154,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else if (errorCode == 'invalid-email') {
         message = 'El formato del correo no es válido.';
       } else if (errorCode == 'invalid-username') {
-        message = 'Escribe un nombre de usuario válido.';
+        message =
+            'Escribe un nombre de usuario válido usando como máximo un espacio.';
+      } else if (errorCode == 'invalid-password') {
+        message = 'La contraseña no puede contener espacios.';
       } else if (errorCode == 'firestore-error') {
         message = 'No pudimos completar el registro. Inténtalo nuevamente.';
       }
@@ -468,6 +472,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       controller: controller,
       obscureText: isPassword ? !_isPasswordVisible : false,
       keyboardType: isEmail ? TextInputType.emailAddress : TextInputType.text,
+      inputFormatters: [
+        if (isPassword)
+          FilteringTextInputFormatter.deny(RegExp(r'\s'))
+        else if (!isEmail)
+          _singleSpaceFormatter,
+      ],
       style: TextStyle(color: customTheme.text),
       onChanged: (value) {
         _clearError();
@@ -483,6 +493,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         if (value == null || value.trim().isEmpty) {
           return 'Campo obligatorio';
+        }
+
+        if (!isEmail &&
+            !isPassword &&
+            RegExp(r'\s').allMatches(value.trim()).length > 1) {
+          return 'Solo puedes usar un espacio';
+        }
+
+        if (isPassword && value.contains(RegExp(r'\s'))) {
+          return 'La contraseña no puede contener espacios';
         }
 
         if (isPassword && value.length < 6) {
@@ -557,10 +577,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextFormField(
       controller: _confirmPasswordController,
       obscureText: !_isConfirmPasswordVisible,
+      inputFormatters: [
+        FilteringTextInputFormatter.deny(RegExp(r'\s')),
+      ],
       style: TextStyle(color: customTheme.text),
       onChanged: (_) => _clearError(),
       validator: (value) {
         if (value == null || value.isEmpty) return 'Campo obligatorio';
+        if (value.contains(RegExp(r'\s'))) {
+          return 'La contraseña no puede contener espacios';
+        }
         if (value != _passwordController.text) {
           return 'Las contraseñas no coinciden';
         }
@@ -599,6 +625,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+
+  static final TextInputFormatter _singleSpaceFormatter =
+      TextInputFormatter.withFunction((oldValue, newValue) {
+    final normalizedText = newValue.text.replaceAll(RegExp(r'\s'), ' ');
+
+    if (RegExp(' ').allMatches(normalizedText).length > 1) {
+      return oldValue;
+    }
+
+    return newValue.copyWith(text: normalizedText);
+  });
 
   Widget _buildBackgroundDecorations(Color primaryColor) {
     return Stack(

@@ -8,6 +8,7 @@ import 'contract_dialog.dart';
 import '../../../shared/screens/adventure_map.dart';
 import '../../../shared/widgets/custom_snackbar.dart';
 import '../../../core/providers/theme_provider.dart';
+import '../../../shared/widgets/adventure_action_card.dart';
 
 class CoupleAdventureCard extends StatelessWidget {
   const CoupleAdventureCard({super.key});
@@ -142,61 +143,14 @@ class CoupleAdventureCard extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, _) {
         final customTheme = themeProvider.currentTheme;
-        final enabled = onTap != null;
         final accent = gradientColors.last;
-        return GestureDetector(
+        return AdventureActionCard(
+          theme: customTheme,
+          title: title,
+          subtitle: subtitle,
+          icon: icon,
+          accent: accent,
           onTap: onTap,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                colors: [
-                  accent.withValues(alpha: 0.27),
-                  accent.withValues(alpha: 0.13),
-                  customTheme.card
-                ],
-                stops: const [0, 0.7, 1],
-              ),
-              border: Border.all(color: accent.withValues(alpha: 0.3)),
-              boxShadow: [
-                BoxShadow(
-                    color: accent.withValues(alpha: 0.1),
-                    blurRadius: 18,
-                    offset: const Offset(0, 7))
-              ],
-            ),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                    color: accent.withValues(alpha: enabled ? 0.16 : 0.08),
-                    borderRadius: BorderRadius.circular(18)),
-                child: Icon(icon,
-                    size: 30, color: enabled ? accent : customTheme.muted),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(title,
-                        style: TextStyle(
-                            color: customTheme.text,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Text(subtitle,
-                        style: TextStyle(
-                            color: customTheme.text2,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
-                  ])),
-              Icon(Icons.arrow_forward_ios_rounded,
-                  color: enabled ? accent : customTheme.muted, size: 18),
-            ]),
-          ),
         );
       },
     );
