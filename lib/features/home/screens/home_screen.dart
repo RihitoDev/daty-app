@@ -6,6 +6,10 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../couple/providers/couple_provider.dart';
+import '../../couple/providers/pair_link_provider.dart';
+import '../../couple/widgets/contract_dialog.dart';
+import '../../couple/widgets/pairing_dialog.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../solo/widgets/solo_adventure_card.dart';
 import '../../couple/widgets/couple_adventure_card.dart';
@@ -15,6 +19,7 @@ import '../../album/screens/album_screen.dart';
 import '../../calendar/screens/calendar_screen.dart';
 import '../../../shared/widgets/adventure_action_card.dart';
 import '../../../shared/widgets/pressable_scale.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,12 +30,108 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  PairLinkProvider? _pairLinkProvider;
+  bool _isHandlingPairLink = false;
 
   final List<Widget> _screens = const [
     HomeContent(),
     AlbumScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<PairLinkProvider>();
+    if (identical(provider, _pairLinkProvider)) return;
+
+    _pairLinkProvider?.removeListener(_onPairLinkChanged);
+    _pairLinkProvider = provider..addListener(_onPairLinkChanged);
+    _onPairLinkChanged();
+  }
+
+  void _onPairLinkChanged() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _handlePendingPairLink();
+    });
+  }
+
+  Future<void> _handlePendingPairLink() async {
+    if (_isHandlingPairLink) return;
+
+    final code = _pairLinkProvider?.pendingCode;
+    if (code == null) return;
+
+    _isHandlingPairLink = true;
+    _pairLinkProvider?.consumePendingCode();
+
+    final coupleProvider = context.read<CoupleProvider>();
+    if (coupleProvider.hasPartner) {
+      CustomSnackBar.showInfo(
+        context,
+        'Ya estás vinculado con ${coupleProvider.partnerName}.',
+      );
+      _isHandlingPairLink = false;
+      return;
+    }
+
+    final linked = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => PairingDialog(initialCode: code),
+    );
+
+    if (!mounted) return;
+
+    if (linked == true) {
+      await _openContractWhenReady();
+    }
+
+    _isHandlingPairLink = false;
+    if (_pairLinkProvider?.pendingCode != null) {
+      _onPairLinkChanged();
+    }
+  }
+
+  Future<void> _openContractWhenReady() async {
+    for (var attempt = 0; attempt < 20; attempt += 1) {
+      if (!mounted) return;
+
+      final coupleProvider = context.read<CoupleProvider>();
+      if (coupleProvider.hasPartner &&
+          !coupleProvider.isLoading &&
+          coupleProvider.coupleData != null &&
+          !coupleProvider.iSigned) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ContractDialog(
+            myUid: coupleProvider.myUid,
+            partnerUid: coupleProvider.partnerId!,
+            coupleDocId: coupleProvider.coupleDocId!,
+          ),
+        );
+        return;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+
+    if (mounted) {
+      CustomSnackBar.showInfo(
+        context,
+        'La vinculación está lista. Abre Aventura en pareja para firmar.',
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _pairLinkProvider?.removeListener(_onPairLinkChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -346,10 +447,8 @@ class _HomeContentState extends State<HomeContent> {
             Row(children: [
               PressableScale(
                 scale: 0.92,
-                onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const CalendarScreen())),
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const CalendarScreen())),
                 child: Container(
                   width: 58,
                   height: 58,

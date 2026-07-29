@@ -5,10 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../services/email_verification_code_service.dart';
+
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final EmailVerificationCodeService _verificationCodeService =
+      EmailVerificationCodeService();
 
   StreamSubscription<DocumentSnapshot>? _userDocSubscription;
 
@@ -16,42 +20,75 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _userData;
   bool _isLoading = false;
   bool _isInitializing = true;
+  bool _isUserDataLoaded = false;
 
   User? get user => _user;
   Map<String, dynamic>? get userData => _userData;
   bool get isLoading => _isLoading;
   bool get isInitializing => _isInitializing;
+  bool get isUserDataLoaded => _isUserDataLoaded;
+  bool get isGoogleUser =>
+      _user?.providerData.any((info) => info.providerId == 'google.com') ??
+      false;
+  bool get requiresEmailVerification =>
+      _user != null && !isGoogleUser && !(_user?.emailVerified ?? false);
+  bool get hasCompleteProfile {
+    final username = _userData?['username'];
+    return username is String && username.trim().isNotEmpty;
+  }
 
   AuthProvider() {
-    _auth.authStateChanges().listen((User? user) {
-      _user = user;
+    _auth.authStateChanges().listen(_handleAuthStateChanged);
+  }
 
-      if (user != null) {
-        _listenToUserData(user.uid);
-      } else {
-        _userData = null;
-        _userDocSubscription?.cancel();
-        _userDocSubscription = null;
+  Future<void> _handleAuthStateChanged(User? user) async {
+    if (user != null) {
+      try {
+        await user.reload();
+        user = _auth.currentUser;
+      } catch (error) {
+        debugPrint('No se pudo refrescar la sesión restaurada: $error');
       }
+    }
 
-      _isInitializing = false;
-      notifyListeners();
-    });
+    _user = user;
+
+    if (user != null) {
+      _isUserDataLoaded = false;
+      _listenToUserData(user.uid);
+    } else {
+      _userData = null;
+      _isUserDataLoaded = true;
+      await _userDocSubscription?.cancel();
+      _userDocSubscription = null;
+    }
+
+    _isInitializing = false;
+    notifyListeners();
   }
 
   void _listenToUserData(String uid) {
     _userDocSubscription?.cancel();
 
     _userDocSubscription =
-        _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
-      if (snapshot.exists) {
-        _userData = snapshot.data();
-      } else {
-        _userData = null;
-      }
+        _firestore.collection('users').doc(uid).snapshots().listen(
+      (snapshot) {
+        if (snapshot.exists) {
+          _userData = snapshot.data();
+        } else {
+          _userData = null;
+        }
 
-      notifyListeners();
-    });
+        _isUserDataLoaded = true;
+        notifyListeners();
+      },
+      onError: (Object error) {
+        debugPrint('No se pudo cargar el perfil: $error');
+        _userData = null;
+        _isUserDataLoaded = true;
+        notifyListeners();
+      },
+    );
   }
 
   String _normalizeUsername(String username) {
@@ -284,9 +321,6 @@ class AuthProvider extends ChangeNotifier {
         username: cleanUsername,
       );
 
-      // Solo después de reservar correctamente, enviamos la verificación.
-      await createdUser.sendEmailVerification();
-
       _user = createdUser;
 
       return null;
@@ -403,6 +437,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       await currentUser.reload();
       _user = _auth.currentUser;
+      await _user?.getIdToken(true);
       notifyListeners();
 
       return _user?.emailVerified ?? false;
@@ -412,22 +447,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<String?> resendVerificationEmail() async {
+  Future<VerificationCodeSendResult> sendVerificationCode() {
+    return _verificationCodeService.sendCode();
+  }
+
+  Future<bool> verifyEmailCode(String code) async {
+    final result = await _verificationCodeService.verifyCode(code);
+    if (!result.verified) return false;
+
     final currentUser = _auth.currentUser;
+    if (currentUser == null) return false;
 
-    if (currentUser == null) {
-      return 'no-user';
-    }
+    await currentUser.reload();
+    _user = _auth.currentUser;
+    await _user?.getIdToken(true);
+    notifyListeners();
 
-    try {
-      await currentUser.sendEmailVerification();
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return e.code;
-    } catch (e) {
-      debugPrint('Error al reenviar la verificación: $e');
-      return 'unknown-error';
-    }
+    return _user?.emailVerified ?? false;
   }
 
   Future<String?> signInWithGoogle() async {
@@ -450,9 +486,7 @@ class AuthProvider extends ChangeNotifier {
 
       final userCredential = await _auth.signInWithCredential(credential);
 
-      if (userCredential.user != null) {
-        await _createUserDocument(userCredential.user!);
-      }
+      _user = userCredential.user;
 
       return null;
     } catch (e) {
@@ -479,6 +513,41 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error al recuperar la contraseña: $e');
       return 'error';
+    }
+  }
+
+  Future<String?> completeProfile(String username) async {
+    _setLoading(true);
+
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return 'no-user';
+
+      final cleanUsername = username.trim();
+      if (cleanUsername.isEmpty ||
+          RegExp(r'\s').allMatches(cleanUsername).length > 1) {
+        return 'invalid-username';
+      }
+
+      await _reserveUsername(
+        user: currentUser,
+        username: cleanUsername,
+      );
+      await currentUser.updateDisplayName(cleanUsername);
+      await _createUserDocument(
+        currentUser,
+        usernameOverride: cleanUsername,
+      );
+
+      return null;
+    } on FirebaseException catch (error) {
+      if (error.code == 'username-taken') return 'username-taken';
+      return 'firestore-error';
+    } catch (error) {
+      debugPrint('No se pudo completar el perfil: $error');
+      return 'unknown-error';
+    } finally {
+      _setLoading(false);
     }
   }
 
@@ -512,6 +581,7 @@ class AuthProvider extends ChangeNotifier {
 
       _user = null;
       _userData = null;
+      _isUserDataLoaded = true;
       notifyListeners();
 
       return null;

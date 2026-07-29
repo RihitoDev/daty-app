@@ -262,3 +262,10 @@ exports.acceptPairInvitation = onCall(
       });
     },
 );
+
+const emailVerification = require("./email-verification");
+
+exports.sendEmailVerificationCode =
+  emailVerification.sendEmailVerificationCode;
+exports.verifyEmailVerificationCode =
+  emailVerification.verifyEmailVerificationCode;

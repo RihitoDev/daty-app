@@ -11,7 +11,12 @@ import '../providers/pair_invitation_controller.dart';
 import '../services/pair_invitation_service.dart';
 
 class PairingDialog extends StatefulWidget {
-  const PairingDialog({super.key});
+  const PairingDialog({
+    super.key,
+    this.initialCode,
+  });
+
+  final String? initialCode;
 
   @override
   State<PairingDialog> createState() => _PairingDialogState();
@@ -28,6 +33,14 @@ class _PairingDialogState extends State<PairingDialog> {
   @override
   void initState() {
     super.initState();
+    final initialCode = widget.initialCode?.trim().toUpperCase();
+    if (initialCode != null &&
+        RegExp(r'^[A-Z]{3}[0-9]{3}$').hasMatch(initialCode)) {
+      _codeController.text = initialCode;
+      _enteringCode = true;
+      _codeIsValid = true;
+    }
+
     _invitationController = PairInvitationController(PairInvitationService())
       ..addListener(_onInvitationChanged)
       ..loadInvitation();
@@ -37,10 +50,10 @@ class _PairingDialogState extends State<PairingDialog> {
     if (mounted) setState(() {});
   }
 
-  void _close() {
+  void _close({bool linked = false}) {
     if (_closing || !mounted) return;
     _closing = true;
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(linked);
   }
 
   Future<void> _shareCode() async {
@@ -48,10 +61,16 @@ class _PairingDialogState extends State<PairingDialog> {
     if (invitation == null || !_invitationController.canShare) return;
 
     final box = context.findRenderObject() as RenderBox?;
+    final invitationUrl = Uri.https(
+      'darklife22.github.io',
+      '/Daty-landing/',
+      {'pairCode': invitation.code},
+    );
     await SharePlus.instance.share(
       ShareParams(
         text: '¡Quiero vincularme contigo en Daty! 💜\n\n'
             'Usa este código:\n${invitation.code}\n\n'
+            'Abre la invitación:\n$invitationUrl\n\n'
             'La invitación vence en 15 minutos.',
         sharePositionOrigin:
             box == null ? null : box.localToGlobal(Offset.zero) & box.size,
@@ -71,7 +90,7 @@ class _PairingDialogState extends State<PairingDialog> {
     FocusScope.of(context).unfocus();
     final linked =
         await _invitationController.acceptInvitation(_codeController.text);
-    if (linked && mounted) _close();
+    if (linked && mounted) _close(linked: true);
   }
 
   String _remainingLabel(Duration duration) {
@@ -96,7 +115,7 @@ class _PairingDialogState extends State<PairingDialog> {
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
 
     if (hasPartner && !_closing) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _close());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _close(linked: true));
     }
 
     return PopScope(
@@ -145,8 +164,7 @@ class _PairingDialogState extends State<PairingDialog> {
                             width: 42,
                             height: 4,
                             decoration: BoxDecoration(
-                              color:
-                                  customTheme.muted.withValues(alpha: 0.35),
+                              color: customTheme.muted.withValues(alpha: 0.35),
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
