@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#6C4BEF">
+  <title>Recuperar contraseña | Daty</title>
+
+  <style>
+    :root {
+      --primary: #6c4bef;
+      --primary-dark: #4f32c9;
+      --primary-soft: #eee9ff;
+      --text: #28243a;
+      --muted: #716c82;
+      --surface: rgba(255, 255, 255, 0.96);
+      --border: #ded9eb;
+      --success: #16784b;
+      --success-bg: #eaf8f0;
+      --error: #b42318;
+      --error-bg: #fff0ef;
+      --shadow: 0 28px 75px rgba(57, 37, 126, 0.22);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 22px;
+      display: grid;
+      place-items: center;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+        BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 10%, #e7dcff 0, transparent 38%),
+        radial-gradient(circle at 87% 82%, #dbe7ff 0, transparent 42%),
+        linear-gradient(145deg, #faf8ff, #eef3ff);
+    }
+
+    .shell {
+      width: min(100%, 1020px);
+      min-height: 650px;
+      display: grid;
+      grid-template-columns: 0.92fr 1.08fr;
+      overflow: hidden;
+      border-radius: 32px;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,.8);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 38px 30px 24px;
+      display: flex;
+      flex-direction: column;
+      color: white;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 12%, rgba(255,255,255,.24), transparent 34%),
+        linear-gradient(160deg, #7458f3, #4f32c9);
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      background: rgba(255,255,255,.09);
+    }
+
+    .hero::before {
+      width: 260px;
+      height: 260px;
+      left: -115px;
+      bottom: 45px;
+    }
+
+    .hero::after {
+      width: 210px;
+      height: 210px;
+      right: -105px;
+      top: 70px;
+    }
+
+    .brand {
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      font-size: 25px;
+      font-weight: 850;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: white;
+      color: var(--primary);
+      box-shadow: 0 8px 24px rgba(30, 12, 88, .18);
+    }
+
+    .speech {
+      position: relative;
+      z-index: 2;
+      max-width: 320px;
+      margin: 36px auto 0;
+      padding: 17px 19px;
+      border-radius: 22px;
+      background: white;
+      color: #3d3261;
+      font-weight: 750;
+      line-height: 1.4;
+      box-shadow: 0 14px 34px rgba(31, 13, 91, .2);
+    }
+
+    .speech::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -13px;
+      width: 25px;
+      height: 25px;
+      border-radius: 4px;
+      background: white;
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    .daty-box {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      min-height: 360px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    .daty {
+      width: min(100%, 340px);
+      max-height: 370px;
+      object-fit: contain;
+      filter: drop-shadow(0 24px 20px rgba(30, 14, 85, .28));
+      transform: translateY(16px);
+      animation: float 3.8s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(16px); }
+      50% { transform: translateY(7px); }
+    }
+
+    .content {
+      padding: 54px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 9px;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 850;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(31px, 4vw, 43px);
+      line-height: 1.08;
+      letter-spacing: -.035em;
+    }
+
+    .description {
+      margin: 16px 0 27px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .account {
+      display: none;
+      margin: -8px 0 20px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      color: #4c3e7a;
+      background: var(--primary-soft);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .field { margin-bottom: 17px; }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 780;
+    }
+
+    .input-wrap { position: relative; }
+
+    input {
+      width: 100%;
+      height: 55px;
+      padding: 0 51px 0 16px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: white;
+      color: var(--text);
+      font-size: 16px;
+      outline: none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(108, 75, 239, .12);
+    }
+
+    .toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      width: 39px;
+      height: 39px;
+      transform: translateY(-50%);
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .strength {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .strength span {
+      height: 5px;
+      border-radius: 999px;
+      background: #e7e3ed;
+      transition: background .2s ease;
+    }
+
+    .strength-text {
+      margin: 7px 2px 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .submit {
+      width: 100%;
+      min-height: 55px;
+      margin-top: 7px;
+      border: 0;
+      border-radius: 16px;
+      color: white;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      font-size: 16px;
+      font-weight: 850;
+      cursor: pointer;
+      box-shadow: 0 13px 27px rgba(91, 57, 217, .28);
+      transition: transform .16s ease, opacity .16s ease;
+    }
+
+    .submit:hover:not(:disabled) { transform: translateY(-1px); }
+    .submit:disabled { opacity: .67; cursor: not-allowed; box-shadow: none; }
+
+    .message {
+      display: none;
+      margin-top: 18px;
+      padding: 14px 15px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .message.error {
+      display: block;
+      color: var(--error);
+      background: var(--error-bg);
+      border: 1px solid #ffd0cc;
+    }
+
+    .message.success {
+      display: block;
+      color: var(--success);
+      background: var(--success-bg);
+      border: 1px solid #c9ecd9;
+    }
+
+    .success-card {
+      display: none;
+      text-align: center;
+      animation: appear .32s ease;
+    }
+
+    @keyframes appear {
+      from { opacity: 0; transform: translateY(8px) scale(.98); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .success-icon {
+      width: 82px;
+      height: 82px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: white;
+      background: linear-gradient(135deg, #31b874, #16784b);
+      font-size: 38px;
+      box-shadow: 0 14px 30px rgba(22, 120, 75, .22);
+    }
+
+    .back {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 15px;
+      color: var(--primary-dark);
+      background: var(--primary-soft);
+      font-weight: 850;
+      text-decoration: none;
+    }
+
+    .security {
+      margin: 23px 0 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 0; background: white; }
+      .shell {
+        width: 100%;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .hero {
+        min-height: 286px;
+        padding: 23px 20px 0;
+      }
+
+      .brand { font-size: 21px; }
+      .brand-icon { width: 35px; height: 35px; }
+
+      .speech {
+        max-width: 290px;
+        margin-top: 19px;
+        padding: 13px 15px;
+        font-size: 14px;
+      }
+
+      .daty-box {
+        min-height: 150px;
+        margin-top: -8px;
+      }
+
+      .daty {
+        width: 210px;
+        max-height: 205px;
+      }
+
+      .content {
+        margin-top: -1px;
+        padding: 37px 24px 38px;
+        border-radius: 29px 29px 0 0;
+        background: white;
+        z-index: 3;
+      }
+
+      h1 { font-size: 31px; }
+    }
+
+    @media (max-width: 390px) {
+      .hero { min-height: 255px; }
+      .speech { margin-top: 14px; }
+      .daty-box { min-height: 125px; }
+      .daty { width: 180px; max-height: 175px; }
+      .content { padding: 32px 19px 34px; }
+      h1 { font-size: 28px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+    <section class="hero" aria-label="Daty">
+      <div class="brand">
+        <span class="brand-icon">D</span>
+        <span>Daty</span>
+      </div>
+
+      <div id="speech" class="speech">
+        ¡No te preocupes! Recuperemos tu cuenta.
+      </div>
+
+      <div class="daty-box">
+        <img class="daty" src="./assets/daty.png" alt="Mascota Daty">
+      </div>
+    </section>
+
+    <section class="content">
+      <div id="formView">
+        <p class="eyebrow">Seguridad de tu cuenta</p>
+        <h1>Crea una nueva contraseña</h1>
+        <p class="description">
+          Escribe una contraseña segura para volver a ingresar a Daty.
+        </p>
+
+        <div id="account" class="account"></div>
+
+        <form id="resetForm" novalidate>
+          <div class="field">
+            <label for="password">Nueva contraseña</label>
+            <div class="input-wrap">
+              <input
+                id="password"
+                type="password"
+                autocomplete="new-password"
+                minlength="6"
+                placeholder="Mínimo 6 caracteres"
+                required
+              >
+              <button class="toggle" type="button" data-target="password"
+                aria-label="Mostrar u ocultar contraseña">👁</button>
+            </div>
+
+            <div class="strength" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <p id="strengthText" class="strength-text">
+              Usa letras, números y símbolos para mayor seguridad.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="confirmPassword">Confirmar contraseña</label>
+            <div class="input-wrap">
+              <input
+                id="confirmPassword"
+                type="password"
+                autocomplete="new-password"
+                minlength="6"
+                placeholder="Repite la contraseña"
+                required
+              >
+              <button class="toggle" type="button" data-target="confirmPassword"
+                aria-label="Mostrar u ocultar contraseña">👁</button>
+            </div>
+          </div>
+
+          <button id="submitButton" class="submit" type="submit">
+            Cambiar contraseña
+          </button>
+        </form>
+
+        <div id="message" class="message" role="status" aria-live="polite"></div>
+      </div>
+
+      <div id="successView" class="success-card">
+        <div class="success-icon">✓</div>
+        <p class="eyebrow">Contraseña actualizada</p>
+        <h1>¡Todo listo!</h1>
+        <p class="description">
+          Tu contraseña fue cambiada correctamente. Ya puedes volver a Daty.
+        </p>
+        <a id="continueButton" class="back" href="#">Volver a Daty</a>
+      </div>
+
+      <p class="security">
+        Daty nunca te pedirá tu contraseña por correo ni por mensaje.
+      </p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+
+    import {
+      getAuth,
+      verifyPasswordResetCode,
+      confirmPasswordReset
+    } from
+      "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB4_VMuDfZ-ityPaqS0oyvest-r8uwZ40k",
+      authDomain: "datty-app.firebaseapp.com",
+      projectId: "datty-app",
+      storageBucket: "datty-app.firebasestorage.app",
+      messagingSenderId: "716455152061",
+      appId: "1:716455152061:web:fd5918943352c5c464aad4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const actionCode = params.get("oobCode");
+    const continueUrl = params.get("continueUrl");
+
+    const formView = document.getElementById("formView");
+    const successView = document.getElementById("successView");
+    const form = document.getElementById("resetForm");
+    const account = document.getElementById("account");
+    const passwordInput = document.getElementById("password");
+    const confirmPasswordInput = document.getElementById("confirmPassword");
+    const submitButton = document.getElementById("submitButton");
+    const message = document.getElementById("message");
+    const speech = document.getElementById("speech");
+    const continueButton = document.getElementById("continueButton");
+    const strengthText = document.getElementById("strengthText");
+    const strengthBars = [...document.querySelectorAll(".strength span")];
+
+    function showMessage(text, type) {
+      message.textContent = text;
+      message.className = `message ${type}`;
+    }
+
+    function friendlyError(error) {
+      const code = error?.code || "";
+
+      if (code.includes("expired-action-code")) {
+        return "El enlace venció. Solicita uno nuevo desde Daty.";
+      }
+
+      if (code.includes("invalid-action-code")) {
+        return "El enlace no es válido o ya fue utilizado.";
+      }
+
+      if (code.includes("weak-password")) {
+        return "La contraseña es demasiado débil.";
+      }
+
+      return "No se pudo cambiar la contraseña. Solicita un enlace nuevo desde Daty.";
+    }
+
+    function passwordScore(value) {
+      let score = 0;
+      if (value.length >= 6) score++;
+      if (value.length >= 10) score++;
+      if (/[A-Z]/.test(value) && /[a-z]/.test(value)) score++;
+      if (/\d/.test(value) && /[^A-Za-z0-9]/.test(value)) score++;
+      return score;
+    }
+
+    function updateStrength() {
+      const value = passwordInput.value;
+      const score = passwordScore(value);
+
+      const colors = ["#e7e3ed", "#e0534e", "#e59c29", "#7b68ee", "#259d62"];
+      const labels = [
+        "Usa letras, números y símbolos para mayor seguridad.",
+        "Contraseña débil",
+        "Contraseña aceptable",
+        "Contraseña buena",
+        "Contraseña fuerte"
+      ];
+
+      strengthBars.forEach((bar, index) => {
+        bar.style.background = index < score ? colors[score] : "#e7e3ed";
+      });
+
+      strengthText.textContent = labels[score];
+      strengthText.style.color = score ? colors[score] : "";
+    }
+
+    document.querySelectorAll(".toggle").forEach((button) => {
+      button.addEventListener("click", () => {
+        const input = document.getElementById(button.dataset.target);
+        const visible = input.type === "text";
+        input.type = visible ? "password" : "text";
+        button.textContent = visible ? "👁" : "🙈";
+      });
+    });
+
+    passwordInput.addEventListener("input", updateStrength);
+
+    async function validateLink() {
+      if (mode !== "resetPassword" || !actionCode) {
+        form.style.display = "none";
+        speech.textContent = "Este enlace no parece válido.";
+        showMessage(
+          "Abre esta página desde el enlace que recibiste por correo o solicita uno nuevo desde Daty.",
+          "error"
+        );
+        return;
+      }
+
+      try {
+        const email = await verifyPasswordResetCode(auth, actionCode);
+        account.style.display = "block";
+        account.textContent = `Cuenta: ${email}`;
+      } catch (error) {
+        form.style.display = "none";
+        speech.textContent = "El enlace ya no puede utilizarse.";
+        showMessage(friendlyError(error), "error");
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const password = passwordInput.value;
+      const confirmation = confirmPasswordInput.value;
+
+      if (password.length < 6) {
+        showMessage("La contraseña debe tener al menos 6 caracteres.", "error");
+        return;
+      }
+
+      if (password !== confirmation) {
+        showMessage("Las contraseñas no coinciden.", "error");
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Actualizando contraseña…";
+
+      try {
+        await confirmPasswordReset(auth, actionCode, password);
+
+        formView.style.display = "none";
+        successView.style.display = "block";
+        speech.textContent = "¡Lo logramos! Tu cuenta está segura otra vez.";
+
+        continueButton.href = continueUrl || "https://datty-app.web.app";
+      } catch (error) {
+        showMessage(friendlyError(error), "error");
+        submitButton.disabled = false;
+        submitButton.textContent = "Cambiar contraseña";
+      }
+    });
+
+    validateLink();
+  </script>
+</body>
+</html>

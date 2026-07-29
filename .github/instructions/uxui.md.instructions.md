@@ -1,0 +1,1 @@
+* **Estética de UI:** Prefiere diseños modernos utilizando componentes personalizados con esquinas redondeadas (`BorderRadius.circular`), sombras sutiles (`BoxShadow`), gradientes limpios y efectos visuales estilizados (como sutiles resplandores o acabados translúcidos) bien estructurados en archivos de constantes visuales.

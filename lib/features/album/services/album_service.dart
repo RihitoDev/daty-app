@@ -14,9 +14,9 @@ class AlbumService {
         .map((snapshot) => snapshot.docs
             .map((doc) => AlbumMemory.fromSoloFirestore(doc.data()))
             .toList())
-        .handleError((error) {
+        .handleError((error, stack) {
           debugPrint('Fallo al leer la colección solo_memories: $error');
-          return <AlbumMemory>[];
+          throw error;
         });
   }
 
@@ -30,9 +30,9 @@ class AlbumService {
         .map((snapshot) => snapshot.docs
             .map((doc) => AlbumMemory.fromCoupleFirestore(doc.data(), user1Name, user2Name))
             .toList())
-        .handleError((error) {
+        .handleError((error, stack) {
           debugPrint('Fallo al leer la colección de pareja: $error');
-          return <AlbumMemory>[];
+          throw error;
         });
   }
 
@@ -71,7 +71,7 @@ class AlbumService {
         yield all;
       } catch (e) {
         debugPrint('Fallo al traer recuerdos grupales: $e');
-        yield <AlbumMemory>[];
+        rethrow;
       }
     });
   }

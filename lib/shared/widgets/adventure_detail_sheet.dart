@@ -74,13 +74,13 @@ class AdventureDetailSheet {
                               const SizedBox(height: 15),
                               Center(child: Text(adventure['title'] ?? '', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: themeColor))),
                               const SizedBox(height: 15),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                spacing: 8,
+                                runSpacing: 8,
                                 children: [
                                   _InfoChip(icon: Icons.category, text: adventure['category'] ?? 'General', themeColor: themeColor),
-                                  const SizedBox(width: 10),
                                   _InfoChip(icon: Icons.timer, text: adventure['estimatedTime'] ?? '1 hora', themeColor: themeColor),
-                                  const SizedBox(width: 10),
                                   _InfoChip(icon: Icons.attach_money, text: 'Nivel \$${adventure['costLevel'] ?? 1}', themeColor: themeColor),
                                 ],
                               ),
@@ -180,7 +180,14 @@ class _InfoChip extends StatelessWidget {
       child: Row(children: [
         Icon(icon, size: 16, color: themeColor),
         const SizedBox(width: 5),
-        Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ),
       ]),
     );
   }

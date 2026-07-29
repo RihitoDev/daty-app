@@ -1,231 +1,463 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
-import 'dart:async';
-import '../../../shared/widgets/custom_snackbar.dart';
+import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../../core/providers/theme_provider.dart';
+import '../../../core/theme/app_theme.dart';
+import '../providers/couple_provider.dart';
+import '../providers/pair_invitation_controller.dart';
+import '../services/pair_invitation_service.dart';
 
 class PairingDialog extends StatefulWidget {
-  final String myUid;
-  const PairingDialog({super.key, required this.myUid});
+  const PairingDialog({super.key});
 
   @override
   State<PairingDialog> createState() => _PairingDialogState();
 }
 
 class _PairingDialogState extends State<PairingDialog> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _codeController = TextEditingController();
-  
-  bool _isLinking = false;
-  bool _isShowingMyCode = true;
-  late String _myCode;
-  StreamSubscription? _subscription;
+  late final PairInvitationController _invitationController;
+
+  bool _enteringCode = false;
+  bool _codeIsValid = false;
+  bool _closing = false;
 
   @override
   void initState() {
     super.initState();
-    _generateAndSaveCode();
-    _listenForPartnerLink();
+    _invitationController = PairInvitationController(PairInvitationService())
+      ..addListener(_onInvitationChanged)
+      ..loadInvitation();
   }
 
-  // Generamos el código (3 letras, 3 números mezclados) y lo guardamos en nuestro doc para que el otro lo pueda buscar.
-  void _generateAndSaveCode() {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const numbers = '0123456789';
-    math.Random rnd = math.Random();
-    
-    String randomLetters = String.fromCharCodes(Iterable.generate(3, (_) => letters.codeUnitAt(rnd.nextInt(letters.length))));
-    String randomNumbers = String.fromCharCodes(Iterable.generate(3, (_) => numbers.codeUnitAt(rnd.nextInt(numbers.length))));
-    
-    List<String> codeChars = ('$randomLetters$randomNumbers').split('');
-    codeChars.shuffle(rnd);
-    _myCode = codeChars.join();
-
-    _firestore.collection('users').doc(widget.myUid).set({'pairingCode': _myCode}, SetOptions(merge: true));
+  void _onInvitationChanged() {
+    if (mounted) setState(() {});
   }
 
-  // Escuchamos nuestro propio doc. Si la pareja mete nuestro código antes, nos vinculan por detrás y cerramos este modal automáticamente.
-  void _listenForPartnerLink() {
-    _subscription = _firestore.collection('users').doc(widget.myUid).snapshots().listen((snapshot) {
-      if (snapshot.exists) {
-        var data = snapshot.data();
-        if (data != null && data.containsKey('partnerId') && data['partnerId'] != null) {
-          if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
-            Navigator.of(context, rootNavigator: true).pop();
-          }
-        }
-      }
-    });
+  void _close() {
+    if (_closing || !mounted) return;
+    _closing = true;
+    Navigator.of(context).pop();
   }
 
-  void _handleLink() async {
-    if (_codeController.text.length < 6) return;
-    if (mounted) setState(() => _isLinking = true);
+  Future<void> _shareCode() async {
+    final invitation = _invitationController.invitation;
+    if (invitation == null || !_invitationController.canShare) return;
 
-    try {
-      final codeEntered = _codeController.text.toUpperCase();
+    final box = context.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        text: '¡Quiero vincularme contigo en Daty! 💜\n\n'
+            'Usa este código:\n${invitation.code}\n\n'
+            'La invitación vence en 15 minutos.',
+        sharePositionOrigin:
+            box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  }
 
-      final querySnapshot = await _firestore.collection('users')
-          .where('pairingCode', isEqualTo: codeEntered)
-          .limit(1)
-          .get();
+  Future<void> _acceptCode() async {
+    if (!_codeIsValid) return;
+    FocusScope.of(context).unfocus();
+    final linked =
+        await _invitationController.acceptInvitation(_codeController.text);
+    if (linked && mounted) _close();
+  }
 
-      if (querySnapshot.docs.isEmpty) {
-        throw Exception('Codigo no encontrado');
-      }
-
-      final partnerUid = querySnapshot.docs.first.id;
-
-      if (partnerUid == widget.myUid) {
-        throw Exception('No puedes vincularte a ti mismo');
-      }
-
-      String coupleDocId = widget.myUid.compareTo(partnerUid) < 0 
-          ? '${widget.myUid}_$partnerUid' 
-          : '${partnerUid}_${widget.myUid}';
-
-      // Transacción crítica: bloqueamos ambos perfiles y creamos el doc de la pareja al mismo tiempo para evitar que alguien se quede colgado si falla la red a medias.
-      await _firestore.runTransaction((transaction) async {
-        
-        final myDocRef = _firestore.collection('users').doc(widget.myUid);
-        final partnerDocRef = _firestore.collection('users').doc(partnerUid);
-        final coupleDocRef = _firestore.collection('couples_progress').doc(coupleDocId);
-
-        final myDoc = await transaction.get(myDocRef);
-        final partnerDoc = await transaction.get(partnerDocRef);
-
-        if (myDoc.data()?['partnerId'] != null) {
-          throw Exception('Tu ya estas vinculado');
-        }
-        if (partnerDoc.data()?['partnerId'] != null) {
-          throw Exception('Esta persona ya esta vinculada');
-        }
-
-        transaction.set(coupleDocRef, {
-          'user1': widget.myUid.compareTo(partnerUid) < 0 ? widget.myUid : partnerUid,
-          'user2': widget.myUid.compareTo(partnerUid) < 0 ? partnerUid : widget.myUid, 
-          'fechaVinculacion': FieldValue.serverTimestamp(), 
-          'xpPareja': 0, 
-          'nivelPareja': 1,
-          'contractSignedUser1': false,
-          'contractSignedUser2': false
-        });
-
-        transaction.update(myDocRef, {'partnerId': partnerUid, 'pairingCode': FieldValue.delete()});
-        transaction.update(partnerDocRef, {'partnerId': widget.myUid, 'pairingCode': FieldValue.delete()});
-      });
-
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLinking = false);
-        String errorMsg = 'Error al vincular';
-        if (e.toString().contains('Codigo no encontrado')) {
-          errorMsg = 'Codigo no encontrado';
-        } else if (e.toString().contains('ya esta vinculada')) {
-          errorMsg = 'Esta persona ya tiene pareja';
-        } else if (e.toString().contains('ya estas vinculado')) {
-          errorMsg = 'Tu ya estas vinculado';
-        }
-        
-        CustomSnackBar.showError(context, errorMsg);
-      }
-    }
+  String _remainingLabel(Duration duration) {
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   @override
   void dispose() {
-    _subscription?.cancel();
-    // Borramos el código de Firestore al salir para invalidarlo y que no quede basura en la BD.
-    _firestore.collection('users').doc(widget.myUid).set({'pairingCode': FieldValue.delete()}, SetOptions(merge: true));
+    _invitationController
+      ..removeListener(_onInvitationChanged)
+      ..dispose();
     _codeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-      backgroundColor: Colors.white,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(25.0, 30.0, 25.0, 25.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.favorite, color: Color(0xFFFF4B12), size: 60),
-                const SizedBox(height: 15),
-                const Text('Una aventura de dos\nesta por comenzar', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF9C27B0))),
-                const SizedBox(height: 25),
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
+    final hasPartner = context.watch<CoupleProvider>().hasPartner;
+    final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
 
-                if (_isShowingMyCode) ...[
-                  const Text('Comparte tu codigo:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 10),
+    if (hasPartner && !_closing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _close());
+    }
+
+    return PopScope(
+      canPop: !_closing,
+      child: SafeArea(
+        top: false,
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: keyboardHeight),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+            ),
+            decoration: BoxDecoration(
+              color: customTheme.card,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(30)),
+              border: Border(
+                top: BorderSide(
+                  color: customTheme.primary.withValues(alpha: 0.35),
+                ),
+              ),
+            ),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                    decoration: BoxDecoration(color: const Color(0xFFF1E5F5), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFCE93D8), width: 2)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(_myCode, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3)),
-                        IconButton(
-                          icon: const Icon(Icons.copy, color: Color(0xFF9C27B0)),
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: _myCode));
-                            CustomSnackBar.showSuccess(context, 'Codigo copiado');
-                          },
-                        )
-                      ],
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: customTheme.muted.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  const SizedBox(height: 25),
-                  SizedBox(
-                    width: double.infinity, height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF9C27B0), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
-                      onPressed: () => setState(() => _isShowingMyCode = false),
-                      child: const Text('Tengo un codigo', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      tooltip: 'Cerrar',
+                      onPressed: _close,
+                      icon: Icon(Icons.close_rounded, color: customTheme.muted),
                     ),
                   ),
-                ] else ...[
-                  const Text('Ingresa el codigo de tu pareja:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _codeController, textCapitalization: TextCapitalization.characters, textAlign: TextAlign.center, maxLength: 6, autofocus: true,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3),
-                    decoration: InputDecoration(hintText: 'ABC123', counterText: "", filled: true, fillColor: Colors.grey.shade100, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)),
-                  ),
-                  const SizedBox(height: 25),
-                  SizedBox(
-                    width: double.infinity, height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF4B12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25))),
-                      onPressed: _isLinking ? null : _handleLink,
-                      child: _isLinking 
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Vincular', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Image.asset(
+                    'assets/images/mascot.png',
+                    height: keyboardHeight > 0 ? 60 : 92,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.favorite_rounded,
+                      size: 64,
+                      color: customTheme.primary,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => setState(() => _isShowingMyCode = true),
-                    child: const Text('Ver mi codigo de nuevo', style: TextStyle(color: Colors.grey)),
-                  )
+                  const SizedBox(height: 8),
+                  Text(
+                    _enteringCode
+                        ? 'Ingresa tu código'
+                        : 'Vincúlate con alguien',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: customTheme.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _enteringCode
+                        ? 'Escribe el código que te compartió la otra persona.'
+                        : 'Comparte este código con la persona con la que quieres vivir aventuras.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: customTheme.text2,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: _enteringCode
+                        ? _buildCodeEntry(customTheme)
+                        : _buildInvitation(customTheme),
+                  ),
                 ],
-              ],
+              ),
             ),
           ),
-          Positioned(
-            top: 0, right: 0,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.grey, size: 24),
-              onPressed: () => Navigator.pop(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvitation(AppCustomTheme customTheme) {
+    final status = _invitationController.status;
+    final invitation = _invitationController.invitation;
+
+    if (status == PairInvitationStatus.loading) {
+      return _buildStatus(
+        customTheme,
+        key: const ValueKey('loading'),
+        label: 'Generando código...',
+        loading: true,
+      );
+    }
+
+    if (status == PairInvitationStatus.error || invitation == null) {
+      return _buildStatus(
+        customTheme,
+        key: const ValueKey('error'),
+        label: _invitationController.errorMessage ??
+            'No se pudo generar el código. Inténtalo nuevamente.',
+        buttonLabel: 'Reintentar',
+        onPressed: _invitationController.loadInvitation,
+      );
+    }
+
+    if (status == PairInvitationStatus.expired) {
+      return _buildStatus(
+        customTheme,
+        key: const ValueKey('expired'),
+        icon: Icons.timer_off_outlined,
+        label: 'Esta invitación venció',
+        buttonLabel: 'Generar nuevo código',
+        onPressed: _invitationController.loadInvitation,
+      );
+    }
+
+    return Column(
+      key: const ValueKey('invitation'),
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          decoration: BoxDecoration(
+            color: customTheme.primaryLight.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: customTheme.primary.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                invitation.code,
+                semanticsLabel: 'Código ${invitation.code}',
+                style: TextStyle(
+                  color: customTheme.text,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 7,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'La invitación vence en '
+                '${_remainingLabel(_invitationController.remaining)}',
+                style: TextStyle(
+                  color: customTheme.text2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _invitationController.canShare ? _shareCode : null,
+            icon: const Icon(Icons.ios_share_rounded),
+            label: const Text('Compartir código'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: customTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () {
+            _invitationController.clearError();
+            setState(() => _enteringCode = true);
+          },
+          child: Text(
+            'Tengo un código',
+            style: TextStyle(
+              color: customTheme.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCodeEntry(AppCustomTheme customTheme) {
+    final isValidating =
+        _invitationController.status == PairInvitationStatus.validating;
+
+    return Column(
+      key: const ValueKey('code-entry'),
+      children: [
+        TextField(
+          controller: _codeController,
+          autofocus: true,
+          enabled: !isValidating,
+          maxLength: 6,
+          textAlign: TextAlign.center,
+          textCapitalization: TextCapitalization.characters,
+          textInputAction: TextInputAction.done,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9]')),
+            LengthLimitingTextInputFormatter(6),
+            _UpperCaseTextFormatter(),
+          ],
+          onChanged: (value) {
+            final valid = RegExp(r'^[A-Z]{3}[0-9]{3}$').hasMatch(value);
+            _invitationController.clearError();
+            if (valid != _codeIsValid) setState(() => _codeIsValid = valid);
+          },
+          onSubmitted: (_) {
+            if (_codeIsValid && !isValidating) _acceptCode();
+          },
+          style: TextStyle(
+            color: customTheme.text,
+            fontSize: 30,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 6,
+          ),
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: 'ABC123',
+            hintStyle: TextStyle(
+              color: customTheme.muted.withValues(alpha: 0.55),
+            ),
+            filled: true,
+            fillColor: customTheme.primaryLight.withValues(alpha: 0.35),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide(
+                color: customTheme.muted.withValues(alpha: 0.2),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide(
+                color: customTheme.primary,
+                width: 2,
+              ),
+            ),
+          ),
+        ),
+        if (_invitationController.errorMessage != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            _invitationController.errorMessage!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
-      ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _codeIsValid && !isValidating ? _acceptCode : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: customTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: isValidating
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Vincularme'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: isValidating
+              ? null
+              : () {
+                  FocusScope.of(context).unfocus();
+                  _invitationController.clearError();
+                  setState(() => _enteringCode = false);
+                },
+          icon: const Icon(Icons.arrow_back_rounded, size: 18),
+          label: const Text('Volver'),
+          style: TextButton.styleFrom(foregroundColor: customTheme.text2),
+        ),
+      ],
     );
+  }
+
+  Widget _buildStatus(
+    AppCustomTheme customTheme, {
+    required Key key,
+    required String label,
+    IconData? icon,
+    bool loading = false,
+    String? buttonLabel,
+    VoidCallback? onPressed,
+  }) {
+    return Column(
+      key: key,
+      children: [
+        if (loading)
+          CircularProgressIndicator(color: customTheme.primary)
+        else
+          Icon(
+            icon ?? Icons.cloud_off_rounded,
+            color: customTheme.primary,
+            size: 44,
+          ),
+        const SizedBox(height: 14),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: customTheme.text2,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (buttonLabel != null) ...[
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: customTheme.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(buttonLabel),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }

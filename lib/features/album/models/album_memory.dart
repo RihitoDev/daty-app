@@ -18,16 +18,21 @@ class AlbumMemory {
   });
 
   factory AlbumMemory.fromSoloFirestore(Map<String, dynamic> data) {
+    List<String> photos = [];
+    if (data['photos'] is List) {
+      photos = List<String>.from(data['photos']);
+    }
+
     return AlbumMemory(
       type: 'Solo',
-      title: data['adventure_title'] ?? 'Aventura',
-      emoji: '🧘‍♂️',
-      date: _parseDate(data['timestamp']),
+      title: data['adventure_title'] ?? data['title'] ?? 'Aventura',
+      emoji: data['emoji'] ?? '🧘‍♂️',
+      date: _parseDate(data['timestamp'] ?? data['date'] ?? data['createdAt']),
       reviews: [
         if (data['review'] != null && data['review'].toString().isNotEmpty)
-          data['review']
+          data['review'].toString()
       ],
-      photoUrls: List<String>.from(data['photos'] ?? []),
+      photoUrls: photos,
     );
   }
 
@@ -41,14 +46,18 @@ class AlbumMemory {
     }
 
     List<String> photos = [];
-    photos.addAll(List<String>.from(data['user1_photos'] ?? []));
-    photos.addAll(List<String>.from(data['user2_photos'] ?? []));
+    if (data['user1_photos'] is List) {
+      photos.addAll(List<String>.from(data['user1_photos']));
+    }
+    if (data['user2_photos'] is List) {
+      photos.addAll(List<String>.from(data['user2_photos']));
+    }
 
     return AlbumMemory(
       type: 'Pareja',
-      title: data['adventure_title'] ?? 'Cita',
-      emoji: '❤️',
-      date: _parseDate(data['timestamp']),
+      title: data['adventure_title'] ?? data['title'] ?? 'Cita',
+      emoji: data['emoji'] ?? '❤️',
+      date: _parseDate(data['timestamp'] ?? data['date'] ?? data['createdAt']),
       reviews: reviews,
       photoUrls: photos,
     );
@@ -64,9 +73,9 @@ class AlbumMemory {
 
     return AlbumMemory(
       type: 'Grupo',
-      title: data['adventure_title'] ?? 'Expedición',
-      emoji: '👥',
-      date: _parseDate(data['timestamp']),
+      title: data['adventure_title'] ?? data['title'] ?? 'Expedición',
+      emoji: data['emoji'] ?? '👥',
+      date: _parseDate(data['timestamp'] ?? data['date'] ?? data['createdAt']),
       reviews: [],
       photoUrls: photos,
     );
@@ -75,6 +84,13 @@ class AlbumMemory {
   static DateTime _parseDate(dynamic timestamp) {
     if (timestamp is Timestamp) return timestamp.toDate();
     if (timestamp is DateTime) return timestamp;
-    return DateTime(2024, 1, 1);
+    if (timestamp is String) {
+      final parsed = DateTime.tryParse(timestamp);
+      if (parsed != null) return parsed;
+    }
+    if (timestamp is int) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp);
+    }
+    return DateTime.now();
   }
 }

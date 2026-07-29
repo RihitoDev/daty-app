@@ -1,0 +1,32 @@
+DATY - RECUPERACIÓN DE CONTRASEÑA V2
+
+ARCHIVOS
+- index.html
+- assets/daty.png
+- firebase.json
+
+PARA INSTALAR EN TU PROYECTO
+
+1. Copia index.html y la carpeta assets dentro de:
+   daty-app/hosting/
+
+2. Reemplaza el index.html anterior cuando Windows lo pregunte.
+
+3. Desde la carpeta principal daty-app ejecuta:
+   firebase deploy --only hosting
+
+4. Prueba:
+   https://datty-app.web.app
+
+Al abrirla directamente mostrará que el enlace no es válido.
+Eso es normal: la prueba completa debe hacerse desde un correo real
+de recuperación que incluya mode=resetPassword y oobCode.
+
+MEJORAS DE ESTA VERSIÓN
+- Diseño adaptable
+- Daty con animación suave
+- Indicador de seguridad de contraseña
+- Mostrar y ocultar contraseña
+- Mensajes personalizados
+- Pantalla de éxito
+- Validación de enlaces vencidos o utilizados
