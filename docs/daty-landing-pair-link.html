@@ -1,0 +1,29 @@
+<!-- Copia este bloque en Daty-landing antes de cerrar </body>. -->
+<button type="button" data-open-daty hidden>
+  Abrir invitación en Daty
+</button>
+
+<script>
+  (() => {
+    const code = new URLSearchParams(window.location.search)
+      .get("pairCode")
+      ?.trim()
+      .toUpperCase();
+
+    if (!code || !/^[A-Z]{3}[0-9]{3}$/.test(code)) return;
+
+    const deepLink = `daty://pair?code=${encodeURIComponent(code)}`;
+    const openButton = document.querySelector("[data-open-daty]");
+    const openDaty = () => {
+      window.location.href = deepLink;
+    };
+
+    if (openButton) {
+      openButton.hidden = false;
+      openButton.addEventListener("click", openDaty);
+    }
+
+    // Si Daty no está instalada, la landing continúa visible como fallback.
+    openDaty();
+  })();
+</script>

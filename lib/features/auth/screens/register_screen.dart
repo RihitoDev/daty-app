@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import 'email_verification_screen.dart';
+import '../utils/email_validation.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -159,13 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => EmailVerificationScreen(
-          email: _emailController.text.trim(),
-        ),
-      ),
-    );
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
@@ -473,7 +467,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _clearError();
       },
       validator: (value) {
-        if (isEmail) return null;
+        if (isEmail) return validateEmailAddress(value);
 
         if (value == null || value.trim().isEmpty) {
           return 'Campo obligatorio';

@@ -7,11 +7,13 @@
   },
   "scripts": {
     "lint": "eslint .",
+    "test": "node --test test/email-verification-core.test.js",
     "deploy": "firebase deploy --only functions"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0",
-    "firebase-functions": "^6.0.0"
+    "firebase-functions": "^6.0.0",
+    "resend": "^6.18.1"
   },
   "devDependencies": {
     "eslint": "^9.0.0"
