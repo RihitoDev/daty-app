@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 import '../providers/couple_provider.dart';
 import '../providers/pair_invitation_controller.dart';
 import '../services/pair_invitation_service.dart';
@@ -56,6 +57,13 @@ class _PairingDialogState extends State<PairingDialog> {
             box == null ? null : box.localToGlobal(Offset.zero) & box.size,
       ),
     );
+  }
+
+  Future<void> _copyCode(String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (mounted) {
+      CustomSnackBar.showSuccess(context, 'Código copiado');
+    }
   }
 
   Future<void> _acceptCode() async {
@@ -232,25 +240,45 @@ class _PairingDialogState extends State<PairingDialog> {
               color: customTheme.primary.withValues(alpha: 0.35),
             ),
           ),
-          child: Column(
+          child: Stack(
             children: [
-              Text(
-                invitation.code,
-                semanticsLabel: 'Código ${invitation.code}',
-                style: TextStyle(
-                  color: customTheme.text,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 7,
-                ),
+              Column(
+                children: [
+                  Text(
+                    invitation.code,
+                    semanticsLabel: 'Código ${invitation.code}',
+                    style: TextStyle(
+                      color: customTheme.text,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 7,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'La invitación vence en '
+                    '${_remainingLabel(_invitationController.remaining)}',
+                    style: TextStyle(
+                      color: customTheme.text2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'La invitación vence en '
-                '${_remainingLabel(_invitationController.remaining)}',
-                style: TextStyle(
-                  color: customTheme.text2,
-                  fontWeight: FontWeight.w600,
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton(
+                  tooltip: 'Copiar código',
+                  onPressed: () => _copyCode(invitation.code),
+                  icon: Icon(
+                    Icons.copy_rounded,
+                    color: customTheme.primary,
+                    size: 21,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: customTheme.primary.withValues(alpha: 0.1),
+                  ),
                 ),
               ),
             ],

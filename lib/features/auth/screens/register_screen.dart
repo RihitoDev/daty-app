@@ -6,7 +6,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'email_verification_screen.dart';
-import '../../../core/validators/email_validator.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,8 +24,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   String? _authError;
-  bool _isEmailValid = false;
-  bool _emailTouched = false;
   double _passwordStrength = 0;
   String _passwordStrengthLabel = '';
   Color _passwordStrengthColor = Colors.grey;
@@ -117,13 +114,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _clearError() {
     if (_authError != null) setState(() => _authError = null);
-  }
-
-  void _validateEmail(String value) {
-    setState(() {
-      _emailTouched = value.trim().isNotEmpty;
-      _isEmailValid = EmailValidator.isValidForRegister(value);
-    });
   }
 
   Future<void> _handleRegister() async {
@@ -481,15 +471,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       style: TextStyle(color: customTheme.text),
       onChanged: (value) {
         _clearError();
-
-        if (isEmail) {
-          _validateEmail(value);
-        }
       },
       validator: (value) {
-        if (isEmail) {
-          return EmailValidator.validateForRegister(value);
-        }
+        if (isEmail) return null;
 
         if (value == null || value.trim().isEmpty) {
           return 'Campo obligatorio';
@@ -520,28 +504,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
           icon,
           color: customTheme.muted,
         ),
-        suffixIcon: isEmail
-            ? (_emailTouched
-                ? Icon(
-                    _isEmailValid ? Icons.check_circle : Icons.cancel,
-                    color: _isEmailValid ? Colors.green : Colors.red,
-                  )
-                : null)
-            : (isPassword
-                ? IconButton(
-                    icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: customTheme.muted,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  )
-                : null),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                  color: customTheme.muted,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              )
+            : null,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
           vertical: 18,

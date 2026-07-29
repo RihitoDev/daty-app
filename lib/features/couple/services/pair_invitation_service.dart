@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/pair_invitation.dart';
 
@@ -22,9 +23,18 @@ class PairInvitationService implements PairInvitationGateway {
             functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final FirebaseFunctions _functions;
+  static final Map<String, PairInvitation> _invitationCache = {};
 
   @override
   Future<PairInvitation> createOrRecoverInvitation() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final cachedInvitation = uid == null ? null : _invitationCache[uid];
+
+    if (cachedInvitation != null &&
+        !cachedInvitation.isExpiredAt(DateTime.now())) {
+      return cachedInvitation;
+    }
+
     try {
       final result =
           await _functions.httpsCallable('createPairInvitation').call();
@@ -38,10 +48,12 @@ class PairInvitationService implements PairInvitationGateway {
         );
       }
 
-      return PairInvitation(
+      final invitation = PairInvitation(
         code: code,
         expiresAt: DateTime.fromMillisecondsSinceEpoch(expiresAtMillis.toInt()),
       );
+      if (uid != null) _invitationCache[uid] = invitation;
+      return invitation;
     } on FirebaseFunctionsException catch (error) {
       throw PairInvitationException(_messageFor(error));
     }
@@ -53,6 +65,8 @@ class PairInvitationService implements PairInvitationGateway {
       await _functions.httpsCallable('acceptPairInvitation').call({
         'code': code.trim().toUpperCase(),
       });
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) _invitationCache.remove(uid);
     } on FirebaseFunctionsException catch (error) {
       throw PairInvitationException(_messageFor(error));
     }
