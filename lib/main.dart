@@ -10,8 +10,10 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/profile/providers/profile_provider.dart';
 import 'features/album/providers/album_provider.dart';
 import 'features/couple/providers/couple_provider.dart';
+import 'features/couple/providers/pair_link_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/email_verification_screen.dart';
+import 'features/auth/screens/username_setup_screen.dart';
 import 'features/home/screens/home_screen.dart';
 
 Future<void> main() async {
@@ -24,6 +26,8 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   final preferences = await preferencesFuture;
+  final pairLinkProvider = PairLinkProvider();
+  await pairLinkProvider.initialize();
 
   runApp(
     MultiProvider(
@@ -55,6 +59,7 @@ Future<void> main() async {
             );
           },
         ),
+        ChangeNotifierProvider.value(value: pairLinkProvider),
       ],
       child: const DatyApp(),
     ),
@@ -98,10 +103,30 @@ class AuthWrapper extends StatelessWidget {
       return const LoginScreen();
     }
 
-    if (!user.emailVerified) {
+    if (authProvider.isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (authProvider.requiresEmailVerification) {
       return EmailVerificationScreen(
         email: user.email ?? '',
       );
+    }
+
+    if (!authProvider.isUserDataLoaded) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (!authProvider.hasCompleteProfile) {
+      return const UsernameSetupScreen();
     }
 
     return const HomeScreen();

@@ -7,3 +7,8 @@ match /pairInvites/{code} {
 match /pairInviteOwners/{uid} {
   allow read, write: if false;
 }
+
+// Los códigos y sus hashes solo son accesibles mediante Admin SDK en Functions.
+match /emailVerificationCodes/{uid} {
+  allow read, write: if false;
+}

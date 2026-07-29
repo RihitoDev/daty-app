@@ -1,16 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/email_verification_code_service.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
-  final String email;
-
   const EmailVerificationScreen({
     super.key,
     required this.email,
   });
+
+  final String email;
 
   @override
   State<EmailVerificationScreen> createState() =>
@@ -18,130 +22,226 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  bool _isChecking = false;
-  bool _isResending = false;
+  final _codeController = TextEditingController();
+  Timer? _countdownTimer;
+  int _secondsUntilResend = 0;
+  bool _isVerifying = false;
+  bool _isSending = false;
   String? _message;
   bool _isError = false;
 
-  Future<void> _checkVerification() async {
-    if (_isChecking) return;
+  bool get _isBusy => _isVerifying || _isSending;
+  bool get _canResend => !_isBusy && _secondsUntilResend == 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sendCode(initial: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  void _startCountdown(int seconds) {
+    _countdownTimer?.cancel();
+    setState(() => _secondsUntilResend = seconds.clamp(0, 60).toInt());
+
+    if (_secondsUntilResend == 0) return;
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _secondsUntilResend <= 1) {
+        timer.cancel();
+        if (mounted) setState(() => _secondsUntilResend = 0);
+        return;
+      }
+      setState(() => _secondsUntilResend -= 1);
+    });
+  }
+
+  int _retryAfterSeconds(dynamic details) {
+    if (details is Map) {
+      final value = details['retryAfterSeconds'];
+      if (value is num) return value.ceil().clamp(1, 60).toInt();
+    }
+    return 60;
+  }
+
+  Future<void> _sendCode({bool initial = false}) async {
+    if (_isSending || (!initial && !_canResend)) return;
 
     setState(() {
-      _isChecking = true;
+      _isSending = true;
       _message = null;
     });
 
-    final authProvider = context.read<AuthProvider>();
+    try {
+      final result = await context.read<AuthProvider>().sendVerificationCode();
 
-    final verified = await authProvider.refreshCurrentUser();
+      if (!mounted) return;
 
-    if (!mounted) return;
+      if (result.alreadyVerified) {
+        await context.read<AuthProvider>().refreshCurrentUser();
+        return;
+      }
 
-    if (!verified) {
+      final seconds = result.resendAvailableAt
+          .difference(DateTime.now())
+          .inSeconds
+          .clamp(1, 60)
+          .toInt();
+      _startCountdown(seconds);
       setState(() {
-        _isChecking = false;
+        _isError = false;
+        _message = initial
+            ? 'Enviamos un código de 6 dígitos a tu correo.'
+            : 'Enviamos un nuevo código. El anterior dejó de ser válido.';
+      });
+    } on EmailVerificationCodeException catch (error) {
+      if (!mounted) return;
+
+      if (error.code == 'resource-exhausted') {
+        _startCountdown(_retryAfterSeconds(error.details));
+        setState(() {
+          _isError = false;
+          _message = initial
+              ? 'Ya enviamos un código. Revisa tu bandeja de entrada.'
+              : 'Espera antes de solicitar un código nuevo.';
+        });
+      } else {
+        setState(() {
+          _isError = true;
+          _message = _sendErrorMessage(error);
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    if (_isVerifying) return;
+
+    final code = _codeController.text.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      setState(() {
+        _isError = true;
+        _message = 'Escribe los 6 dígitos del código.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isVerifying = true;
+      _message = null;
+    });
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final verified = await authProvider.verifyEmailCode(code);
+
+      if (!mounted) return;
+      if (!verified) {
+        setState(() {
+          _isError = true;
+          _message =
+              'Firebase todavía no refleja la verificación. Inténtalo nuevamente.';
+        });
+        return;
+      }
+
+      final reservedUsername = authProvider.user?.displayName?.trim() ?? '';
+      if (reservedUsername.isNotEmpty && !authProvider.hasCompleteProfile) {
+        final profileResult =
+            await authProvider.createProfileAfterVerification(reservedUsername);
+
+        if (!mounted) return;
+        if (profileResult != null) {
+          setState(() {
+            _isError = true;
+            _message =
+                'El correo fue verificado, pero no pudimos completar tu perfil.';
+          });
+          return;
+        }
+      }
+
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } on EmailVerificationCodeException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isError = true;
+        _message = _verificationErrorMessage(error);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
         _isError = true;
         _message =
-            'Tu correo todavía no ha sido verificado. Abre el enlace que enviamos y vuelve a intentarlo.';
+            'No pudimos verificar el código. Revisa tu conexión e inténtalo nuevamente.';
       });
-      return;
+    } finally {
+      if (mounted) setState(() => _isVerifying = false);
+    }
+  }
+
+  String _sendErrorMessage(EmailVerificationCodeException error) {
+    final details = error.details;
+    if (details is Map && details['reason'] == 'email-provider-rejected') {
+      return 'Resend rechazó el envío. Si todavía usas el remitente de '
+          'pruebas, prueba con el correo propietario de Resend o configura '
+          'un dominio verificado.';
     }
 
-    final username = authProvider.user?.displayName?.trim() ?? '';
+    switch (error.code) {
+      case 'unauthenticated':
+        return 'Tu sesión terminó. Vuelve a iniciar sesión.';
+      case 'failed-precondition':
+        return 'La cuenta no tiene un correo disponible.';
+      case 'internal':
+        return 'No pudimos enviar el correo. Inténtalo nuevamente.';
+      case 'unavailable':
+        return 'No hay conexión con el servidor. Revisa tu internet.';
+      default:
+        return 'No pudimos enviar el código. Inténtalo nuevamente.';
+    }
+  }
 
-    final result = await authProvider.createProfileAfterVerification(username);
-
-    if (!mounted) return;
-
-    if (result != null) {
-      setState(() {
-        _isChecking = false;
-        _isError = true;
-
-        if (result == 'not-verified') {
-          _message = 'Tu correo todavía no está verificado.';
-        } else if (result == 'no-user') {
-          _message = 'No encontramos una sesión activa.';
-        } else {
-          _message = 'No se pudo crear tu perfil. Inténtalo nuevamente.';
+  String _verificationErrorMessage(EmailVerificationCodeException error) {
+    switch (error.code) {
+      case 'invalid-argument':
+        final details = error.details;
+        if (details is Map && details['attemptsRemaining'] is num) {
+          return 'Código incorrecto. Te quedan '
+              '${details['attemptsRemaining']} intentos.';
         }
-      });
-      return;
+        return error.message;
+      case 'deadline-exceeded':
+        return 'El código venció. Solicita uno nuevo.';
+      case 'resource-exhausted':
+        return 'Se agotaron los intentos. Solicita un código nuevo.';
+      case 'failed-precondition':
+        return 'Solicita un código nuevo antes de verificar.';
+      case 'unauthenticated':
+        return 'Tu sesión terminó. Vuelve a iniciar sesión.';
+      case 'unavailable':
+        return 'No hay conexión con el servidor. Revisa tu internet.';
+      default:
+        return 'No pudimos verificar el código. Inténtalo nuevamente.';
     }
-
-    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  Future<void> _resendVerification() async {
-    if (_isResending) return;
-
-    setState(() {
-      _isResending = true;
-      _message = null;
-    });
-
-    final result = await context.read<AuthProvider>().resendVerificationEmail();
-
-    if (!mounted) return;
-
-    if (result == null) {
-      setState(() {
-        _isResending = false;
-        _isError = false;
-        _message = 'Enviamos un nuevo enlace de verificación a tu correo.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isResending = false;
-      _isError = true;
-
-      if (result == 'too-many-requests') {
-        _message = 'Has solicitado demasiados correos. Espera unos minutos.';
-      } else if (result == 'no-user') {
-        _message = 'No encontramos una sesión activa.';
-      } else {
-        _message = 'No pudimos reenviar el correo. Inténtalo nuevamente.';
-      }
-    });
-  }
-
-  Future<void> _returnToLogin() async {
-    final authProvider = context.read<AuthProvider>();
-
-    final result = await authProvider.deletePendingAccount();
-
-    if (!mounted) return;
-
-    if (result != null && result != 'no-user' && result != 'already-verified') {
-      setState(() {
-        _isError = true;
-
-        if (result == 'requires-recent-login') {
-          _message =
-              'No pudimos cancelar el registro automáticamente. Inténtalo nuevamente.';
-        } else {
-          _message = 'No pudimos cancelar el registro. Inténtalo nuevamente.';
-        }
-      });
-      return;
-    }
-
-    if (result == 'already-verified') {
-      await authProvider.signOut();
-    }
-
-    if (!mounted) return;
-
-    // No abrir LoginScreen manualmente.
-    // AuthWrapper lo mostrará porque ya no existe una sesión.
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
-  Future<bool> _handleBack() async {
-    await _returnToLogin();
-    return false;
+  Future<void> _signOut() async {
+    if (_isBusy) return;
+    await context.read<AuthProvider>().signOut();
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
@@ -150,10 +250,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (!didPop) {
-          await _handleBack();
-        }
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _signOut();
       },
       child: Scaffold(
         body: Container(
@@ -162,197 +260,162 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                customTheme.primaryLight,
-                customTheme.bg,
-              ],
+              colors: [customTheme.primaryLight, customTheme.bg],
             ),
           ),
           child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 18,
-              ),
-              child: Column(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: _returnToLogin,
-                      icon: Icon(
-                        Icons.arrow_back_ios_new,
-                        color: customTheme.text,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: customTheme.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.mark_email_unread_outlined,
-                      size: 58,
-                      color: customTheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Verifica tu correo',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: customTheme.text,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Enviamos un enlace de verificación a:',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: customTheme.text2,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.email,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: customTheme.primary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Abre el mensaje, confirma tu correo y luego vuelve aquí para continuar.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: customTheme.text2,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  if (_message != null)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      margin: const EdgeInsets.only(bottom: 18),
-                      decoration: BoxDecoration(
-                        color: _isError
-                            ? customTheme.accent.withValues(alpha: 0.1)
-                            : customTheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: _isError
-                              ? customTheme.accent.withValues(alpha: 0.3)
-                              : customTheme.primary.withValues(alpha: 0.3),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          tooltip: 'Cerrar sesión',
+                          onPressed: _isBusy ? null : _signOut,
+                          icon: Icon(
+                            Icons.arrow_back_ios_new,
+                            color: customTheme.text,
+                          ),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _isError
-                                ? Icons.error_outline
-                                : Icons.check_circle_outline,
+                      Icon(
+                        Icons.mark_email_unread_outlined,
+                        size: 82,
+                        color: customTheme.primary,
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Verifica tu correo',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: customTheme.text,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Escribe el código que enviamos a',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: customTheme.text2),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        widget.email,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: customTheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 26),
+                      TextField(
+                        controller: _codeController,
+                        enabled: !_isBusy,
+                        autofocus: true,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.done,
+                        textAlign: TextAlign.center,
+                        maxLength: 6,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        onChanged: (_) {
+                          if (_message != null && _isError) {
+                            setState(() => _message = null);
+                          }
+                        },
+                        onSubmitted: (_) => _verifyCode(),
+                        style: TextStyle(
+                          color: customTheme.text,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 10,
+                        ),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          hintText: '000000',
+                          filled: true,
+                          fillColor: customTheme.card.withValues(alpha: 0.85),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                      if (_message != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          _message!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
                             color: _isError
                                 ? customTheme.accent
-                                : customTheme.primary,
+                                : customTheme.text2,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _message!,
-                              style: TextStyle(
-                                color: customTheme.text,
-                                fontWeight: FontWeight.w600,
-                              ),
+                        ),
+                      ],
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _isBusy ? null : _verifyCode,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: customTheme.primary,
+                            foregroundColor: customTheme.card,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _isChecking ? null : _checkVerification,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: customTheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
+                          child: _isVerifying
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Verificar',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
-                      child: _isChecking
-                          ? SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: customTheme.card,
-                                strokeWidth: 3,
+                      const SizedBox(height: 10),
+                      TextButton(
+                        onPressed: _canResend ? () => _sendCode() : null,
+                        child: _isSending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                ),
+                              )
+                            : Text(
+                                _secondsUntilResend > 0
+                                    ? 'Reenviar código en '
+                                        '${_secondsUntilResend}s'
+                                    : 'Reenviar código',
                               ),
-                            )
-                          : Text(
-                              'Ya verifiqué mi correo',
-                              style: TextStyle(
-                                color: customTheme.card,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: _isResending ? null : _resendVerification,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: customTheme.primary,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
                       ),
-                      child: _isResending
-                          ? SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                color: customTheme.primary,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : Text(
-                              'Reenviar correo',
-                              style: TextStyle(
-                                color: customTheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: _returnToLogin,
-                    child: Text(
-                      'Cambiar correo',
-                      style: TextStyle(
-                        color: customTheme.text2,
-                        fontWeight: FontWeight.w600,
+                      TextButton(
+                        onPressed: _isBusy ? null : _signOut,
+                        child: const Text('Cerrar sesión'),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
