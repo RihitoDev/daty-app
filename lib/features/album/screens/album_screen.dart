@@ -74,10 +74,14 @@ class _AllAlbumList extends StatelessWidget {
         }
         
         if (snapshot.hasError) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Text('Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', textAlign: TextAlign.center, style: TextStyle(color: Colors.red)),
+              padding: const EdgeInsets.all(20.0),
+              child: SelectableText(
+                'Error al cargar recuerdos:\n${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              ),
             ),
           );
         }

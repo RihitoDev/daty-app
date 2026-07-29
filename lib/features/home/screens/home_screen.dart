@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,6 +12,7 @@ import '../../couple/widgets/couple_adventure_card.dart';
 import '../../group/screens/group_loby.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../album/screens/album_screen.dart';
+import '../../calendar/screens/calendar_screen.dart';
 import '../../../shared/widgets/adventure_action_card.dart';
 import '../../../shared/widgets/pressable_scale.dart';
 
@@ -177,23 +177,6 @@ class _HomeContentState extends State<HomeContent> {
   int _currentPage = 1000;
   int _adventuresCount = 0;
 
-  bool _showBubble = false;
-  String _currentPhrase = '';
-  Timer? _bubbleTimer;
-
-  final List<String> _mascotPhrases = [
-    '¡Vive una aventura!',
-    '¿Felices por siempre?',
-    '¿Qué vas a hacer hoy?',
-    '¡Explora el mundo!',
-    '¿Listo para la acción?',
-    'El mapa te espera...',
-    '¡A romper la rutina!',
-    '¿Te animas a salir?',
-    '¡Crea un recuerdo hoy!',
-    '¡Arriesgate a vivir!'
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -205,7 +188,6 @@ class _HomeContentState extends State<HomeContent> {
   @override
   void dispose() {
     _stopAutoScroll();
-    _bubbleTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }
@@ -255,24 +237,6 @@ class _HomeContentState extends State<HomeContent> {
     List<String> parts = name.split(' ');
     if (parts.length > 1) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
-  }
-
-  void _onMascotTapped() {
-    final random = Random();
-    _bubbleTimer?.cancel();
-
-    setState(() {
-      _currentPhrase = _mascotPhrases[random.nextInt(_mascotPhrases.length)];
-      _showBubble = true;
-    });
-
-    _bubbleTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _showBubble = false;
-        });
-      }
-    });
   }
 
   @override
@@ -375,19 +339,27 @@ class _HomeContentState extends State<HomeContent> {
                   _decorativeCircle(125, Colors.white.withValues(alpha: 0.08))),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              GestureDetector(
-                onTap: _onMascotTapped,
+              PressableScale(
+                scale: 0.92,
+                onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CalendarScreen())),
                 child: Container(
                   width: 58,
                   height: 58,
-                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.28),
+                          Colors.white.withValues(alpha: 0.10),
+                        ],
+                      ),
                       borderRadius: BorderRadius.circular(18)),
-                  child: Image.asset('assets/images/mascot.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.pets, color: Colors.white)),
+                  child: const Icon(Icons.calendar_month_rounded,
+                      color: Colors.white, size: 26),
                 ),
               ),
               const SizedBox(width: 13),
@@ -450,11 +422,6 @@ class _HomeContentState extends State<HomeContent> {
                           fontWeight: FontWeight.w600))),
             ]),
           ]),
-          if (_showBubble)
-            Positioned(
-                left: 42,
-                top: 50,
-                child: _buildSpeechBubble(_currentPhrase, customTheme)),
         ],
       ),
     );
@@ -480,44 +447,6 @@ class _HomeContentState extends State<HomeContent> {
       width: size,
       height: size,
       decoration: BoxDecoration(shape: BoxShape.circle, color: color));
-
-  Widget _buildSpeechBubble(String text, AppCustomTheme customTheme) {
-    return AnimatedOpacity(
-      opacity: _showBubble ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 300),
-      child: AnimatedScale(
-        scale: _showBubble ? 1.0 : 0.5,
-        curve: Curves.elasticOut,
-        duration: const Duration(milliseconds: 400),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width *
-                  0.55), // Limitamos al 55% para que no se haga demasiado ancho
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: customTheme.card,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Text(
-              text,
-              style: TextStyle(
-                  color: customTheme.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildAdventureCarousel(AppCustomTheme customTheme) {
     return SizedBox(
