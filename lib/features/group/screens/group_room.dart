@@ -122,22 +122,35 @@ class _GroupRoomState extends State<GroupRoom> {
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)]),
-                    child: Column(
-                      children: [
-                        const Text('Código del Grupo:', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 10),
-                        Text(widget.groupCode, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 5, color: Color(0xFF8E24AA))),
-                        const SizedBox(height: 15),
-                        
-                        if (isCreator)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 640),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+                        child: Column(
+                          children: [
+                            const Text('Código del Grupo:', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 10),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                widget.groupCode,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 5, color: Color(0xFF8E24AA)),
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+
+                            if (isCreator)
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 10,
+                                children: [
                               const Text('Límite del grupo:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
-                              const SizedBox(width: 10),
                               DropdownButton<int>(
                                 value: _maxMembers,
                                 underline: Container(),
@@ -154,11 +167,13 @@ class _GroupRoomState extends State<GroupRoom> {
                                   }
                                 },
                               ),
-                            ],
-                          )
-                        else
-                          Text('${_members.length}/$_maxMembers Aventureros', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
-                      ],
+                                ],
+                              )
+                            else
+                              Text('${_members.length}/$_maxMembers Aventureros', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   

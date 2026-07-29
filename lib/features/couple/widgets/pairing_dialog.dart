@@ -121,70 +121,92 @@ class _PairingDialogState extends State<PairingDialog> {
                 ),
               ),
             ),
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: customTheme.muted.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(10),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final horizontalPadding =
+                    constraints.maxWidth >= 600 ? 32.0 : 22.0;
+
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        10,
+                        horizontalPadding,
+                        24,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color:
+                                  customTheme.muted.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: 'Cerrar',
+                              onPressed: _close,
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: customTheme.muted,
+                              ),
+                            ),
+                          ),
+                          Image.asset(
+                            'assets/images/mascot.png',
+                            height: keyboardHeight > 0 ? 60 : 92,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.favorite_rounded,
+                              size: 64,
+                              color: customTheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _enteringCode
+                                ? 'Ingresa tu código'
+                                : 'Vincúlate con alguien',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: customTheme.text,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _enteringCode
+                                ? 'Escribe el código que te compartió la otra persona.'
+                                : 'Comparte este código con la persona con la que quieres vivir aventuras.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: customTheme.text2,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            child: _enteringCode
+                                ? _buildCodeEntry(customTheme)
+                                : _buildInvitation(customTheme),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      tooltip: 'Cerrar',
-                      onPressed: _close,
-                      icon: Icon(Icons.close_rounded, color: customTheme.muted),
-                    ),
-                  ),
-                  Image.asset(
-                    'assets/images/mascot.png',
-                    height: keyboardHeight > 0 ? 60 : 92,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.favorite_rounded,
-                      size: 64,
-                      color: customTheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _enteringCode
-                        ? 'Ingresa tu código'
-                        : 'Vincúlate con alguien',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: customTheme.text,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _enteringCode
-                        ? 'Escribe el código que te compartió la otra persona.'
-                        : 'Comparte este código con la persona con la que quieres vivir aventuras.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: customTheme.text2,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: _enteringCode
-                        ? _buildCodeEntry(customTheme)
-                        : _buildInvitation(customTheme),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -240,48 +262,69 @@ class _PairingDialogState extends State<PairingDialog> {
               color: customTheme.primary.withValues(alpha: 0.35),
             ),
           ),
-          child: Stack(
-            children: [
-              Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 340;
+
+              return Stack(
+                alignment: Alignment.topCenter,
                 children: [
-                  Text(
-                    invitation.code,
-                    semanticsLabel: 'Código ${invitation.code}',
-                    style: TextStyle(
-                      color: customTheme.text,
-                      fontSize: 34,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 7,
+                  SizedBox(
+                    width: double.infinity,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 40 : 52,
+                      ),
+                      child: Column(
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              invitation.code,
+                              semanticsLabel: 'Código ${invitation.code}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: customTheme.text,
+                                fontSize: compact ? 29 : 34,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: compact ? 4 : 7,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'La invitación vence en '
+                            '${_remainingLabel(_invitationController.remaining)}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: customTheme.text2,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'La invitación vence en '
-                    '${_remainingLabel(_invitationController.remaining)}',
-                    style: TextStyle(
-                      color: customTheme.text2,
-                      fontWeight: FontWeight.w600,
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      tooltip: 'Copiar código',
+                      onPressed: () => _copyCode(invitation.code),
+                      icon: Icon(
+                        Icons.copy_rounded,
+                        color: customTheme.primary,
+                        size: 21,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor:
+                            customTheme.primary.withValues(alpha: 0.1),
+                      ),
                     ),
                   ),
                 ],
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: IconButton(
-                  tooltip: 'Copiar código',
-                  onPressed: () => _copyCode(invitation.code),
-                  icon: Icon(
-                    Icons.copy_rounded,
-                    color: customTheme.primary,
-                    size: 21,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: customTheme.primary.withValues(alpha: 0.1),
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 18),
