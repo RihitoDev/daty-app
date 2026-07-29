@@ -6,7 +6,6 @@ import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
 import '../widgets/reset_password_dialog.dart';
-import '../../../core/validators/email_validator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,9 +34,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _validateEmail(String value) {
+    final email = value.trim();
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+
     setState(() {
-      _emailTouched = true;
-      _isEmailValid = EmailValidator.isValid(value);
+      _emailTouched = email.isNotEmpty;
+      _isEmailValid = emailRegex.hasMatch(email);
     });
   }
 

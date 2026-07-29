@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
-import '../../../core/validators/email_validator.dart';
 
 class ResetPasswordDialog extends StatefulWidget {
   const ResetPasswordDialog({super.key});
@@ -116,55 +115,56 @@ actions: [
       ),
     ),
     onPressed: () async {
-  final email = _emailController.text.trim();
+      final email = _emailController.text.trim();
+      final emailRegex = RegExp(
+        r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(com|org|net|edu)$',
+      );
 
-final error = EmailValidator.validate(email);
+      if (email.isEmpty || !emailRegex.hasMatch(email)) {
+        setState(() {
+          _dialogError = email.isEmpty
+              ? 'El correo es obligatorio'
+              : 'Ingresa un correo electrónico válido';
+        });
+        return;
+      }
 
-if (error != null) {
-  setState(() {
-    _dialogError = error;
-  });
-  return;
-}
+      final authProvider = Provider.of<AuthProvider>(
+        context,
+        listen: false,
+      );
+      final result = await authProvider.resetPassword(email);
 
-  // Aquí conectaremos Firebase en el siguiente paso.
-  final authProvider = Provider.of<AuthProvider>(
-  context,
-  listen: false,
-);
+      if (!mounted) return;
 
-final result = await authProvider.resetPassword(email);
+      if (result == null) {
+        Navigator.pop(context);
 
-if (!mounted) return;
+        if (!context.mounted) return;
 
-if (result == null) {
-  Navigator.pop(context);
-
-  if (!context.mounted) return;
-
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Correo enviado'),
-      content: const Text(
-        'Revisa tu bandeja de entrada para restablecer tu contraseña.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Aceptar'),
-        ),
-      ],
-    ),
-  );
-} else {
-  setState(() {
-    _dialogError = result == 'not-found'
-        ? 'No existe una cuenta con ese correo.'
-        : 'Ocurrió un error. Inténtalo nuevamente.';
-  });
-}
-},
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Correo enviado'),
+            content: const Text(
+              'Revisa tu bandeja de entrada para restablecer tu contraseña.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Aceptar'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        setState(() {
+          _dialogError = result == 'not-found'
+              ? 'No existe una cuenta con ese correo.'
+              : 'Ocurrió un error. Inténtalo nuevamente.';
+        });
+      }
+    },
     child: Text(
       'Enviar',
       style: TextStyle(color: customTheme.card),
