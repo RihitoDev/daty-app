@@ -1,30 +1,56 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:magic_dates/main.dart';
+import 'package:magic_dates/shared/widgets/contract_rule_tile.dart';
+import 'package:magic_dates/shared/widgets/pressable_scale.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const DatyApp());
+  testWidgets('ContractRuleTile alterna su estado al tocarlo', (tester) async {
+    var isChecked = false;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => ContractRuleTile(
+              value: isChecked,
+              text: 'Aceptar el compromiso',
+              accent: Colors.purple,
+              textColor: Colors.black,
+              onChanged: (value) => setState(() => isChecked = value),
+            ),
+          ),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Aceptar el compromiso'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.text('Aceptar el compromiso'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(isChecked, isTrue);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+  });
+
+  testWidgets('PressableScale ejecuta la acción configurada', (tester) async {
+    var tapCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PressableScale(
+            semanticsLabel: 'Abrir aventura',
+            onTap: () => tapCount++,
+            child: const Text('Aventura'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Aventura'));
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(tapCount, 1);
   });
 }
