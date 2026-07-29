@@ -1,29 +1,34 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AlbumMemory {
+  final String id;
   final String type;
   final String title;
   final String emoji;
   final DateTime date;
   final List<String> reviews;
   final List<String> photoUrls;
+  final Map<String, dynamic>? rawData;
 
   AlbumMemory({
+    required this.id,
     required this.type,
     required this.title,
     required this.emoji,
     required this.date,
     required this.reviews,
     required this.photoUrls,
+    this.rawData,
   });
 
-  factory AlbumMemory.fromSoloFirestore(Map<String, dynamic> data) {
+  factory AlbumMemory.fromSoloFirestore(Map<String, dynamic> data, {String id = ''}) {
     List<String> photos = [];
     if (data['photos'] is List) {
       photos = List<String>.from(data['photos']);
     }
 
     return AlbumMemory(
+      id: id.isNotEmpty ? id : (data['id'] ?? ''),
       type: 'Solo',
       title: data['adventure_title'] ?? data['title'] ?? 'Aventura',
       emoji: data['emoji'] ?? '🧘‍♂️',
@@ -33,10 +38,16 @@ class AlbumMemory {
           data['review'].toString()
       ],
       photoUrls: photos,
+      rawData: data,
     );
   }
 
-  factory AlbumMemory.fromCoupleFirestore(Map<String, dynamic> data, String user1Name, String user2Name) {
+  factory AlbumMemory.fromCoupleFirestore(
+    Map<String, dynamic> data,
+    String user1Name,
+    String user2Name, {
+    String id = '',
+  }) {
     List<String> reviews = [];
     if (data['user1_review'] != null && data['user1_review'].toString().isNotEmpty) {
       reviews.add('$user1Name: ${data['user1_review']}');
@@ -54,16 +65,18 @@ class AlbumMemory {
     }
 
     return AlbumMemory(
+      id: id.isNotEmpty ? id : (data['id'] ?? ''),
       type: 'Pareja',
       title: data['adventure_title'] ?? data['title'] ?? 'Cita',
       emoji: data['emoji'] ?? '❤️',
       date: _parseDate(data['timestamp'] ?? data['date'] ?? data['createdAt']),
       reviews: reviews,
       photoUrls: photos,
+      rawData: data,
     );
   }
 
-  factory AlbumMemory.fromGroupFirestore(Map<String, dynamic> data) {
+  factory AlbumMemory.fromGroupFirestore(Map<String, dynamic> data, {String id = ''}) {
     List<String> photos = [];
     if (data['photos'] is List) {
       photos = List<String>.from(data['photos']);
@@ -72,12 +85,14 @@ class AlbumMemory {
     }
 
     return AlbumMemory(
+      id: id.isNotEmpty ? id : (data['id'] ?? ''),
       type: 'Grupo',
       title: data['adventure_title'] ?? data['title'] ?? 'Expedición',
       emoji: data['emoji'] ?? '👥',
       date: _parseDate(data['timestamp'] ?? data['date'] ?? data['createdAt']),
       reviews: [],
       photoUrls: photos,
+      rawData: data,
     );
   }
 

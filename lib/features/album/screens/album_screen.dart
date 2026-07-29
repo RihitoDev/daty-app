@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/album_provider.dart';
-import '../models/album_memory.dart';
-import '../widgets/memory_card.dart';
+
+import '../../../core/providers/theme_provider.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
+import '../models/album_memory.dart';
+import '../providers/album_provider.dart';
+import '../widgets/memory_card.dart';
 
 class AlbumScreen extends StatefulWidget {
   const AlbumScreen({super.key});
@@ -15,29 +17,35 @@ class AlbumScreen extends StatefulWidget {
 class _AlbumScreenState extends State<AlbumScreen> {
   @override
   Widget build(BuildContext context) {
-    // Usamos DefaultTabController para ahorrarnos instanciar y manejar el TabController a mano
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
+
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: customTheme.bg,
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             'Álbum de Recuerdos',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20),
+            style: TextStyle(
+              color: customTheme.text,
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+            ),
           ),
-          backgroundColor: const Color(0xFF9C27B0),
+          backgroundColor: customTheme.elevatedSurface,
           centerTitle: true,
           elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
-          bottom: const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white60,
-            indicatorColor: Colors.amberAccent,
+          iconTheme: IconThemeData(color: customTheme.text),
+          bottom: TabBar(
+            labelColor: customTheme.primary,
+            unselectedLabelColor: customTheme.muted,
+            indicatorColor: customTheme.primary,
             indicatorWeight: 3,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: 11),
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            unselectedLabelStyle:
+                const TextStyle(fontWeight: FontWeight.normal, fontSize: 11),
             isScrollable: false,
-            tabs: [
+            tabs: const [
               Tab(text: 'TODOS', icon: Icon(Icons.auto_stories, size: 18)),
               Tab(text: 'SOLO', icon: Icon(Icons.backpack_outlined, size: 18)),
               Tab(text: 'PAREJA', icon: Icon(Icons.favorite_outline, size: 18)),
@@ -63,16 +71,18 @@ class _AllAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
     final provider = context.watch<AlbumProvider>();
 
-    // StreamBuilder se encarga de re-dibujar la lista si entran nuevos datos desde Firebase/Provider
     return StreamBuilder<List<AlbumMemory>>(
       stream: provider.allStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF9C27B0)));
+          return Center(
+            child: CircularProgressIndicator(color: customTheme.primary),
+          );
         }
-        
+
         if (snapshot.hasError) {
           return Center(
             child: Padding(
@@ -89,7 +99,8 @@ class _AllAlbumList extends StatelessWidget {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const EmptyStateWidget(
             icon: Icons.auto_stories,
-            message: 'Aún no tienes recuerdos guardados.\n¡Completa una aventura!',
+            message:
+                'Aún no tienes recuerdos guardados.\n¡Completa una aventura!',
           );
         }
 
@@ -109,26 +120,43 @@ class _SoloAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
     final provider = context.watch<AlbumProvider>();
 
     return StreamBuilder<List<AlbumMemory>>(
       stream: provider.soloStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF1976D2)));
+          return Center(
+            child: CircularProgressIndicator(color: customTheme.primary),
+          );
         }
-        
+
         if (snapshot.hasError) {
-          return const Center(child: Text('Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', style: TextStyle(color: Colors.red)));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: SelectableText(
+                'Error al cargar aventuras solitarias:\n${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const EmptyStateWidget(icon: Icons.backpack_outlined, message: 'Aún no tienes aventuras solitarias.\n¡Explora por tu cuenta!');
+          return const EmptyStateWidget(
+            icon: Icons.backpack_outlined,
+            message:
+                'Aún no tienes aventuras solitarias.\n¡Explora por tu cuenta!',
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: snapshot.data!.length,
-          itemBuilder: (context, index) => MemoryCard(memory: snapshot.data![index]),
+          itemBuilder: (context, index) =>
+              MemoryCard(memory: snapshot.data![index]),
         );
       },
     );
@@ -140,31 +168,49 @@ class _CoupleAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
     final provider = context.watch<AlbumProvider>();
 
-    // Bloqueamos la vista de pareja si el usuario aún no tiene un partnerId vinculado
     if (provider.partnerId == null) {
-      return const EmptyStateWidget(icon: Icons.favorite_border, message: 'Vincúlate con alguien para ver el álbum de pareja.');
+      return const EmptyStateWidget(
+        icon: Icons.favorite_border,
+        message: 'Vincúlate con alguien para ver el álbum de pareja.',
+      );
     }
 
     return StreamBuilder<List<AlbumMemory>>(
       stream: provider.coupleStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFFC2185B)));
+          return Center(
+            child: CircularProgressIndicator(color: customTheme.primary),
+          );
         }
-        
+
         if (snapshot.hasError) {
-          return const Center(child: Text('Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', style: TextStyle(color: Colors.red)));
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: SelectableText(
+                'Error al cargar recuerdos de pareja:\n${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const EmptyStateWidget(icon: Icons.favorite_outline, message: 'Aún no tienen aventuras juntos.\n¡Planeen una cita!');
+          return const EmptyStateWidget(
+            icon: Icons.favorite_outline,
+            message: 'Aún no tienen aventuras juntos.\n¡Planeen una cita!',
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.only(top: 10, bottom: 20),
           itemCount: snapshot.data!.length,
-          itemBuilder: (context, index) => MemoryCard(memory: snapshot.data![index]),
+          itemBuilder: (context, index) =>
+              MemoryCard(memory: snapshot.data![index]),
         );
       },
     );
@@ -176,32 +222,38 @@ class _GroupAlbumList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final customTheme = context.watch<ThemeProvider>().currentTheme;
     final provider = context.watch<AlbumProvider>();
 
     return StreamBuilder<List<AlbumMemory>>(
       stream: provider.groupStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF8E24AA)));
+          return Center(
+            child: CircularProgressIndicator(color: customTheme.primary),
+          );
         }
-        
+
         if (snapshot.hasError) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Ocurrió un error al cargar los recuerdos. Desliza hacia abajo para reintentar.', 
+              padding: const EdgeInsets.all(20.0),
+              child: SelectableText(
+                'Error al cargar expediciones grupales:\n${snapshot.error}',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.red, fontSize: 13),
               ),
             ),
           );
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const EmptyStateWidget(icon: Icons.groups_outlined, message: 'Aún no hay expediciones grupales.\n¡Arma un grupo!');
+          return const EmptyStateWidget(
+            icon: Icons.groups_outlined,
+            message: 'Aún no hay expediciones grupales.\n¡Arma un grupo!',
+          );
         }
-        
+
         final memories = snapshot.data!;
         return ListView.builder(
           padding: const EdgeInsets.only(top: 10, bottom: 20),

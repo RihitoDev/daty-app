@@ -12,7 +12,7 @@ class AlbumService {
         .limit(50)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => AlbumMemory.fromSoloFirestore(doc.data()))
+            .map((doc) => AlbumMemory.fromSoloFirestore(doc.data(), id: doc.id))
             .toList())
         .handleError((error, stack) {
           debugPrint('Fallo al leer la colección solo_memories: $error');
@@ -28,7 +28,7 @@ class AlbumService {
         .limit(50)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => AlbumMemory.fromCoupleFirestore(doc.data(), user1Name, user2Name))
+            .map((doc) => AlbumMemory.fromCoupleFirestore(doc.data(), user1Name, user2Name, id: doc.id))
             .toList())
         .handleError((error, stack) {
           debugPrint('Fallo al leer la colección de pareja: $error');
@@ -41,10 +41,19 @@ class AlbumService {
         .collection('users')
         .doc(myUid)
         .snapshots()
+        .distinct((prev, curr) {
+          final List prevList = prev.data()?['savedGroupMemories'] ?? [];
+          final List currList = curr.data()?['savedGroupMemories'] ?? [];
+          if (prevList.length != currList.length) return false;
+          for (var i = 0; i < prevList.length; i++) {
+            if (prevList[i] != currList[i]) return false;
+          }
+          return true;
+        })
         .asyncExpand((userSnap) async* {
-      
-      final List<dynamic> savedIds = userSnap.data()?['savedGroupMemories'] ?? [];
-      
+      final List<dynamic> savedIds =
+          userSnap.data()?['savedGroupMemories'] ?? [];
+
       if (savedIds.isEmpty) {
         yield [];
         return;
@@ -52,7 +61,8 @@ class AlbumService {
 
       List<List<dynamic>> chunks = [];
       for (var i = 0; i < savedIds.length; i += 10) {
-        chunks.add(savedIds.sublist(i, i + 10 > savedIds.length ? savedIds.length : i + 10));
+        chunks.add(savedIds.sublist(
+            i, i + 10 > savedIds.length ? savedIds.length : i + 10));
       }
 
       try {
@@ -65,7 +75,9 @@ class AlbumService {
 
         List<AlbumMemory> all = [];
         for (var snap in snapshots) {
-          all.addAll(snap.docs.map((doc) => AlbumMemory.fromGroupFirestore(doc.data() as Map<String, dynamic>)));
+          all.addAll(snap.docs.map((doc) => AlbumMemory.fromGroupFirestore(
+              doc.data() as Map<String, dynamic>,
+              id: doc.id)));
         }
         all.sort((a, b) => b.date.compareTo(a.date));
         yield all;
