@@ -33,13 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
   void _clearError() {
     if (_authError != null) setState(() => _authError = null);
   }
-  
+
   void _validateEmail(String value) {
-  setState(() {
-    _emailTouched = true;
-    _isEmailValid = EmailValidator.isValid(value);
-  });
-}
+    setState(() {
+      _emailTouched = true;
+      _isEmailValid = EmailValidator.isValid(value);
+    });
+  }
 
   void _handleLogin() async {
     _clearError();
