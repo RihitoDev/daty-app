@@ -42,9 +42,9 @@ class _AlbumScreenState extends State<AlbumScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Header & Título
+            // 1. Header & Título Limpio
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
               child: Row(
                 children: [
                   if (Navigator.canPop(context)) ...[
@@ -76,7 +76,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
               ),
             ),
 
-            // 2. Filtros estilo Pill / Cápsula (TODOS, SOLO, PAREJA, GRUPO)
+            // 2. Filtros Flotantes de Cápsula Minimalista
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
               child: SingleChildScrollView(
@@ -95,7 +95,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
               ),
             ),
 
-            // 3. Grid Escalonado 2-Columnas Estilo Instagram / Pinterest
+            // 3. Grid Escalonado 2-Columnas de Aireamiento Amplio
             Expanded(
               child: StreamBuilder<List<AlbumMemory>>(
                 stream: _getCategoryStream(provider),
@@ -150,16 +150,17 @@ class _AlbumScreenState extends State<AlbumScreen> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
           color: isSelected
               ? (t.isDark ? const Color(0xFFA855F7) : t.primary)
-              : (t.isDark ? const Color(0xFF222228) : t.elevatedSurface),
+              : (t.isDark ? const Color(0xFF1E1E24) : t.elevatedSurface),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: isSelected
                 ? Colors.transparent
-                : t.outline.withValues(alpha: 0.8),
+                : t.outline.withValues(alpha: 0.6),
+            width: 1,
           ),
           boxShadow: isSelected
               ? [
@@ -178,9 +179,9 @@ class _AlbumScreenState extends State<AlbumScreen> {
             color: isSelected
                 ? Colors.white
                 : (t.isDark ? Colors.grey.shade400 : t.muted),
-            fontSize: 12.5,
+            fontSize: 12,
             fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-            letterSpacing: 0.6,
+            letterSpacing: 0.5,
           ),
         ),
       ),
@@ -201,7 +202,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -217,7 +218,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
               }).toList(),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           // Columna Derecha
           Expanded(
             child: Column(
@@ -236,8 +237,8 @@ class _AlbumScreenState extends State<AlbumScreen> {
   }
 
   double _getDynamicHeight(int index, bool isLeft) {
-    final heightsLeft = [200.0, 260.0, 220.0];
-    final heightsRight = [270.0, 210.0, 250.0];
+    final heightsLeft = [210.0, 260.0, 225.0];
+    final heightsRight = [265.0, 215.0, 250.0];
 
     if (isLeft) {
       return heightsLeft[(index ~/ 2) % heightsLeft.length];
