@@ -1,15 +1,14 @@
 import 'dart:ui';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/full_screen_image_viewer.dart';
 import '../../../shared/widgets/pressable_scale.dart';
 import '../../album/models/album_memory.dart';
 import '../../album/providers/album_provider.dart';
+import '../../album/widgets/memory_card.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -567,229 +566,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           ),
         ),
-        ...memories.map((m) => _buildMemoryCard(t, m)),
-      ],
-    );
-  }
-
-  Widget _buildMemoryCard(AppCustomTheme t, AlbumMemory memory) {
-    final typeColor = _typeColor(memory.type);
-    final typeIcon = _typeIcon(memory.type);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: t.elevatedSurface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: t.outline),
-        boxShadow: [
-          BoxShadow(
-            color: t.shadow,
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-          if (t.isDark)
-            BoxShadow(
-              color: typeColor.withValues(alpha: 0.12),
-              blurRadius: 20,
-              spreadRadius: -4,
-            ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Cabecera: Badge de Tipo + Fecha
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: typeColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: typeColor.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(typeIcon, size: 14, color: typeColor),
-                          const SizedBox(width: 5),
-                          Text(
-                            memory.type.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: typeColor,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today_outlined,
-                            size: 13, color: t.muted),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDay(memory.date),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: t.muted,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Título de la Aventura
-                Text(
-                  '${memory.emoji} ${memory.title}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: t.text,
-                    height: 1.25,
-                  ),
-                ),
-
-                // Reseñas / Comentarios
-                if (memory.reviews.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ...memory.reviews.map(
-                    (review) => Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: t.isDark
-                            ? Colors.black.withValues(alpha: 0.25)
-                            : t.primaryLight.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: t.outline.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.format_quote_rounded,
-                            size: 16,
-                            color: typeColor.withValues(alpha: 0.8),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              review,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: t.text,
-                                height: 1.4,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-
-                // Galería de Fotos
-                const SizedBox(height: 12),
-                if (memory.photoUrls.isNotEmpty)
-                  SizedBox(
-                    height: 120,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: memory.photoUrls.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final photoUrl = memory.photoUrls[index];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FullScreenImageViewer(
-                                    imageUrl: photoUrl),
-                              ),
-                            );
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              width: 140,
-                              decoration: BoxDecoration(
-                                color: t.isDark
-                                    ? Colors.grey.shade900
-                                    : Colors.grey.shade200,
-                              ),
-                              child: CachedNetworkImage(
-                                imageUrl: photoUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) => Center(
-                                  child: CircularProgressIndicator(
-                                      color: t.primary, strokeWidth: 2),
-                                ),
-                                errorWidget: (_, __, ___) => Icon(
-                                  Icons.broken_image_outlined,
-                                  color: t.muted,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: t.isDark
-                          ? Colors.white.withValues(alpha: 0.04)
-                          : Colors.black.withValues(alpha: 0.03),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.photo_outlined,
-                            color: t.muted, size: 14),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Sin fotografías adjuntas',
-                          style: TextStyle(
-                            color: t.muted,
-                            fontSize: 11.5,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+        ...memories.map(
+          (m) => MemoryCard(
+            memory: m,
+            cardHeight: 230,
           ),
         ),
-      ),
+      ],
     );
   }
 }

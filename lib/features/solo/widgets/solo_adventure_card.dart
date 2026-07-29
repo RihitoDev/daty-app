@@ -16,7 +16,18 @@ class SoloAdventureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final myUid = authProvider.user!.uid;
+    final user = authProvider.user;
+    if (user == null) {
+      return _buildCard(
+        title: 'Aventura en solitario',
+        subtitle: 'Cargando...',
+        gradientColors: [Colors.grey, Colors.grey.shade700],
+        icon: Icons.hourglass_empty,
+        onTap: null,
+      );
+    }
+
+    final myUid = user.uid;
 
     // Revisamos en tiempo real si el usuario ya aceptó el contrato de la aventura
     return StreamBuilder<DocumentSnapshot>(
@@ -25,18 +36,32 @@ class SoloAdventureCard extends StatelessWidget {
           .doc(myUid)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _buildCard(
+            title: 'Aventura en solitario',
+            subtitle: 'Error al conectar',
+            gradientColors: const [Colors.redAccent, Colors.red],
+            icon: Icons.error_outline,
+            onTap: null,
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildCard(
-              title: 'Aventura en solitario',
-              subtitle: 'Cargando...',
-              gradientColors: [Colors.grey, Colors.grey.shade700],
-              icon: Icons.hourglass_empty,
-              onTap: null);
+            title: 'Aventura en solitario',
+            subtitle: 'Cargando...',
+            gradientColors: [Colors.grey, Colors.grey.shade700],
+            icon: Icons.hourglass_empty,
+            onTap: null,
+          );
         }
 
         bool contractAccepted = false;
-        if (snapshot.hasData && snapshot.data!.exists) {
-          contractAccepted = snapshot.data!['contractAccepted'] ?? false;
+        if (snapshot.hasData &&
+            snapshot.data != null &&
+            snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          contractAccepted = data?['contractAccepted'] ?? false;
         }
 
         // Si no ha firmado el compromiso, al tocar le abrimos el diálogo

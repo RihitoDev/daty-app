@@ -43,9 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
         children: _screens,
       ),
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(18, 4, 18, 12),
+        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         child: Container(
-          height: 72,
+          height: 66,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
             color: customTheme.elevatedSurface,
@@ -203,6 +203,11 @@ class _HomeContentState extends State<HomeContent> {
       final adventures = snapshot.docs.map((doc) => doc.data()).toList();
       adventures.shuffle();
       _fetchFailed = false;
+      _adventuresCount = adventures.length;
+      if (_adventuresCount > 0) {
+        _currentPage = _adventuresCount * 500;
+        _startAutoScroll();
+      }
       return adventures;
     } catch (e) {
       _fetchFailed = true;
@@ -213,10 +218,10 @@ class _HomeContentState extends State<HomeContent> {
 
   void _startAutoScroll() {
     _stopAutoScroll();
-    if (_adventuresCount == 0) return;
+    if (_adventuresCount <= 1) return;
 
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (_pageController.hasClients) {
+      if (_pageController.hasClients && mounted) {
         _currentPage++;
         _pageController.animateToPage(
           _currentPage,
@@ -399,6 +404,11 @@ class _HomeContentState extends State<HomeContent> {
                     backgroundImage: photoUrl != null && photoUrl.isNotEmpty
                         ? CachedNetworkImageProvider(photoUrl)
                         : null,
+                    onBackgroundImageError: photoUrl != null && photoUrl.isNotEmpty
+                        ? (exception, stackTrace) {
+                            debugPrint('Fallo al cargar avatar: $exception');
+                          }
+                        : null,
                     child: photoUrl == null || photoUrl.isEmpty
                         ? Text(initials,
                             style: const TextStyle(
@@ -492,11 +502,10 @@ class _HomeContentState extends State<HomeContent> {
           final adventures = snapshot.data!;
           _adventuresCount = adventures.length;
 
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_autoScrollTimer == null || !_autoScrollTimer!.isActive) {
-              _startAutoScroll();
-            }
-          });
+          final visibleCount =
+              adventures.length > 5 ? 5 : adventures.length;
+          final realIndex = _currentPage % adventures.length;
+          final activeDotIndex = realIndex % visibleCount;
 
           return NotificationListener<ScrollNotification>(
             onNotification: (notification) {
@@ -504,8 +513,11 @@ class _HomeContentState extends State<HomeContent> {
                   notification.dragDetails != null) {
                 _stopAutoScroll();
               } else if (notification is ScrollEndNotification) {
-                Future.delayed(const Duration(seconds: 3), () {
-                  if (mounted) _startAutoScroll();
+                _stopAutoScroll();
+                Future.delayed(const Duration(seconds: 4), () {
+                  if (mounted && _autoScrollTimer == null) {
+                    _startAutoScroll();
+                  }
                 });
               }
               return false;
@@ -521,8 +533,8 @@ class _HomeContentState extends State<HomeContent> {
                       setState(() => _currentPage = index);
                     },
                     itemBuilder: (context, index) {
-                      final realIndex = index % _adventuresCount;
-                      final adv = adventures[realIndex];
+                      final itemIndex = index % _adventuresCount;
+                      final adv = adventures[itemIndex];
                       return _buildCarouselCard(adv, customTheme);
                     },
                   ),
@@ -534,13 +546,9 @@ class _HomeContentState extends State<HomeContent> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      adventures.length > 5 ? 5 : adventures.length,
+                      visibleCount,
                       (index) {
-                        final visibleCount =
-                            adventures.length > 5 ? 5 : adventures.length;
-                        final activeIndex =
-                            (_currentPage % adventures.length) % visibleCount;
-                        final isActive = activeIndex == index;
+                        final isActive = activeDotIndex == index;
                         return AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
                           width: isActive ? 18 : 6,
