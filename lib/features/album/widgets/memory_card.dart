@@ -105,10 +105,13 @@ class MemoryCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  errorWidget: (context, url, error) => Container(
-                    color: t.isDark ? Colors.grey.shade900 : Colors.grey.shade300,
-                    child: Icon(Icons.broken_image_outlined, color: t.muted),
-                  ),
+                  errorWidget: (context, url, error) {
+                    debugPrint('Fallo al renderizar foto de portada [$url]: $error');
+                    return Container(
+                      color: t.isDark ? Colors.grey.shade900 : Colors.grey.shade300,
+                      child: Icon(Icons.broken_image_outlined, color: t.muted),
+                    );
+                  },
                 )
               else
                 Container(

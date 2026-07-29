@@ -1,60 +1,67 @@
 import 'dart:io';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ImageUploadService {
-  
-  // Tomamos la llave del archivo .env, sin esto no podemos subir nada a ImgBB
-  static String get _apiKey => dotenv.env['IMGBB_API_KEY'] ?? '';
+  static final FirebaseStorage _storage = FirebaseStorage.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   static Future<XFile?> pickImage() async {
     final ImagePicker picker = ImagePicker();
-    // Abrimos la galería y le bajamos la calidad al 70% para que no pese tanto al subirla
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
     return image;
   }
 
-  static Future<String?> uploadImage(XFile image) async {
-    // Si falta la llave en el .env, frenamos aquí para no hacer peticiones al aire
-    if (_apiKey.isEmpty) {
-      debugPrint('ERROR: La API Key de ImgBB no está configurada en el archivo .env');
-      return null;
-    }
-
+  /// Subir imagen a Firebase Storage y obtener su URL pública de descarga.
+  /// [folder]: Carpeta destino ('memories', 'profiles', etc.)
+  static Future<String?> uploadImage(
+    XFile image, {
+    String folder = 'memories',
+  }) async {
     try {
-      final uri = Uri.parse('https://api.imgbb.com/1/upload?key=$_apiKey');
-      
-      List<int> imageBytes;
-      // La web y los celulares leen los archivos de distinta forma, por eso separamos la lógica
+      final user = _auth.currentUser;
+      final uid = user?.uid ?? 'anonymous';
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = '${timestamp}_${image.name}';
+
+      final ref = _storage.ref().child('$folder/$uid/$fileName');
+
+      String contentType = 'image/jpeg';
+      final lowerName = image.name.toLowerCase();
+      if (lowerName.endsWith('.png')) {
+        contentType = 'image/png';
+      } else if (lowerName.endsWith('.webp')) {
+        contentType = 'image/webp';
+      } else if (lowerName.endsWith('.gif')) {
+        contentType = 'image/gif';
+      }
+
+      UploadTask uploadTask;
       if (kIsWeb) {
-        imageBytes = await image.readAsBytes();
+        final bytes = await image.readAsBytes();
+        uploadTask = ref.putData(
+          bytes,
+          SettableMetadata(contentType: contentType),
+        );
       } else {
-        File file = File(image.path);
-        imageBytes = await file.readAsBytes();
+        final file = File(image.path);
+        uploadTask = ref.putFile(
+          file,
+          SettableMetadata(contentType: contentType),
+        );
       }
 
-      // Convertimos la imagen a texto (base64) porque así la pide la API de ImgBB
-      String base64Image = base64Encode(imageBytes);
-
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['image'] = base64Image;
-
-      final streamResponse = await request.send();
-      final response = await http.Response.fromStream(streamResponse);
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        // Si todo sale bien, regresamos el enlace público de la foto
-        return responseData['data']['url']; 
-      } else {
-        debugPrint('Error ImgBB: ${response.statusCode} - ${response.body}');
-        return null;
-      }
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      debugPrint('Imagen subida con éxito a Firebase Storage: $downloadUrl');
+      return downloadUrl;
     } catch (e) {
-      debugPrint('Excepción subiendo a ImgBB: $e');
+      debugPrint('Error subiendo imagen a Firebase Storage: $e');
       return null;
     }
   }
