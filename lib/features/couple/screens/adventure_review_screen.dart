@@ -136,6 +136,7 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
 
         Map<String, dynamic> memoryData = {
           'adventure_title': widget.adventureData['title'],
+          'emoji': widget.adventureData['emoji'] ?? '✨',
           'id_adventure': adventureId.toString(),
           'coupleDocId': coupleDocId,
           'timestamp': FieldValue.serverTimestamp(),
