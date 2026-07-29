@@ -20,8 +20,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   String? _authError;
-  bool _isEmailValid = false;
-  bool _emailTouched = false;
+  bool _credentialsRejected = false;
+  bool _isSubmitting = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -29,40 +30,50 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _clearError() {
-    if (_authError != null) setState(() => _authError = null);
-  }
-
-  void _validateEmail(String value) {
-    final email = value.trim();
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
-
+  void _clearError({bool credentialsEdited = false}) {
+    if (_authError == null &&
+        (!credentialsEdited || !_credentialsRejected)) {
+      return;
+    }
     setState(() {
-      _emailTouched = email.isNotEmpty;
-      _isEmailValid = emailRegex.hasMatch(email);
+      _authError = null;
+      if (credentialsEdited) _credentialsRejected = false;
     });
   }
 
   void _handleLogin() async {
+    if (_isSubmitting) return;
     _clearError();
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _isSubmitting = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final errorCode = await authProvider.signIn(_emailController.text, _passwordController.text);
+
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+    }
 
     if (mounted && errorCode != null) {
       String message = 'Correo o contraseña incorrectos';
       if (errorCode == 'user-not-found') message = 'No existe una cuenta con este correo';
       if (errorCode == 'wrong-password') message = 'La contraseña es incorrecta';
       if (errorCode == 'invalid-email') message = 'El formato del correo no es válido';
-      setState(() => _authError = message);
+      setState(() {
+        _authError = message;
+        _credentialsRejected = true;
+      });
     }
   }
 
   void _handleGoogleLogin() async {
+    if (_isSubmitting) return;
     _clearError();
+
+    setState(() => _isSubmitting = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final result = await authProvider.signInWithGoogle();
+    if (mounted) setState(() => _isSubmitting = false);
 
     if (mounted && result != null && result != 'cancelled') {
       setState(() => _authError = 'No se pudo iniciar sesión con Google');
@@ -95,6 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final isLoading = Provider.of<AuthProvider>(context).isLoading;
     final customTheme = Provider.of<ThemeProvider>(context).currentTheme;
+    final isBusy = isLoading || _isSubmitting;
 
     return Scaffold(
       body: Stack(
@@ -165,7 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: double.infinity,
                                 height: 55,
                                 child: ElevatedButton(
-                                  onPressed: isLoading ? null : _handleLogin,
+                                  onPressed: isBusy || _credentialsRejected
+                                      ? null
+                                      : _handleLogin,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: customTheme.primary,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -187,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       height: 55,
                       child: OutlinedButton.icon(
-                        onPressed: isLoading ? null : _handleGoogleLogin,
+                        onPressed: isBusy ? null : _handleGoogleLogin,
                         icon: Icon(Icons.g_mobiledata, size: 30, color: customTheme.text),
                         label: Text('Continuar con Google', style: TextStyle(color: customTheme.text, fontWeight: FontWeight.w600, fontSize: 16)),
                         style: OutlinedButton.styleFrom(
@@ -250,63 +264,33 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: controller,
       obscureText: isPassword && !_isPasswordVisible,
       keyboardType: keyboardType,
-style: TextStyle(color: customTheme.text),
-onChanged: (value) {
-  _clearError();
-
-  if (controller == _emailController) {
-    _validateEmail(value);
-  }
-},
+      style: TextStyle(color: customTheme.text),
+      onChanged: (_) => _clearError(credentialsEdited: true),
       validator: (value) {
-  if (value == null || value.trim().isEmpty) {
-    return 'Este campo es obligatorio';
-  }
-
-  // Validación del correo
-  if (controller == _emailController) {
-    final email = value.trim();
-
-    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
-
-    if (!regex.hasMatch(email)) {
-      return 'Ingrese un correo Gmail válido';
-    }
-  }
-
-  return null;
-},
+        if (value == null || value.trim().isEmpty) {
+          return 'Este campo es obligatorio';
+        }
+        return null;
+      },
       decoration: InputDecoration(
         hintText: hint,
-hintStyle: TextStyle(color: customTheme.muted),
-filled: true,
-fillColor: customTheme.bg.withValues(alpha: 0.5),
-prefixIcon: Icon(icon, color: customTheme.muted),
-
-suffixIcon: controller == _emailController
-    ? (_emailTouched
-        ? Icon(
-            _isEmailValid
-                ? Icons.check_circle
-                : Icons.cancel,
-            color: _isEmailValid
-                ? Colors.greenAccent
-                : Colors.redAccent,
-          )
-        : null)
-    : (isPassword
-        ? IconButton(
-            icon: Icon(
-              _isPasswordVisible
-                  ? Icons.visibility_off
-                  : Icons.visibility,
-              color: customTheme.muted,
-            ),
-            onPressed: () => setState(() {
-              _isPasswordVisible = !_isPasswordVisible;
-            }),
-          )
-        : null),
+        hintStyle: TextStyle(color: customTheme.muted),
+        filled: true,
+        fillColor: customTheme.bg.withValues(alpha: 0.5),
+        prefixIcon: Icon(icon, color: customTheme.muted),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  color: customTheme.muted,
+                ),
+                onPressed: () => setState(() {
+                  _isPasswordVisible = !_isPasswordVisible;
+                }),
+              )
+            : null,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide(color: customTheme.muted.withValues(alpha: 0.2))),
