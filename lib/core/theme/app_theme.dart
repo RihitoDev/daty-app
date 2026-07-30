@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
-enum AppThemeType {
+enum AppBrightnessMode {
   system,
   light,
   dark,
+}
+
+enum AppPaletteType {
+  daty,
   ocean,
   forest,
   sunset,
@@ -171,6 +175,26 @@ class AppCustomTheme {
     mapPath: Color(0xFF47C6FF),
   );
 
+  static const oceanLight = AppCustomTheme(
+    name: 'Océano',
+    description: 'Tecnológico y fresco',
+    emoji: '💙',
+    mapThemeName: 'Costa luminosa',
+    brightness: Brightness.light,
+    bg: Color(0xFFF0F9FD),
+    card: Color(0xFFFFFFFF),
+    primary: Color(0xFF168DC9),
+    primaryLight: Color(0xFFD5EFFA),
+    primaryDark: Color(0xFF09628F),
+    accent: Color(0xFF42C5EE),
+    text: Color(0xFF102C3A),
+    text2: Color(0xFF527484),
+    muted: Color(0xFF91AFBD),
+    mapBg1: Color(0xFFDCF3FC),
+    mapBg2: Color(0xFFBDE6F6),
+    mapPath: Color(0xFF168DC9),
+  );
+
   static const forest = AppCustomTheme(
     name: 'Bosque',
     description: 'Natural y aventurero',
@@ -189,6 +213,26 @@ class AppCustomTheme {
     mapBg1: Color(0xFF091A14),
     mapBg2: Color(0xFF183527),
     mapPath: Color(0xFFA5DBB5),
+  );
+
+  static const forestLight = AppCustomTheme(
+    name: 'Bosque',
+    description: 'Natural y aventurero',
+    emoji: '💚',
+    mapThemeName: 'Pradera encantada',
+    brightness: Brightness.light,
+    bg: Color(0xFFF3F8F4),
+    card: Color(0xFFFFFFFF),
+    primary: Color(0xFF4F8963),
+    primaryLight: Color(0xFFDCECDF),
+    primaryDark: Color(0xFF315F42),
+    accent: Color(0xFF86B996),
+    text: Color(0xFF1C3023),
+    text2: Color(0xFF607568),
+    muted: Color(0xFF99AA9F),
+    mapBg1: Color(0xFFE3F0E5),
+    mapBg2: Color(0xFFC9E2CE),
+    mapPath: Color(0xFF4F8963),
   );
 
   static const sunset = AppCustomTheme(
@@ -211,6 +255,26 @@ class AppCustomTheme {
     mapPath: Color(0xFFF5C96B),
   );
 
+  static const sunsetDark = AppCustomTheme(
+    name: 'Atardecer',
+    description: 'Cálido y optimista',
+    emoji: '🧡',
+    mapThemeName: 'Ruta al anochecer',
+    brightness: Brightness.dark,
+    bg: Color(0xFF24110E),
+    card: Color(0xFF351A16),
+    primary: Color(0xFFF08A5D),
+    primaryLight: Color(0xFF553027),
+    primaryDark: Color(0xFFC65C38),
+    accent: Color(0xFFF4C76F),
+    text: Color(0xFFFFF5EE),
+    text2: Color(0xFFDABCB0),
+    muted: Color(0xFF9D7C70),
+    mapBg1: Color(0xFF170A08),
+    mapBg2: Color(0xFF3E1C16),
+    mapPath: Color(0xFFF4C76F),
+  );
+
   static const love = AppCustomTheme(
     name: 'Amor',
     description: 'Romántico y especial',
@@ -229,6 +293,26 @@ class AppCustomTheme {
     mapBg1: Color(0xFF321020),
     mapBg2: Color(0xFF571B36),
     mapPath: Color(0xFFEAA0C0),
+  );
+
+  static const loveDark = AppCustomTheme(
+    name: 'Amor',
+    description: 'Romántico y especial',
+    emoji: '❤️',
+    mapThemeName: 'Noche de corazones',
+    brightness: Brightness.dark,
+    bg: Color(0xFF130F1B),
+    card: Color(0xFF21182B),
+    primary: Color(0xFFD58AD9),
+    primaryLight: Color(0xFF392741),
+    primaryDark: Color(0xFF9C5CAD),
+    accent: Color(0xFFF0A8C5),
+    text: Color(0xFFF9F2FC),
+    text2: Color(0xFFD1C0D8),
+    muted: Color(0xFF897B91),
+    mapBg1: Color(0xFF0D0913),
+    mapBg2: Color(0xFF281832),
+    mapPath: Color(0xFFE6A0C4),
   );
 
   ThemeData get flutterTheme {

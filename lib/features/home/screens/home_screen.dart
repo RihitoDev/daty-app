@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../couple/providers/couple_provider.dart';
 import '../../couple/providers/pair_link_provider.dart';
+import '../../couple/services/pair_invitation_service.dart';
 import '../../couple/widgets/contract_dialog.dart';
 import '../../couple/widgets/pairing_dialog.dart';
 import '../../profile/screens/profile_screen.dart';
@@ -67,10 +68,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final coupleProvider = context.read<CoupleProvider>();
     if (coupleProvider.hasPartner) {
-      CustomSnackBar.showInfo(
-        context,
-        'Ya estás vinculado con ${coupleProvider.partnerName}.',
-      );
+      await _openPendingContractOrShowLinkedStatus();
+      _isHandlingPairLink = false;
+      return;
+    }
+
+    PairInvitationLinkStatus linkStatus;
+    try {
+      linkStatus = await PairInvitationService().getInvitationStatus(code);
+    } on PairInvitationException catch (error) {
+      if (mounted) CustomSnackBar.showError(context, error.message);
+      _isHandlingPairLink = false;
+      return;
+    }
+
+    if (!mounted) return;
+    if (linkStatus != PairInvitationLinkStatus.available) {
+      CustomSnackBar.showInfo(context, _messageForLinkStatus(linkStatus));
       _isHandlingPairLink = false;
       return;
     }
@@ -94,6 +108,62 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_pairLinkProvider?.pendingCode != null) {
       _onPairLinkChanged();
     }
+  }
+
+  Future<void> _openPendingContractOrShowLinkedStatus() async {
+    for (var attempt = 0; attempt < 20; attempt += 1) {
+      if (!mounted) return;
+
+      final coupleProvider = context.read<CoupleProvider>();
+      if (!coupleProvider.hasPartner) return;
+      if (coupleProvider.isLoading || coupleProvider.coupleData == null) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+        continue;
+      }
+
+      if (!coupleProvider.iSigned) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ContractDialog(
+            myUid: coupleProvider.myUid,
+            partnerUid: coupleProvider.partnerId!,
+            coupleDocId: coupleProvider.coupleDocId!,
+          ),
+        );
+      } else {
+        CustomSnackBar.showInfo(
+          context,
+          coupleProvider.partnerSigned
+              ? 'Ya estás vinculado con ${coupleProvider.partnerName}.'
+              : 'Ya firmaste. Falta la firma de ${coupleProvider.partnerName}.',
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      CustomSnackBar.showInfo(
+        context,
+        'Ya tienes una vinculación activa. Ábrela desde Aventura en pareja.',
+      );
+    }
+  }
+
+  String _messageForLinkStatus(PairInvitationLinkStatus status) {
+    return switch (status) {
+      PairInvitationLinkStatus.used => 'Esta invitación ya fue utilizada.',
+      PairInvitationLinkStatus.cancelled => 'Esta invitación fue cancelada.',
+      PairInvitationLinkStatus.expired =>
+        'Esta invitación venció. Solicita un código nuevo.',
+      PairInvitationLinkStatus.ownCode =>
+        'No puedes utilizar tu propia invitación.',
+      PairInvitationLinkStatus.invalid =>
+        'Esta invitación no existe o ya no está disponible.',
+      PairInvitationLinkStatus.unavailable =>
+        'Esta invitación ya no está disponible.',
+      PairInvitationLinkStatus.available => '',
+    };
   }
 
   Future<void> _openContractWhenReady() async {

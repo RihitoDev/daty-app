@@ -21,7 +21,7 @@ class ProfileProvider extends ChangeNotifier {
   int _groupOutings = 0;
   bool _isLinked = false;
   List<String> _equippedPins = [];
-  
+
   String? _photoUrl;
   Uint8List? _selectedImageBytes;
   bool _isUploadingPhoto = false;
@@ -47,7 +47,7 @@ class ProfileProvider extends ChangeNotifier {
 
   ProfileProvider(this._authProvider) {
     _authProvider.addListener(_onAuthDataChanged);
-    _onAuthDataChanged(); 
+    _onAuthDataChanged();
   }
 
   void _onAuthDataChanged() {
@@ -57,7 +57,8 @@ class ProfileProvider extends ChangeNotifier {
     final myUid = _authProvider.user!.uid;
     final String? partnerId = userData['partnerId'];
 
-    _userName = userData['username'] ?? _authProvider.user?.displayName ?? 'Aventurero';
+    _userName =
+        userData['username'] ?? _authProvider.user?.displayName ?? 'Aventurero';
     _isLinked = partnerId != null;
 
     if (_userName.isNotEmpty) {
@@ -65,7 +66,8 @@ class ProfileProvider extends ChangeNotifier {
       if (parts.length > 1) {
         _initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
       } else {
-        _initials = _userName.substring(0, _userName.length >= 2 ? 2 : 1).toUpperCase();
+        _initials =
+            _userName.substring(0, _userName.length >= 2 ? 2 : 1).toUpperCase();
       }
     }
 
@@ -88,14 +90,13 @@ class ProfileProvider extends ChangeNotifier {
   }
 
   // ─── Cálculo centralizado del nivel. Todo pasa por aquí. ───
-  // Si en el futuro la curva cambia (ej. niveles exponenciales), 
+  // Si en el futuro la curva cambia (ej. niveles exponenciales),
   // solo se toca este método.
   void _calculateLevel() {
     _level = (_exp ~/ _expPerLevel) + 1;
     _progress = (_exp % _expPerLevel) / _expPerLevel;
     _nextExp = (_level) * _expPerLevel;
   }
-
 
   StreamSubscription<DocumentSnapshot>? _userDocSub;
 
@@ -116,9 +117,12 @@ class ProfileProvider extends ChangeNotifier {
       final newGroupOutings = data?['groupOutingsCompleted'] ?? 0;
       final newPins = List<String>.from(data?['equippedPins'] ?? []);
       final newPhotoUrl = data?['photoUrl'];
+      final newUserName = data?['username'] as String?;
 
       // Solo notificamos si algo cambió para evitar rebuilds innecesarios
-      if (newExp != _exp || newSoloDates != _soloDates || newGroupOutings != _groupOutings) {
+      if (newExp != _exp ||
+          newSoloDates != _soloDates ||
+          newGroupOutings != _groupOutings) {
         _exp = newExp;
         _soloDates = newSoloDates;
         _groupOutings = newGroupOutings;
@@ -127,10 +131,92 @@ class ProfileProvider extends ChangeNotifier {
 
       _equippedPins = newPins;
       _photoUrl = newPhotoUrl;
+      if (newUserName != null && newUserName.trim().isNotEmpty) {
+        _userName = newUserName.trim();
+        _updateInitials();
+      }
 
       _isLoading = false;
       notifyListeners();
     });
+  }
+
+  void _updateInitials() {
+    if (_userName.isEmpty) return;
+    final parts = _userName.split(' ');
+    _initials = parts.length > 1
+        ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+        : _userName.substring(0, _userName.length >= 2 ? 2 : 1).toUpperCase();
+  }
+
+  Future<String?> updateUserName(String value) async {
+    final user = _authProvider.user;
+    final currentData = _authProvider.userData;
+    if (user == null || currentData == null) return 'no-user';
+
+    final newName = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (newName.length < 2 || newName.length > 40) return 'invalid-name';
+
+    String normalize(String name) => name
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll('/', '-');
+
+    final oldName = (currentData['username'] as String?)?.trim() ?? '';
+    final oldNormalized = normalize(oldName);
+    final newNormalized = normalize(newName);
+    if (oldNormalized == newNormalized) return null;
+
+    final firestore = FirebaseFirestore.instance;
+    final userRef = firestore.collection('users').doc(user.uid);
+    final newNameRef = firestore.collection('usernames').doc(newNormalized);
+    final oldNameRef = oldNormalized.isEmpty
+        ? null
+        : firestore.collection('usernames').doc(oldNormalized);
+
+    try {
+      await firestore.runTransaction((transaction) async {
+        final newNameDoc = await transaction.get(newNameRef);
+        final oldNameDoc =
+            oldNameRef == null ? null : await transaction.get(oldNameRef);
+
+        if (newNameDoc.exists && newNameDoc.data()?['uid'] != user.uid) {
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'username-taken',
+          );
+        }
+
+        transaction.set(newNameRef, {
+          'uid': user.uid,
+          'username': newName,
+          'email': user.email ?? '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        transaction.update(userRef, {
+          'username': newName,
+          'usernameNormalized': newNormalized,
+        });
+
+        if (oldNameRef != null &&
+            oldNameRef.path != newNameRef.path &&
+            oldNameDoc?.data()?['uid'] == user.uid) {
+          transaction.delete(oldNameRef);
+        }
+      });
+
+      await user.updateDisplayName(newName);
+      _userName = newName;
+      _updateInitials();
+      notifyListeners();
+      return null;
+    } on FirebaseException catch (error) {
+      if (error.code == 'username-taken') return 'username-taken';
+      return 'firestore-error';
+    } catch (_) {
+      return 'unknown-error';
+    }
   }
 
   void stopListeningToUserDoc() {
@@ -140,11 +226,17 @@ class ProfileProvider extends ChangeNotifier {
 
   Future<void> _fetchCoupleData(String myUid, String partnerId) async {
     try {
-      String coupleDocId = myUid.compareTo(partnerId) < 0 ? '${myUid}_$partnerId' : '${partnerId}_$myUid';
-      
-      final coupleDoc = await FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId).get();
+      String coupleDocId = myUid.compareTo(partnerId) < 0
+          ? '${myUid}_$partnerId'
+          : '${partnerId}_$myUid';
+
+      final coupleDoc = await FirebaseFirestore.instance
+          .collection('couples_progress')
+          .doc(coupleDocId)
+          .get();
       if (coupleDoc.exists) {
-        _coupleDates = List<int>.from(coupleDoc.data()!['adventurePath'] ?? []).length;
+        _coupleDates =
+            List<int>.from(coupleDoc.data()!['adventurePath'] ?? []).length;
         notifyListeners();
       }
     } catch (e) {
@@ -154,15 +246,31 @@ class ProfileProvider extends ChangeNotifier {
 
   int getCurrentValue(AchievementDefinition ach) {
     switch (ach.id) {
-      case 'gen_welcome': return 1;
-      case 'gen_link': return _isLinked ? 1 : 0;
-      case 'gen_level5': return _level;
-      case 'gen_level10': return _level;
-      case 'solo_first': case 'solo_5': case 'solo_15': return _soloDates;
-      case 'couple_first': case 'couple_10': case 'couple_25': case 'couple_50': return _coupleDates;
-      case 'couple_contract': return _coupleDates >= 1 ? 1 : 0;
-      case 'group_first': case 'group_5': case 'group_10': return _groupOutings;
-      default: return 0;
+      case 'gen_welcome':
+        return 1;
+      case 'gen_link':
+        return _isLinked ? 1 : 0;
+      case 'gen_level5':
+        return _level;
+      case 'gen_level10':
+        return _level;
+      case 'solo_first':
+      case 'solo_5':
+      case 'solo_15':
+        return _soloDates;
+      case 'couple_first':
+      case 'couple_10':
+      case 'couple_25':
+      case 'couple_50':
+        return _coupleDates;
+      case 'couple_contract':
+        return _coupleDates >= 1 ? 1 : 0;
+      case 'group_first':
+      case 'group_5':
+      case 'group_10':
+        return _groupOutings;
+      default:
+        return 0;
     }
   }
 
@@ -187,9 +295,13 @@ class ProfileProvider extends ChangeNotifier {
 
     try {
       if (isEquipped) {
-        await userRef.update({'equippedPins': FieldValue.arrayRemove([pinId])});
+        await userRef.update({
+          'equippedPins': FieldValue.arrayRemove([pinId])
+        });
       } else {
-        await userRef.update({'equippedPins': FieldValue.arrayUnion([pinId])});
+        await userRef.update({
+          'equippedPins': FieldValue.arrayUnion([pinId])
+        });
       }
     } catch (e) {
       debugPrint('Fallo al actualizar pin: $e');
@@ -214,8 +326,8 @@ class ProfileProvider extends ChangeNotifier {
       await FirebaseFirestore.instance.collection('users').doc(myUid).update({
         'photoUrl': imageUrl,
       });
-    } 
-    
+    }
+
     _selectedImageBytes = null;
     _isUploadingPhoto = false;
     notifyListeners();

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#6c4bef">
+  <title>Invitación en pareja | Daty</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      font-family: Inter, system-ui, sans-serif;
+      color: #f8f7ff;
+      background:
+        radial-gradient(circle at top, #6042c9 0, transparent 42%),
+        #171024;
+    }
+    main {
+      width: min(100%, 430px);
+      padding: 34px 28px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, .07);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+    }
+    img { width: 96px; height: 96px; object-fit: contain; }
+    h1 { margin: 18px 0 10px; font-size: 30px; }
+    p { color: #cbc4dc; line-height: 1.55; }
+    .code {
+      margin: 24px 0;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, .22);
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: .16em;
+    }
+    a {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      color: white;
+      background: #7657e8;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    small { display: block; margin-top: 18px; color: #9e96b1; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/assets/daty.png" alt="Daty">
+    <h1>Invitación en pareja</h1>
+    <p>Estamos intentando abrir Daty. Si no está instalada, te enviaremos a la página de descarga.</p>
+    <div id="pairCode" class="code" hidden></div>
+    <a id="openDaty" href="https://darklife22.github.io/Daty-landing/">
+      Descargar Daty
+    </a>
+    <small>La invitación también incluye el código para ingresarlo manualmente.</small>
+  </main>
+
+  <script>
+    (() => {
+      const downloadUrl = 'https://darklife22.github.io/Daty-landing/';
+      const code = new URLSearchParams(window.location.search)
+        .get('code')
+        ?.trim()
+        .toUpperCase();
+      const validCode = code && /^[A-Z]{3}[0-9]{3}$/.test(code);
+      const codeElement = document.getElementById('pairCode');
+      const openButton = document.getElementById('openDaty');
+
+      if (validCode) {
+        codeElement.textContent = code;
+        codeElement.hidden = false;
+
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          const appUrl = `daty://pair?code=${encodeURIComponent(code)}`;
+          openButton.href = appUrl;
+          openButton.textContent = 'Abrir Daty';
+          window.location.href = appUrl;
+        }
+      }
+
+      window.setTimeout(() => {
+        window.location.replace(downloadUrl);
+      }, 1800);
+    })();
+  </script>
+</body>
+</html>

@@ -12,6 +12,16 @@ class PairInvitationException implements Exception {
   String toString() => message;
 }
 
+enum PairInvitationLinkStatus {
+  available,
+  used,
+  cancelled,
+  expired,
+  ownCode,
+  invalid,
+  unavailable,
+}
+
 abstract interface class PairInvitationGateway {
   Future<PairInvitation> createOrRecoverInvitation();
   Future<void> acceptInvitation(String code);
@@ -24,6 +34,32 @@ class PairInvitationService implements PairInvitationGateway {
 
   final FirebaseFunctions _functions;
   static final Map<String, PairInvitation> _invitationCache = {};
+
+  Future<PairInvitationLinkStatus> getInvitationStatus(String code) async {
+    try {
+      final result =
+          await _functions.httpsCallable('getPairInvitationStatus').call({
+        'code': code.trim().toUpperCase(),
+      });
+      final data = Map<String, dynamic>.from(result.data as Map);
+
+      return switch (data['status']) {
+        'available' => PairInvitationLinkStatus.available,
+        'used' => PairInvitationLinkStatus.used,
+        'cancelled' => PairInvitationLinkStatus.cancelled,
+        'expired' => PairInvitationLinkStatus.expired,
+        'own-code' => PairInvitationLinkStatus.ownCode,
+        'invalid' => PairInvitationLinkStatus.invalid,
+        _ => PairInvitationLinkStatus.unavailable,
+      };
+    } on FirebaseFunctionsException catch (error) {
+      throw PairInvitationException(_messageFor(error));
+    } catch (_) {
+      throw const PairInvitationException(
+        'No se pudo comprobar la invitación. Inténtalo nuevamente.',
+      );
+    }
+  }
 
   @override
   Future<PairInvitation> createOrRecoverInvitation() async {
