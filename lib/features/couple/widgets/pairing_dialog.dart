@@ -61,6 +61,11 @@ class _PairingDialogState extends State<PairingDialog> {
     if (invitation == null || !_invitationController.canShare) return;
 
     final box = context.findRenderObject() as RenderBox?;
+    final appUrl = Uri(
+      scheme: 'daty',
+      host: 'pair',
+      queryParameters: {'code': invitation.code},
+    );
     final invitationUrl = Uri.https(
       'darklife22.github.io',
       '/Daty-landing/',
@@ -70,7 +75,8 @@ class _PairingDialogState extends State<PairingDialog> {
       ShareParams(
         text: '¡Quiero vincularme contigo en Daty! 💜\n\n'
             'Usa este código:\n${invitation.code}\n\n'
-            'Abre la invitación:\n$invitationUrl\n\n'
+            'Si ya tienes Daty, abre la invitación aquí:\n$appUrl\n\n'
+            'Si no se abre o todavía no tienes la app:\n$invitationUrl\n\n'
             'La invitación vence en 15 minutos.',
         sharePositionOrigin:
             box == null ? null : box.localToGlobal(Offset.zero) & box.size,
@@ -113,6 +119,8 @@ class _PairingDialogState extends State<PairingDialog> {
     final customTheme = context.watch<ThemeProvider>().currentTheme;
     final hasPartner = context.watch<CoupleProvider>().hasPartner;
     final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+    final horizontalPadding =
+        MediaQuery.sizeOf(context).width >= 600 ? 32.0 : 22.0;
 
     if (hasPartner && !_closing) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _close(linked: true));
@@ -140,91 +148,78 @@ class _PairingDialogState extends State<PairingDialog> {
                 ),
               ),
             ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final horizontalPadding =
-                    constraints.maxWidth >= 600 ? 32.0 : 22.0;
-
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: SingleChildScrollView(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPadding,
-                        10,
-                        horizontalPadding,
-                        24,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 42,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: customTheme.muted.withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: IconButton(
-                              tooltip: 'Cerrar',
-                              onPressed: _close,
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: customTheme.muted,
-                              ),
-                            ),
-                          ),
-                          Image.asset(
-                            'assets/images/mascot.png',
-                            height: keyboardHeight > 0 ? 60 : 92,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => Icon(
-                              Icons.favorite_rounded,
-                              size: 64,
-                              color: customTheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _enteringCode
-                                ? 'Ingresa tu código'
-                                : 'Vincúlate con alguien',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: customTheme.text,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _enteringCode
-                                ? 'Escribe el código que te compartió la otra persona.'
-                                : 'Comparte este código con la persona con la que quieres vivir aventuras.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: customTheme.text2,
-                              height: 1.35,
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            child: _enteringCode
-                                ? _buildCodeEntry(customTheme)
-                                : _buildInvitation(customTheme),
-                          ),
-                        ],
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                10,
+                horizontalPadding,
+                24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: customTheme.muted.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      tooltip: 'Cerrar',
+                      onPressed: _close,
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: customTheme.muted,
                       ),
                     ),
                   ),
-                );
-              },
+                  Image.asset(
+                    'assets/images/mascot.png',
+                    height: keyboardHeight > 0 ? 60 : 92,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.favorite_rounded,
+                      size: 64,
+                      color: customTheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _enteringCode
+                        ? 'Ingresa tu código'
+                        : 'Vincúlate con alguien',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: customTheme.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _enteringCode
+                        ? 'Escribe el código que te compartió la otra persona.'
+                        : 'Comparte este código con la persona con la que quieres vivir aventuras.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: customTheme.text2,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: _enteringCode
+                        ? _buildCodeEntry(customTheme)
+                        : _buildInvitation(customTheme),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
