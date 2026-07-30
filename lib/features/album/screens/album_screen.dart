@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
 import '../models/album_memory.dart';
 import '../providers/album_provider.dart';
+import '../widgets/album_timeline_view.dart';
 import '../widgets/memory_card.dart';
 
 class AlbumScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class AlbumScreen extends StatefulWidget {
 
 class _AlbumScreenState extends State<AlbumScreen> {
   String _selectedCategory = 'TODOS'; // 'TODOS', 'SOLO', 'PAREJA', 'GRUPO'
+  String _viewMode = 'grid'; // 'grid' (Pinterest Masonry) o 'timeline' (Línea de Tiempo)
 
   Stream<List<AlbumMemory>> _getCategoryStream(AlbumProvider provider) {
     switch (_selectedCategory) {
@@ -63,39 +65,47 @@ class _AlbumScreenState extends State<AlbumScreen> {
                     ),
                     const SizedBox(width: 14),
                   ],
-                  Text(
-                    'Álbum de Recuerdos',
-                    style: TextStyle(
-                      color: customTheme.text,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
+                  Expanded(
+                    child: Text(
+                      'Álbum de Recuerdos',
+                      style: TextStyle(
+                        color: customTheme.text,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+
+                  // Conmutador de Vista (Grid / Timeline)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: customTheme.elevatedSurface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: customTheme.outline),
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildViewIconButton(
+                          mode: 'grid',
+                          icon: Icons.grid_view_rounded,
+                          t: customTheme,
+                        ),
+                        _buildViewIconButton(
+                          mode: 'timeline',
+                          icon: Icons.view_timeline_rounded,
+                          t: customTheme,
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
 
-            // 2. Filtros Flotantes de Cápsula Minimalista
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildCategoryPill('TODOS', customTheme),
-                    const SizedBox(width: 10),
-                    _buildCategoryPill('SOLO', customTheme),
-                    const SizedBox(width: 10),
-                    _buildCategoryPill('PAREJA', customTheme),
-                    const SizedBox(width: 10),
-                    _buildCategoryPill('GRUPO', customTheme),
-                  ],
-                ),
-              ),
-            ),
-
-            // 3. Grid Escalonado 2-Columnas de Aireamiento Amplio
+            // 2. StreamBuilder con Hero Stats & Filtros
             Expanded(
               child: StreamBuilder<List<AlbumMemory>>(
                 stream: _getCategoryStream(provider),
@@ -122,20 +132,161 @@ class _AlbumScreenState extends State<AlbumScreen> {
                   }
 
                   final memories = snapshot.data ?? [];
-                  if (memories.isEmpty) {
-                    return EmptyStateWidget(
-                      icon: _getEmptyIcon(_selectedCategory),
-                      message: _getEmptyMessage(_selectedCategory),
-                    );
-                  }
+                  final totalPhotos = memories.fold<int>(
+                      0, (sum, item) => sum + item.photoUrls.length);
 
-                  return _buildStaggeredGrid(memories, customTheme);
+                  return Column(
+                    children: [
+                      // 2a. Tarjeta Hero de Estadísticas Resaltada en Tema
+                      if (memories.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: customTheme.softSurface,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: customTheme.outline,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: customTheme.shadow,
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatItem(
+                                  icon: Icons.auto_stories_rounded,
+                                  label: 'Aventuras',
+                                  value: '${memories.length}',
+                                  t: customTheme,
+                                ),
+                                Container(
+                                  height: 24,
+                                  width: 1,
+                                  color: customTheme.outline,
+                                ),
+                                _buildStatItem(
+                                  icon: Icons.collections_rounded,
+                                  label: 'Fotografías',
+                                  value: '$totalPhotos',
+                                  t: customTheme,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // 2b. Filtros de Cápsula
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildCategoryPill('TODOS', customTheme),
+                              const SizedBox(width: 8),
+                              _buildCategoryPill('SOLO', customTheme),
+                              const SizedBox(width: 8),
+                              _buildCategoryPill('PAREJA', customTheme),
+                              const SizedBox(width: 8),
+                              _buildCategoryPill('GRUPO', customTheme),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // 2c. Cuerpo (Grid Masonry o Timeline)
+                      Expanded(
+                        child: memories.isEmpty
+                            ? EmptyStateWidget(
+                                icon: _getEmptyIcon(_selectedCategory),
+                                message: _getEmptyMessage(_selectedCategory),
+                              )
+                            : (_viewMode == 'timeline'
+                                ? AlbumTimelineView(memories: memories)
+                                : _buildStaggeredGrid(memories, customTheme)),
+                      ),
+                    ],
+                  );
                 },
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildViewIconButton({
+    required String mode,
+    required IconData icon,
+    required AppCustomTheme t,
+  }) {
+    final isSelected = _viewMode == mode;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _viewMode = mode;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: isSelected ? t.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: isSelected
+              ? Colors.white
+              : (t.isDark ? Colors.grey.shade400 : t.muted),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    required AppCustomTheme t,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: t.primary),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                color: t.text,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                color: t.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -150,12 +301,12 @@ class _AlbumScreenState extends State<AlbumScreen> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? (t.isDark ? const Color(0xFFA855F7) : t.primary)
+              ? t.primary
               : (t.isDark ? const Color(0xFF1E1E24) : t.elevatedSurface),
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? Colors.transparent
@@ -165,8 +316,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: (t.isDark ? const Color(0xFFA855F7) : t.primary)
-                        .withValues(alpha: 0.35),
+                    color: t.primary.withValues(alpha: 0.35),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),

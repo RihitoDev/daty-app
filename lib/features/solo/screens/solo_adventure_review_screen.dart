@@ -105,6 +105,7 @@ class _SoloAdventureReviewScreenState extends State<SoloAdventureReviewScreen> {
         Map<String, dynamic> memoryData = {
           'userId': myUid,
           'adventure_title': widget.adventureData['title'],
+          'emoji': widget.adventureData['emoji'] ?? '✨',
           'id_adventure': adventureId.toString(),
           'timestamp': FieldValue.serverTimestamp(),
           'rating': _rating,

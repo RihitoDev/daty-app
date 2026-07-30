@@ -60,12 +60,16 @@ class MemoryCard extends StatelessWidget {
     return '$day $month ${d.year}';
   }
 
+  Widget buildDetailSheet(BuildContext context, AppCustomTheme t) {
+    return _MemoryDetailSheet(memory: memory, theme: t);
+  }
+
   void _openDetailModal(BuildContext context, AppCustomTheme t) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _MemoryDetailSheet(memory: memory, theme: t),
+      builder: (ctx) => buildDetailSheet(ctx, t),
     );
   }
 
@@ -133,10 +137,7 @@ class MemoryCard extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        typeColor.withValues(alpha: 0.35),
-                        t.isDark ? const Color(0xFF18181C) : const Color(0xFF2E1C40),
-                      ],
+                      colors: t.adventureGradient(typeColor),
                     ),
                   ),
                   child: Stack(
