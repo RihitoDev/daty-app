@@ -11,7 +11,8 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final provider = ThemeProvider(preferences);
 
-    expect(provider.currentThemeType, AppThemeType.forest);
+    expect(provider.currentMode, AppBrightnessMode.dark);
+    expect(provider.currentPalette, AppPaletteType.forest);
     expect(provider.currentTheme.name, 'Bosque');
 
     provider.dispose();
@@ -22,10 +23,15 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final provider = ThemeProvider(preferences);
 
-    await provider.setTheme(AppThemeType.sunset);
+    await provider.setAppearance(
+      AppBrightnessMode.light,
+      AppPaletteType.sunset,
+    );
 
-    expect(provider.currentThemeType, AppThemeType.sunset);
-    expect(preferences.getString('daty_theme'), 'sunset');
+    expect(provider.currentMode, AppBrightnessMode.light);
+    expect(provider.currentPalette, AppPaletteType.sunset);
+    expect(preferences.getString('daty_theme_mode'), 'light');
+    expect(preferences.getString('daty_theme_palette'), 'sunset');
 
     provider.dispose();
   });
@@ -35,11 +41,36 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     final provider = ThemeProvider(preferences);
 
-    for (final themeType in AppThemeType.values) {
-      expect(provider.previewColorsFor(themeType), hasLength(3));
-      expect(provider.labelFor(themeType), isNotEmpty);
-      expect(provider.descriptionFor(themeType), isNotEmpty);
+    for (final palette in AppPaletteType.values) {
+      expect(
+        provider.previewTheme(AppBrightnessMode.light, palette).previewColors,
+        hasLength(3),
+      );
+      expect(provider.paletteLabel(palette), isNotEmpty);
+      expect(provider.paletteDescription(palette), isNotEmpty);
     }
+
+    provider.dispose();
+  });
+
+  test('un tema de color no se combina con un modo independiente', () async {
+    SharedPreferences.setMockInitialValues({
+      'daty_theme_mode': 'light',
+      'daty_theme_palette': 'ocean',
+    });
+    final preferences = await SharedPreferences.getInstance();
+    final provider = ThemeProvider(preferences);
+
+    expect(provider.currentPalette, AppPaletteType.ocean);
+    expect(provider.currentMode, AppBrightnessMode.dark);
+
+    await provider.setAppearance(
+      AppBrightnessMode.dark,
+      AppPaletteType.love,
+    );
+
+    expect(provider.currentPalette, AppPaletteType.love);
+    expect(provider.currentMode, AppBrightnessMode.light);
 
     provider.dispose();
   });

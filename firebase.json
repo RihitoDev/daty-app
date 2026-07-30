@@ -26,10 +26,13 @@
     "public": "hosting",
     "ignore": [
       "firebase.json",
-      "**/.*",
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/pair",
+        "destination": "/pair.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"
