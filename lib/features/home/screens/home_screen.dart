@@ -80,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
+      constraints: const BoxConstraints(maxWidth: 680),
       builder: (_) => PairingDialog(initialCode: code),
     );
 
