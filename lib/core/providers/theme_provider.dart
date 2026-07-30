@@ -8,80 +8,141 @@ import '../theme/app_theme.dart';
 class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
   ThemeProvider(this._preferences) {
     WidgetsBinding.instance.addObserver(this);
-    final savedValue = _preferences.getString(_preferenceKey);
-    _currentThemeType = AppThemeType.values.firstWhere(
-      (theme) => theme.name == savedValue,
-      orElse: () => AppThemeType.system,
-    );
-    _displayTheme = _resolvedTheme(_currentThemeType);
+    _restoreSelection();
+    _normalizeSelection();
+    _displayTheme = previewTheme(_currentMode, _currentPalette);
   }
 
-  static const _preferenceKey = 'daty_theme';
+  static const _modeKey = 'daty_theme_mode';
+  static const _paletteKey = 'daty_theme_palette';
+  static const _legacyKey = 'daty_theme';
   static const _transitionDuration = Duration(milliseconds: 380);
+
   final SharedPreferences _preferences;
 
-  AppThemeType _currentThemeType = AppThemeType.system;
+  AppBrightnessMode _currentMode = AppBrightnessMode.system;
+  AppPaletteType _currentPalette = AppPaletteType.daty;
   late AppCustomTheme _displayTheme;
   Timer? _transitionTimer;
 
-  AppThemeType get currentThemeType => _currentThemeType;
-
+  AppBrightnessMode get currentMode => _currentMode;
+  AppPaletteType get currentPalette => _currentPalette;
   AppCustomTheme get currentTheme => _displayTheme;
 
-  AppThemeType get _systemThemeType =>
-      WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-              Brightness.dark
-          ? AppThemeType.dark
-          : AppThemeType.light;
+  Brightness get _systemBrightness =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness;
 
-  AppCustomTheme themeFor(AppThemeType type) {
-    switch (type) {
-      case AppThemeType.system:
-        return themeFor(_systemThemeType);
-      case AppThemeType.light:
-        return AppCustomTheme.light;
-      case AppThemeType.dark:
-        return AppCustomTheme.dark;
-      case AppThemeType.ocean:
-        return AppCustomTheme.ocean;
-      case AppThemeType.forest:
-        return AppCustomTheme.forest;
-      case AppThemeType.sunset:
-        return AppCustomTheme.sunset;
-      case AppThemeType.love:
-        return AppCustomTheme.love;
+  void _restoreSelection() {
+    final savedMode = _preferences.getString(_modeKey);
+    final savedPalette = _preferences.getString(_paletteKey);
+
+    if (savedMode != null || savedPalette != null) {
+      _currentMode = AppBrightnessMode.values.firstWhere(
+        (mode) => mode.name == savedMode,
+        orElse: () => AppBrightnessMode.system,
+      );
+      _currentPalette = AppPaletteType.values.firstWhere(
+        (palette) => palette.name == savedPalette,
+        orElse: () => AppPaletteType.daty,
+      );
+      return;
+    }
+
+    switch (_preferences.getString(_legacyKey)) {
+      case 'light':
+        _currentMode = AppBrightnessMode.light;
+      case 'dark':
+        _currentMode = AppBrightnessMode.dark;
+      case 'ocean':
+        _currentMode = AppBrightnessMode.dark;
+        _currentPalette = AppPaletteType.ocean;
+      case 'forest':
+        _currentMode = AppBrightnessMode.dark;
+        _currentPalette = AppPaletteType.forest;
+      case 'sunset':
+        _currentMode = AppBrightnessMode.light;
+        _currentPalette = AppPaletteType.sunset;
+      case 'love':
+        _currentMode = AppBrightnessMode.light;
+        _currentPalette = AppPaletteType.love;
+      default:
+        _currentMode = AppBrightnessMode.system;
+        _currentPalette = AppPaletteType.daty;
     }
   }
 
-  AppCustomTheme _resolvedTheme(AppThemeType type) {
-    final resolvedType = type == AppThemeType.system ? _systemThemeType : type;
-    return themeFor(resolvedType);
+  AppCustomTheme previewTheme(
+    AppBrightnessMode mode,
+    AppPaletteType palette,
+  ) {
+    final brightness = switch (mode) {
+      AppBrightnessMode.system => _systemBrightness,
+      AppBrightnessMode.light => Brightness.light,
+      AppBrightnessMode.dark => Brightness.dark,
+    };
+
+    return switch ((palette, brightness)) {
+      (AppPaletteType.daty, Brightness.light) => AppCustomTheme.light,
+      (AppPaletteType.daty, Brightness.dark) => AppCustomTheme.dark,
+      (AppPaletteType.ocean, Brightness.light) => AppCustomTheme.oceanLight,
+      (AppPaletteType.ocean, Brightness.dark) => AppCustomTheme.ocean,
+      (AppPaletteType.forest, Brightness.light) => AppCustomTheme.forestLight,
+      (AppPaletteType.forest, Brightness.dark) => AppCustomTheme.forest,
+      (AppPaletteType.sunset, Brightness.light) => AppCustomTheme.sunset,
+      (AppPaletteType.sunset, Brightness.dark) => AppCustomTheme.sunsetDark,
+      (AppPaletteType.love, Brightness.light) => AppCustomTheme.love,
+      (AppPaletteType.love, Brightness.dark) => AppCustomTheme.loveDark,
+    };
   }
 
-  String labelFor(AppThemeType type) =>
-      type == AppThemeType.system ? 'Sistema' : themeFor(type).name;
+  String modeLabel(AppBrightnessMode mode) => switch (mode) {
+        AppBrightnessMode.system => 'Sistema',
+        AppBrightnessMode.light => 'Claro',
+        AppBrightnessMode.dark => 'Oscuro',
+      };
 
-  String emojiFor(AppThemeType type) =>
-      type == AppThemeType.system ? '📱' : themeFor(type).emoji;
+  String paletteLabel(AppPaletteType palette) =>
+      previewTheme(AppBrightnessMode.light, palette).name;
 
-  String descriptionFor(AppThemeType type) => type == AppThemeType.system
-      ? 'Claro u oscuro según tu celular'
-      : themeFor(type).description;
+  String paletteDescription(AppPaletteType palette) =>
+      previewTheme(AppBrightnessMode.light, palette).description;
 
-  List<Color> previewColorsFor(AppThemeType type) => type == AppThemeType.system
-      ? [
-          AppCustomTheme.light.primary,
-          AppCustomTheme.dark.card,
-          AppCustomTheme.dark.accent,
-        ]
-      : themeFor(type).previewColors;
+  String paletteEmoji(AppPaletteType palette) =>
+      previewTheme(AppBrightnessMode.light, palette).emoji;
 
-  Future<void> setTheme(AppThemeType themeType) async {
-    if (_currentThemeType == themeType) return;
-    _currentThemeType = themeType;
-    _animateTo(_resolvedTheme(themeType));
+  AppBrightnessMode modeForPalette(AppPaletteType palette) => switch (palette) {
+        AppPaletteType.daty => AppBrightnessMode.system,
+        AppPaletteType.ocean => AppBrightnessMode.dark,
+        AppPaletteType.forest => AppBrightnessMode.dark,
+        AppPaletteType.sunset => AppBrightnessMode.light,
+        AppPaletteType.love => AppBrightnessMode.light,
+      };
 
-    await _preferences.setString(_preferenceKey, themeType.name);
+  Future<void> setAppearance(
+    AppBrightnessMode mode,
+    AppPaletteType palette,
+  ) async {
+    if (palette != AppPaletteType.daty) {
+      mode = modeForPalette(palette);
+    }
+
+    if (_currentMode == mode && _currentPalette == palette) return;
+
+    _currentMode = mode;
+    _currentPalette = palette;
+    _animateTo(previewTheme(mode, palette));
+
+    await Future.wait([
+      _preferences.setString(_modeKey, mode.name),
+      _preferences.setString(_paletteKey, palette.name),
+      _preferences.remove(_legacyKey),
+    ]);
+  }
+
+  void _normalizeSelection() {
+    if (_currentPalette != AppPaletteType.daty) {
+      _currentMode = modeForPalette(_currentPalette);
+    }
   }
 
   void _animateTo(AppCustomTheme targetTheme) {
@@ -116,8 +177,8 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangePlatformBrightness() {
-    if (_currentThemeType == AppThemeType.system) {
-      _animateTo(_resolvedTheme(AppThemeType.system));
+    if (_currentMode == AppBrightnessMode.system) {
+      _animateTo(previewTheme(_currentMode, _currentPalette));
     }
   }
 

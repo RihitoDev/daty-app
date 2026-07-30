@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.magic_dates",
+      "sha256_cert_fingerprints": [
+        "A7:4E:CE:2A:B0:5D:A8:50:84:97:BB:E7:4C:29:A8:6A:E9:10:A7:4F:50:17:BA:6C:3D:CF:85:87:B3:E3:C8:7F"
+      ]
+    }
+  }
+]

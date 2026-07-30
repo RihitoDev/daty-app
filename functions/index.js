@@ -118,6 +118,41 @@ exports.createPairInvitation = onCall(
     },
 );
 
+exports.getPairInvitationStatus = onCall(
+    {region: REGION},
+    async (request) => {
+      const uid = requireUid(request);
+      const code = String(request.data?.code ?? "").trim().toUpperCase();
+
+      if (!/^[A-Z]{3}[0-9]{3}$/.test(code)) {
+        throw new HttpsError(
+            "invalid-argument",
+            "El código debe tener tres letras y tres números.",
+        );
+      }
+
+      const inviteSnapshot =
+        await db.collection("pairInvites").doc(code).get();
+      if (!inviteSnapshot.exists) return {status: "invalid"};
+
+      const invite = inviteSnapshot.data();
+      if (invite.ownerId === uid) return {status: "own-code"};
+      if (invite.status === "used") return {status: "used"};
+      if (invite.status === "cancelled") return {status: "cancelled"};
+      if (invite.status !== "pending") return {status: "unavailable"};
+
+      const expiresAt = invite.expiresAt;
+      if (
+        !(expiresAt instanceof Timestamp) ||
+        expiresAt.toMillis() <= Date.now()
+      ) {
+        return {status: "expired"};
+      }
+
+      return {status: "available"};
+    },
+);
+
 exports.acceptPairInvitation = onCall(
     {region: REGION},
     async (request) => {

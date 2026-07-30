@@ -33,6 +33,10 @@ class PairLinkProvider extends ChangeNotifier {
     if (uri.scheme == 'daty' && uri.host == 'pair') {
       code = uri.queryParameters['code'];
     } else if (uri.scheme == 'https' &&
+        uri.host == 'datty-app.web.app' &&
+        uri.path == '/pair') {
+      code = uri.queryParameters['code'];
+    } else if (uri.scheme == 'https' &&
         uri.host == 'darklife22.github.io' &&
         uri.path.startsWith('/Daty-landing')) {
       code = uri.queryParameters['pairCode'];

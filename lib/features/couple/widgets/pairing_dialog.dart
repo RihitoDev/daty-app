@@ -61,23 +61,16 @@ class _PairingDialogState extends State<PairingDialog> {
     if (invitation == null || !_invitationController.canShare) return;
 
     final box = context.findRenderObject() as RenderBox?;
-    final appUrl = Uri(
-      scheme: 'daty',
-      host: 'pair',
-      queryParameters: {'code': invitation.code},
-    );
     final invitationUrl = Uri.https(
-      'darklife22.github.io',
-      '/Daty-landing/',
-      {'pairCode': invitation.code},
+      'datty-app.web.app',
+      '/pair',
+      {'code': invitation.code},
     );
     await SharePlus.instance.share(
       ShareParams(
         text: '¡Quiero vincularme contigo en Daty! 💜\n\n'
             'Usa este código:\n${invitation.code}\n\n'
-            'Si ya tienes Daty, abre la invitación aquí:\n$appUrl\n\n'
-            'Si no se abre o todavía no tienes la app:\n$invitationUrl\n\n'
-            'La invitación vence en 15 minutos.',
+            'Abre la invitación:\n$invitationUrl',
         sharePositionOrigin:
             box == null ? null : box.localToGlobal(Offset.zero) & box.size,
       ),
