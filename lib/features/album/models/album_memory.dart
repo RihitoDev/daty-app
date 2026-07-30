@@ -132,6 +132,7 @@ class AlbumMemory {
   }
 
   static DateTime _parseDate(dynamic timestamp) {
+    if (timestamp == null) return DateTime.now();
     if (timestamp is Timestamp) return timestamp.toDate();
     if (timestamp is DateTime) return timestamp;
     if (timestamp is String) {
@@ -139,6 +140,9 @@ class AlbumMemory {
       if (parsed != null) return parsed;
     }
     if (timestamp is int) {
+      if (timestamp < 10000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+      }
       return DateTime.fromMillisecondsSinceEpoch(timestamp);
     }
     return DateTime.now();
