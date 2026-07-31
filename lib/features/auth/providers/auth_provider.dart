@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -484,6 +485,10 @@ class AuthProvider extends ChangeNotifier {
         idToken: googleAuth.idToken,
       );
 
+      // La próxima sesión debe esperar su propio documento de Firestore; los
+      // datos de una sesión anterior no pueden decidir la navegación.
+      _isUserDataLoaded = false;
+      _userData = null;
       final userCredential = await _auth.signInWithCredential(credential);
 
       _user = userCredential.user;
@@ -517,27 +522,74 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> completeProfile(String username) async {
-    _setLoading(true);
-
     try {
       final currentUser = _auth.currentUser;
       if (currentUser == null) return 'no-user';
 
       final cleanUsername = username.trim();
       if (cleanUsername.isEmpty ||
-          RegExp(r'\s').allMatches(cleanUsername).length > 1) {
+          RegExp(r'\s').allMatches(cleanUsername).length > 3) {
         return 'invalid-username';
       }
 
-      await _reserveUsername(
-        user: currentUser,
-        username: cleanUsername,
-      );
-      await currentUser.updateDisplayName(cleanUsername);
-      await _createUserDocument(
-        currentUser,
-        usernameOverride: cleanUsername,
-      );
+      final normalizedUsername = _normalizeUsername(cleanUsername);
+      final userDoc = _firestore.collection('users').doc(currentUser.uid);
+      final usernameDoc =
+          _firestore.collection('usernames').doc(normalizedUsername);
+
+      // La reserva y el perfil se crean juntos. Si la app se cierra o una
+      // escritura falla, Firestore no guarda ninguna de las dos operaciones.
+      await _firestore.runTransaction((transaction) async {
+        final userSnapshot = await transaction.get(userDoc);
+        final usernameSnapshot = await transaction.get(usernameDoc);
+
+        final existingUsername = userSnapshot.data()?['username'];
+        if (existingUsername is String && existingUsername.trim().isNotEmpty) {
+          return;
+        }
+
+        if (usernameSnapshot.exists &&
+            usernameSnapshot.data()?['uid'] != currentUser.uid) {
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'username-taken',
+          );
+        }
+
+        transaction.set(usernameDoc, {
+          'uid': currentUser.uid,
+          'username': cleanUsername,
+          'email': currentUser.email ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.set(
+            userDoc,
+            {
+              'username': cleanUsername,
+              'usernameNormalized': normalizedUsername,
+              'email': currentUser.email ?? '',
+              'photoUrl': currentUser.photoURL,
+              'partnerId': null,
+              'exp': 0,
+              'soloDatesCompleted': 0,
+              'groupOutingsCompleted': 0,
+              'equippedPins': [],
+              'rachaDias': 0,
+              'fechaRegistro': FieldValue.serverTimestamp(),
+              'dismissedGroupMemories': [],
+              'authProvider': isGoogleUser ? 'google' : 'password',
+            },
+            SetOptions(merge: true));
+      });
+
+      try {
+        await currentUser.updateDisplayName(cleanUsername);
+      } catch (error) {
+        // El perfil ya quedó creado de forma segura; displayName es solo una
+        // copia auxiliar y no debe impedir la entrada al Home.
+        debugPrint('No se pudo actualizar displayName: $error');
+      }
 
       return null;
     } on FirebaseException catch (error) {
@@ -546,8 +598,6 @@ class AuthProvider extends ChangeNotifier {
     } catch (error) {
       debugPrint('No se pudo completar el perfil: $error');
       return 'unknown-error';
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -596,6 +646,37 @@ class AuthProvider extends ChangeNotifier {
       return 'unknown-error';
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<String?> deleteAccount() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return 'no-user';
+
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('deleteMyAccount');
+      await callable.call<void>();
+
+      await _userDocSubscription?.cancel();
+      _userDocSubscription = null;
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {
+        // La cuenta de Firebase ya fue eliminada; este cierre es auxiliar.
+      }
+      await _auth.signOut();
+      _user = null;
+      _userData = null;
+      _isUserDataLoaded = true;
+      notifyListeners();
+      return null;
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'unauthenticated') return 'no-user';
+      return 'delete-failed';
+    } catch (error) {
+      debugPrint('No se pudo eliminar la cuenta: $error');
+      return 'delete-failed';
     }
   }
 

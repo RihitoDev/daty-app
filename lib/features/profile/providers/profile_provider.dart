@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/models/achievement_definition.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../../../core/services/image_upload_service.dart';
 import 'dart:async';
 
@@ -311,15 +312,19 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> pickAndUploadImage() async {
-    final XFile? image = await ImageUploadService.pickImage();
+  Future<void> pickAndUploadImage(BuildContext context) async {
+    final XFile? image =
+        await ImageUploadService.pickAndCropProfileImage(context);
     if (image == null) return;
 
     _selectedImageBytes = await image.readAsBytes();
     _isUploadingPhoto = true;
     notifyListeners();
 
-    final String? imageUrl = await ImageUploadService.uploadImage(image);
+    final String? imageUrl = await ImageUploadService.uploadImage(
+      image,
+      folder: 'profiles',
+    );
 
     if (imageUrl != null) {
       final myUid = _authProvider.user!.uid;

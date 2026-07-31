@@ -79,7 +79,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: IconButton.filled(
                     onPressed: profile.isUploadingPhoto
                         ? null
-                        : profile.pickAndUploadImage,
+                        : () => profile.pickAndUploadImage(context),
                     icon: profile.isUploadingPhoto
                         ? const SizedBox(
                             width: 18,

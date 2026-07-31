@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ImageUploadService {
@@ -15,6 +17,55 @@ class ImageUploadService {
       imageQuality: 70,
     );
     return image;
+  }
+
+  static Future<XFile?> pickAndCropProfileImage(
+    BuildContext context,
+  ) async {
+    final picker = ImagePicker();
+    final selected = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 95,
+    );
+    if (selected == null || !context.mounted) return null;
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: selected.path,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 88,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Ajustar foto',
+          toolbarColor: colorScheme.primary,
+          toolbarWidgetColor: colorScheme.onPrimary,
+          activeControlsWidgetColor: colorScheme.primary,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          hideBottomControls: false,
+          aspectRatioPresets: const [CropAspectRatioPreset.square],
+        ),
+        IOSUiSettings(
+          title: 'Ajustar foto',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          aspectRatioPickerButtonHidden: true,
+          aspectRatioPresets: const [CropAspectRatioPreset.square],
+          doneButtonTitle: 'Listo',
+          cancelButtonTitle: 'Cancelar',
+        ),
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: const CropperSize(width: 520, height: 520),
+        ),
+      ],
+    );
+
+    return cropped == null ? null : XFile(cropped.path);
   }
 
   /// Subir imagen a Firebase Storage y obtener su URL pública de descarga.
