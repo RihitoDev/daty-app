@@ -1,0 +1,45 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isImageUnder10MB() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Perfiles de usuario: /users/{userId}/...
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId && isImageUnder10MB();
+    }
+
+    // Recuerdos de Pareja: /couples/{coupleId}/...
+    match /couples/{coupleId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImageUnder10MB();
+    }
+
+    // Recuerdos Solo: /solo/{userId}/...
+    match /solo/{userId}/{allPaths=**} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId && isImageUnder10MB();
+    }
+
+    // Recuerdos de Grupo: /groups/{groupId}/...
+    match /groups/{groupId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImageUnder10MB();
+    }
+
+    // Regla general para cualquier otra imagen subida por usuario autenticado
+    match /{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isImageUnder10MB();
+    }
+  }
+}

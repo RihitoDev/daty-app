@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Colección de usuarios (/users/{uid})
+    match /users/{uid} {
+      // Cualquier usuario autenticado puede leer perfiles (necesario para verificar nombres o buscar pareja)
+      allow read: if isAuthenticated();
+      
+      // Creación del propio perfil
+      allow create: if isOwner(uid);
+      
+      // Actualización restringida: el usuario no puede alterar campos protegidos como exp, partnerId o rachaDias directamente
+      allow update: if isOwner(uid) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['exp', 'partnerId', 'rachaDias', 'fechaRegistro']);
+
+      // Eliminación solo por Cloud Functions / Admin SDK
+      allow delete: if false;
+    }
+
+    // 2. Reserva de nombres de usuario (/usernames/{usernameNormalized})
+    match /usernames/{usernameNormalized} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // 3. Progreso y Contrato de Pareja (/couples_progress/{coupleId})
+    match /couples_progress/{coupleId} {
+      allow read: if isAuthenticated() &&
+        (request.auth.uid == resource.data.user1 || request.auth.uid == resource.data.user2);
+      
+      allow create, update: if isAuthenticated() &&
+        (request.resource.data.user1 == request.auth.uid || request.resource.data.user2 == request.auth.uid);
+        
+      allow delete: if false;
+    }
+
+    // 4. Catálogo de Aventuras (/adventures/{adventureId})
+    match /adventures/{adventureId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Solo por admin / seeder
+    }
+
+    // 5. Recuerdos Individuales (/solo_memories/{memoryId})
+    match /solo_memories/{memoryId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // 6. Recuerdos de Pareja (/memories/{memoryId})
+    match /memories/{memoryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+
+    // 7. Grupos y Lobbies (/groups/{groupCode})
+    match /groups/{groupCode} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.creatorId == request.auth.uid;
+    }
+
+    // 8. Recuerdos Grupales (/group_memories/{memoryId})
+    match /group_memories/{memoryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+    }
+
+    // 9. Colecciones exclusivas de servidor (Admin SDK via Cloud Functions)
+    match /pairInvites/{code} {
+      allow read, write: if false;
+    }
+
+    match /pairInviteOwners/{uid} {
+      allow read, write: if false;
+    }
+
+    match /emailVerificationCodes/{uid} {
+      allow read, write: if false;
+    }
+  }
+}
