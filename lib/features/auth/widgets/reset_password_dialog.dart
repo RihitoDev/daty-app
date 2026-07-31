@@ -29,21 +29,36 @@ class _ResetPasswordDialogState extends State<ResetPasswordDialog> {
 
     return AlertDialog(
       backgroundColor: customTheme.card,
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
+      contentPadding: const EdgeInsets.fromLTRB(22, 18, 22, 8),
+      actionsPadding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+      actionsAlignment: MainAxisAlignment.end,
+      actionsOverflowAlignment: OverflowBarAlignment.end,
+      actionsOverflowButtonSpacing: 6,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
       title: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.lock_outline,
             color: customTheme.primary,
           ),
           const SizedBox(width: 10),
-          Text(
-            'Recuperar Contraseña',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: customTheme.text,
+          Expanded(
+            child: Text(
+              'Recuperar contraseña',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 21,
+                height: 1.15,
+                fontWeight: FontWeight.bold,
+                color: customTheme.text,
+              ),
             ),
           ),
         ],

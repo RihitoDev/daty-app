@@ -304,3 +304,8 @@ exports.sendEmailVerificationCode =
   emailVerification.sendEmailVerificationCode;
 exports.verifyEmailVerificationCode =
   emailVerification.verifyEmailVerificationCode;
+
+const accountCleanup = require("./account-cleanup");
+
+exports.deleteMyAccount = accountCleanup.deleteMyAccount;
+exports.cleanupIncompleteAccounts = accountCleanup.cleanupIncompleteAccounts;
