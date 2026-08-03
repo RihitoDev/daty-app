@@ -415,3 +415,8 @@ const accountCleanup = require("./account-cleanup");
 
 exports.deleteMyAccount = accountCleanup.deleteMyAccount;
 exports.cleanupIncompleteAccounts = accountCleanup.cleanupIncompleteAccounts;
+
+const usernameEvents = require("./username-events");
+
+exports.getUsernameChangeStatus = usernameEvents.getUsernameChangeStatus;
+exports.changeUsernameDuringEvent = usernameEvents.changeUsernameDuringEvent;

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/username_rules.dart';
 
 enum _UsernameStatus { idle, checking, taken, error }
 
@@ -27,13 +28,7 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
   }
 
   String? _validateUsername(String? value) {
-    final username = value?.trim() ?? '';
-    if (username.isEmpty) return 'Escribe un nombre de usuario';
-    if (username.length < 2) return 'Usa al menos 2 caracteres';
-    if (RegExp(r'\s').allMatches(username).length > 3) {
-      return 'Puedes usar como máximo tres espacios';
-    }
-    return null;
+    return UsernameRules.validationMessage(value ?? '');
   }
 
   Future<void> _submit() async {
@@ -204,7 +199,9 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                                   textCapitalization: TextCapitalization.words,
                                   textInputAction: TextInputAction.done,
                                   inputFormatters: [
-                                    LengthLimitingTextInputFormatter(40),
+                                    LengthLimitingTextInputFormatter(
+                                      UsernameRules.maxLength,
+                                    ),
                                     _threeSpacesFormatter,
                                   ],
                                   onChanged: (_) {

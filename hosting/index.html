@@ -519,7 +519,7 @@
       "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyB4_VMuDfZ-ityPaqS0oyvest-r8uwZ40k",
+      apiKey: "AIzaSyB4_VMuDfZ-ityPaqS0oyvest-r8uwZ4Ok",
       authDomain: "datty-app.firebaseapp.com",
       projectId: "datty-app",
       storageBucket: "datty-app.firebasestorage.app",
@@ -533,7 +533,6 @@
     const params = new URLSearchParams(window.location.search);
     const mode = params.get("mode");
     const actionCode = params.get("oobCode");
-    const continueUrl = params.get("continueUrl");
 
     const formView = document.getElementById("formView");
     const successView = document.getElementById("successView");
@@ -566,6 +565,10 @@
 
       if (code.includes("weak-password")) {
         return "La contraseña es demasiado débil.";
+      }
+
+      if (code.includes("invalid-api-key") || code.includes("api-key-not-valid")) {
+        return "El servicio de recuperación no está configurado correctamente. Inténtalo más tarde.";
       }
 
       return "No se pudo cambiar la contraseña. Solicita un enlace nuevo desde Daty.";
@@ -660,7 +663,9 @@
         successView.style.display = "block";
         speech.textContent = "¡Lo logramos! Tu cuenta está segura otra vez.";
 
-        continueButton.href = continueUrl || "https://datty-app.web.app";
+        // Abre Daty y solicita una autenticación nueva con la contraseña
+        // recién actualizada.
+        continueButton.href = "daty://login";
       } catch (error) {
         showMessage(friendlyError(error), "error");
         submitButton.disabled = false;

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../shared/widgets/custom_snackbar.dart';
+import 'add_password_screen.dart';
+import 'delete_account_screen.dart';
 
 class SecurityScreen extends StatelessWidget {
   const SecurityScreen({super.key});
@@ -49,19 +51,23 @@ class SecurityScreen extends StatelessWidget {
             color: colors.card,
             child: ListTile(
               leading: Icon(Icons.password_rounded, color: colors.primary),
-              title: Text('Cambiar contraseña',
+              title: Text(
+                  usesPassword
+                      ? 'Cambiar contraseña'
+                      : 'Agregar contraseña para Daty',
                   style: TextStyle(color: colors.text)),
               subtitle: Text(
                 usesPassword
                     ? 'Recibirás un enlace seguro en tu correo.'
-                    : 'Tu contraseña es administrada por Google.',
+                    : 'Entra con Google o con tu correo y una contraseña.',
                 style: TextStyle(color: colors.text2),
               ),
-              trailing: usesPassword
-                  ? Icon(Icons.chevron_right, color: colors.muted)
-                  : null,
-              onTap:
-                  usesPassword ? () => _sendPasswordReset(context, auth) : null,
+              trailing: Icon(Icons.chevron_right, color: colors.muted),
+              onTap: usesPassword
+                  ? () => _sendPasswordReset(context, auth)
+                  : providers.contains('google.com')
+                      ? () => _openAddPassword(context)
+                      : null,
             ),
           ),
           Card(
@@ -75,6 +81,44 @@ class SecurityScreen extends StatelessWidget {
                 style: TextStyle(color: colors.text2),
               ),
               trailing: const Chip(label: Text('Actual')),
+            ),
+          ),
+          const SizedBox(height: 22),
+          const Padding(
+            padding: EdgeInsets.only(left: 8, bottom: 8),
+            child: Text(
+              'Zona de peligro',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Card(
+            color: colors.card,
+            child: ListTile(
+              leading: const Icon(
+                Icons.delete_forever_outlined,
+                color: Colors.redAccent,
+              ),
+              title: const Text(
+                'Eliminar cuenta',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              subtitle: Text(
+                'Elimina permanentemente tu información',
+                style: TextStyle(color: colors.text2),
+              ),
+              trailing: Icon(Icons.chevron_right, color: colors.muted),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DeleteAccountScreen(),
+                ),
+              ),
             ),
           ),
         ],
@@ -95,5 +139,20 @@ class SecurityScreen extends StatelessWidget {
     } else {
       CustomSnackBar.showError(context, 'No se pudo enviar el enlace');
     }
+  }
+
+  Future<void> _openAddPassword(BuildContext context) async {
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AddPasswordScreen(),
+      ),
+    );
+
+    if (!context.mounted || added != true) return;
+    CustomSnackBar.showSuccess(
+      context,
+      'Ya puedes entrar con Google o con correo y contraseña.',
+    );
   }
 }

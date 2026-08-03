@@ -11,7 +11,6 @@ import '../../profile/providers/profile_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../couple/widgets/reconciliation_contract_dialog.dart';
 import 'appearance_screen.dart';
-import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_center_screen.dart';
 import 'notifications_screen.dart';
@@ -101,17 +100,24 @@ class _SettingsBody extends StatelessWidget {
                 final doc = snapshot.data;
                 if (doc == null || !doc.exists) return const SizedBox.shrink();
                 final data = doc.data()!;
-                final recoveryEnd = (data['recoveryWindowEnd'] as Timestamp?)?.toDate();
-                final preservationEnd = (data['preservationWindowEnd'] as Timestamp?)?.toDate();
+                final recoveryEnd =
+                    (data['recoveryWindowEnd'] as Timestamp?)?.toDate();
+                final preservationEnd =
+                    (data['preservationWindowEnd'] as Timestamp?)?.toDate();
                 final now = DateTime.now();
 
-                final canRecover = recoveryEnd != null && now.isBefore(recoveryEnd);
-                final canPreserve = preservationEnd != null && now.isBefore(preservationEnd);
+                final canRecover =
+                    recoveryEnd != null && now.isBefore(recoveryEnd);
+                final canPreserve =
+                    preservationEnd != null && now.isBefore(preservationEnd);
 
                 if (!canRecover && !canPreserve) return const SizedBox.shrink();
 
-                final remainingHrs = canRecover ? recoveryEnd.difference(now).inHours : 0;
-                final remainingMins = canRecover ? (recoveryEnd.difference(now).inMinutes % 60) : 0;
+                final remainingHrs =
+                    canRecover ? recoveryEnd.difference(now).inHours : 0;
+                final remainingMins = canRecover
+                    ? (recoveryEnd.difference(now).inMinutes % 60)
+                    : 0;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,19 +230,6 @@ class _SettingsBody extends StatelessWidget {
               onTap: () => _confirmLogout(context),
             ),
           ]),
-          const SizedBox(height: 28),
-          _section('Zona de peligro', colors, color: Colors.redAccent),
-          _card(colors, [
-            _tile(
-              context,
-              colors,
-              Icons.delete_forever_outlined,
-              'Eliminar cuenta',
-              'Elimina permanentemente tu información',
-              const DeleteAccountScreen(),
-              color: Colors.redAccent,
-            ),
-          ]),
           const SizedBox(height: 34),
           Center(
             child: Text(
@@ -323,7 +316,6 @@ class _SettingsBody extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.edit_outlined, color: Colors.white),
           ],
         ),
       ),
@@ -477,7 +469,8 @@ class _SettingsBody extends StatelessWidget {
                           color: t.primary.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.map_rounded, color: t.primary, size: 22),
+                        child:
+                            Icon(Icons.map_rounded, color: t.primary, size: 22),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -673,7 +666,8 @@ class _SettingsBody extends StatelessWidget {
                           canConfirm ? () => Navigator.pop(ctx, true) : null,
                       child: const Text('Confirmar',
                           style: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold)),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -742,7 +736,8 @@ class _SettingsBody extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.timer_outlined, size: 16, color: t.primary),
+                          Icon(Icons.timer_outlined,
+                              size: 16, color: t.primary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -822,7 +817,8 @@ class _SettingsBody extends StatelessWidget {
                           canConfirm ? () => Navigator.pop(ctx, true) : null,
                       child: const Text('Desvincular',
                           style: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold)),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
