@@ -15,15 +15,12 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isAuthenticated();
       allow create: if isOwner(uid);
-      allow update: if (
-        isOwner(uid) &&
-        request.resource.data.get('username', '') == resource.data.get('username', '') &&
-        request.resource.data.get('usernameNormalized', '') == resource.data.get('usernameNormalized', '')
-      ) || (
+      allow update: if isOwner(uid) || (
         isAuthenticated() &&
-        resource.data.partnerId == request.auth.uid &&
-        request.resource.data.get('username', '') == resource.data.get('username', '') &&
-        request.resource.data.get('usernameNormalized', '') == resource.data.get('usernameNormalized', '')
+        (
+          resource.data.get('partnerId', null) == request.auth.uid ||
+          request.resource.data.get('partnerId', null) == request.auth.uid
+        )
       );
       allow delete: if false;
     }
@@ -72,8 +69,7 @@ service cloud.firestore {
 
     // 6. Recuerdos Individuales (/solo_memories/{memoryId})
     match /solo_memories/{memoryId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, write: if isAuthenticated();
     }
 
     // 7. Recuerdos de Pareja (/memories/{memoryId})
