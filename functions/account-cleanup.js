@@ -89,7 +89,7 @@ async function unlinkCouple(uid, userData) {
 
   const db = getFirestore();
   const partnerRef = db.collection("users").doc(partnerId);
-  const coupleId = uid.localeCompare(partnerId) < 0 ?
+  const coupleId = uid < partnerId ?
     `${uid}_${partnerId}` : `${partnerId}_${uid}`;
   const coupleRef = db.collection("couples_progress").doc(coupleId);
 

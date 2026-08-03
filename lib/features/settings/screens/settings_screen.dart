@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +9,7 @@ import '../../../shared/widgets/custom_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../providers/settings_provider.dart';
+import '../../couple/widgets/reconciliation_contract_dialog.dart';
 import 'appearance_screen.dart';
 import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
@@ -90,6 +92,46 @@ class _SettingsBody extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: 28),
+          if (!hasPartner && auth.user != null)
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>?>(
+              stream: settings.getPausedCoupleStream(auth.user!.uid),
+              builder: (context, snapshot) {
+                final doc = snapshot.data;
+                if (doc == null || !doc.exists) return const SizedBox.shrink();
+                final data = doc.data()!;
+                final recoveryEnd = (data['recoveryWindowEnd'] as Timestamp?)?.toDate();
+                final preservationEnd = (data['preservationWindowEnd'] as Timestamp?)?.toDate();
+                final now = DateTime.now();
+
+                final canRecover = recoveryEnd != null && now.isBefore(recoveryEnd);
+                final canPreserve = preservationEnd != null && now.isBefore(preservationEnd);
+
+                if (!canRecover && !canPreserve) return const SizedBox.shrink();
+
+                final remainingHrs = canRecover ? recoveryEnd.difference(now).inHours : 0;
+                final remainingMins = canRecover ? (recoveryEnd.difference(now).inMinutes % 60) : 0;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _section('Vínculo y recuerdos', colors),
+                    _RecoveryAccordion(
+                      title: canRecover
+                          ? 'Recuperación de Vínculo Activa'
+                          : 'Ventana de Resguardo de Fotos',
+                      canRecover: canRecover,
+                      canPreserve: canPreserve,
+                      remainingHrs: remainingHrs,
+                      remainingMins: remainingMins,
+                      doc: doc,
+                      colors: colors,
+                      auth: auth,
+                      settings: settings,
+                    ),
+                  ],
+                );
+              },
+            ),
           _section('Pareja y aventuras', colors),
           _card(colors, [
             if (hasPartner) ...[
@@ -351,30 +393,274 @@ class _SettingsBody extends StatelessWidget {
     BuildContext context,
     SettingsProvider settings,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final t = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+
+    final modeChoice = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('¿Reiniciar progreso?'),
-        content: const Text(
-          'Se borrarán tus aventuras y fotos individuales. Esta acción no se puede deshacer.',
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: t.elevatedSurface,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: t.outline),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Reiniciar Progreso Solitario',
+                style: TextStyle(
+                  color: t.text,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Selecciona el modo de reinicio que deseas:',
+                style: TextStyle(color: t.muted, fontSize: 13),
+              ),
+              const SizedBox(height: 18),
+
+              // Tarjeta Opción 1: Solo Mapa
+              GestureDetector(
+                onTap: () => Navigator.pop(ctx, 'map_only'),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: t.softSurface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                        color: t.primary.withValues(alpha: 0.5), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: t.primary.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.map_rounded, color: t.primary, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Solo Mapa',
+                                  style: TextStyle(
+                                    color: t.text,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: t.primary.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'New Game+',
+                                    style: TextStyle(
+                                        color: t.primary,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Conserva tu Álbum de recuerdos. Vuelve a jugar los 30 niveles con 50% XP.',
+                              style: TextStyle(
+                                  color: t.text2, fontSize: 12, height: 1.3),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Tarjeta Opción 2: Reset Completo
+              GestureDetector(
+                onTap: () => Navigator.pop(ctx, 'factory'),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: t.softSurface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: t.outline),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.delete_forever_rounded,
+                            color: Colors.redAccent, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Reset Completo',
+                              style: TextStyle(
+                                color: t.text,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Borra tu mapa, fotos solitarias del Álbum y restablece tu nivel a 0.',
+                              style: TextStyle(
+                                  color: t.text2, fontSize: 12, height: 1.3),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  child: Text('Cancelar', style: TextStyle(color: t.muted)),
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Borrar'),
-          ),
-        ],
       ),
     );
-    if (confirmed != true) return;
-    final error = await settings.resetSoloProgress();
+
+    if (modeChoice == null || !context.mounted) return;
+
+    final textController = TextEditingController();
+    bool canConfirm = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: t.elevatedSurface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: t.outline),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  modeChoice == 'map_only'
+                      ? 'Confirmar Reinicio del Mapa'
+                      : 'Confirmar Reset Completo',
+                  style: TextStyle(
+                    color: t.text,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  modeChoice == 'map_only'
+                      ? 'Tu Álbum se conservará intacto. Escribe REINICIAR:'
+                      : 'Esta acción borrará tu Álbum y XP. Escribe REINICIAR:',
+                  style: TextStyle(color: t.text2, fontSize: 13),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: textController,
+                  autofocus: true,
+                  style: TextStyle(color: t.text, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: 'REINICIAR',
+                    hintStyle: TextStyle(color: t.muted),
+                    filled: true,
+                    fillColor: t.softSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: t.outline),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    setDialogState(() {
+                      canConfirm = val.trim() == 'REINICIAR';
+                    });
+                  },
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text('Cancelar', style: TextStyle(color: t.muted)),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: canConfirm
+                            ? t.primary
+                            : t.muted.withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed:
+                          canConfirm ? () => Navigator.pop(ctx, true) : null,
+                      child: const Text('Confirmar',
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final error = modeChoice == 'map_only'
+        ? await settings.resetSoloMapOnly()
+        : await settings.resetSoloFactory();
+
     if (!context.mounted) return;
     error == null
-        ? CustomSnackBar.showSuccess(context, 'Progreso reiniciado')
+        ? CustomSnackBar.showSuccess(context, 'Progreso solitario reiniciado')
         : CustomSnackBar.showError(context, error);
   }
 
@@ -382,34 +668,145 @@ class _SettingsBody extends StatelessWidget {
     BuildContext context,
     SettingsProvider settings,
   ) async {
+    final t = Provider.of<ThemeProvider>(context, listen: false).currentTheme;
+    final textController = TextEditingController();
+    bool canConfirm = false;
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text(
-          'Romper vínculo',
-          style: TextStyle(color: Colors.redAccent),
-        ),
-        content: const Text(
-          'Se eliminarán el progreso y los recuerdos compartidos. Esta acción no se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: t.elevatedSurface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: t.outline),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Desvincular Pareja',
+                  style: TextStyle(
+                    color: t.text,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: t.softSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: t.outline),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.timer_outlined, size: 16, color: t.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '72h para recuperar el vínculo',
+                              style: TextStyle(
+                                  color: t.text,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.folder_special_outlined,
+                              size: 16, color: t.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '7 días para guardar fotos en Personal',
+                              style: TextStyle(
+                                  color: t.text,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Escribe DESVINCULAR para confirmar:',
+                  style: TextStyle(color: t.text2, fontSize: 12.5),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: textController,
+                  autofocus: true,
+                  style: TextStyle(color: t.text, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: 'DESVINCULAR',
+                    hintStyle: TextStyle(color: t.muted),
+                    filled: true,
+                    fillColor: t.softSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: t.outline),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    setDialogState(() {
+                      canConfirm = val.trim() == 'DESVINCULAR';
+                    });
+                  },
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text('Cancelar', style: TextStyle(color: t.muted)),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: canConfirm
+                            ? t.primary
+                            : t.muted.withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed:
+                          canConfirm ? () => Navigator.pop(ctx, true) : null,
+                      child: const Text('Desvincular',
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Desvincular'),
-          ),
-        ],
+        ),
       ),
     );
-    if (confirmed != true) return;
-    final error = await settings.unlinkPartner();
+
+    if (confirmed != true || !context.mounted) return;
+    final error = await settings.unlinkPartnerWithGracePeriod();
     if (!context.mounted) return;
     error == null
-        ? CustomSnackBar.showSuccess(context, 'Vínculo eliminado')
+        ? CustomSnackBar.showSuccess(
+            context, 'Proceso de desvinculación iniciado')
         : CustomSnackBar.showError(context, error);
   }
 
@@ -436,5 +833,266 @@ class _SettingsBody extends StatelessWidget {
     if (context.mounted) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
+  }
+}
+
+class _RecoveryAccordion extends StatefulWidget {
+  final String title;
+  final bool canRecover;
+  final bool canPreserve;
+  final int remainingHrs;
+  final int remainingMins;
+  final DocumentSnapshot<Map<String, dynamic>> doc;
+  final AppCustomTheme colors;
+  final AuthProvider auth;
+  final SettingsProvider settings;
+
+  const _RecoveryAccordion({
+    required this.title,
+    required this.canRecover,
+    required this.canPreserve,
+    required this.remainingHrs,
+    required this.remainingMins,
+    required this.doc,
+    required this.colors,
+    required this.auth,
+    required this.settings,
+  });
+
+  @override
+  State<_RecoveryAccordion> createState() => _RecoveryAccordionState();
+}
+
+class _RecoveryAccordionState extends State<_RecoveryAccordion> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final data = widget.doc.data() ?? {};
+    final myUid = widget.auth.user?.uid;
+    final reconStatus = data['reconciliationStatus'];
+    final reconBy = data['reconciliationRequestedBy'];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: colors.softSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colors.primary.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colors.primary.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          onExpansionChanged: (expanded) =>
+              setState(() => _isExpanded = expanded),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          leading: Icon(
+            Icons.history_toggle_off_rounded,
+            color: colors.primary,
+            size: 22,
+          ),
+          title: Text(
+            widget.title,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          subtitle: widget.canRecover
+              ? Text(
+                  'Quedan ${widget.remainingHrs}h ${widget.remainingMins}m para arrepentirte',
+                  style: TextStyle(color: colors.text2, fontSize: 12),
+                )
+              : null,
+          trailing: Icon(
+            _isExpanded
+                ? Icons.keyboard_arrow_up_rounded
+                : Icons.keyboard_arrow_down_rounded,
+            color: colors.primary,
+          ),
+          children: [
+            if (widget.canRecover) ...[
+              Text(
+                'Puedes retomar la relación con tu pareja anterior dentro del periodo de gracia de 72 horas.',
+                style: TextStyle(
+                  color: colors.text2,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Builder(
+                builder: (context) {
+                  if (reconStatus == 'pending' && reconBy == myUid) {
+                    return Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.hourglass_top_rounded,
+                                color: colors.primary,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Propuesta enviada. Esperando a que tu pareja la revise y firme...',
+                                  style: TextStyle(
+                                    color: colors.text,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                            ),
+                            icon: Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: colors.text2,
+                            ),
+                            label: Text(
+                              'Cancelar propuesta',
+                              style: TextStyle(
+                                color: colors.text2,
+                                fontSize: 12,
+                              ),
+                            ),
+                            onPressed: widget.settings.isProcessing
+                                ? null
+                                : () => widget.settings.cancelReconciliation(
+                                      widget.doc.id,
+                                    ),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else if (reconStatus == 'pending' && reconBy != myUid) {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE91E63),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.volunteer_activism_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        label: const Text(
+                          'Ver y Firmar Contrato de Reconstrucción',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => ReconciliationContractDialog(
+                              coupleDocId: widget.doc.id,
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }
+
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.restore_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      label: const Text(
+                        'Proponer Reconciliación',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      onPressed: widget.settings.isProcessing
+                          ? null
+                          : () {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => ReconciliationContractDialog(
+                                  coupleDocId: widget.doc.id,
+                                  isProposing: true,
+                                ),
+                              );
+                            },
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (widget.canPreserve)
+              Row(
+                children: [
+                  Icon(
+                    Icons.shield_moon_outlined,
+                    color: colors.muted,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Recuerda mover tus fotos de pareja a Personal en el Álbum antes de que venza la ventana.',
+                      style: TextStyle(color: colors.muted, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

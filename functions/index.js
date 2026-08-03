@@ -208,7 +208,7 @@ exports.acceptPairInvitation = onCall(
             db.collection("pairInviteOwners").doc(ownerId);
         const myPointerRef = db.collection("pairInviteOwners").doc(uid);
         const coupleId =
-            uid.localeCompare(ownerId) < 0 ? `${uid}_${ownerId}` : `${ownerId}_${uid}`;
+            uid < ownerId ? `${uid}_${ownerId}` : `${ownerId}_${uid}`;
         const coupleRef = db.collection("couples_progress").doc(coupleId);
 
         const [
@@ -252,25 +252,126 @@ exports.acceptPairInvitation = onCall(
               {reason: "owner-linked"},
           );
         }
-        if (coupleSnapshot.exists) {
-          throw new HttpsError(
-              "already-exists",
-              "La relación ya existe.",
-          );
+        const user1 = uid < ownerId ? uid : ownerId;
+        const user2 = uid < ownerId ? ownerId : uid;
+
+        const isUser1 = uid === user1;
+
+        if (coupleSnapshot.exists && coupleSnapshot.get("unlinkingState") === "paused") {
+          const recoveryEnd = coupleSnapshot.get("recoveryWindowEnd");
+          if (recoveryEnd instanceof Timestamp && recoveryEnd.toMillis() > now.toMillis()) {
+            transaction.update(coupleRef, {
+              reconciliationStatus: "pending",
+              reconciliationRequestedBy: uid,
+              reconciliationRequestedAt: now,
+              contractSignedUser1: false,
+              contractSignedUser2: false,
+              [isUser1 ? "reconciliationSignedUser1" : "reconciliationSignedUser2"]: true,
+            });
+            transaction.update(myRef, {partnerId: ownerId});
+            transaction.update(ownerUserRef, {partnerId: uid});
+            transaction.update(inviteRef, {
+              status: "used",
+              usedAt: now,
+              usedBy: uid,
+            });
+            if (myPointerSnapshot.exists) {
+              transaction.delete(myPointerRef);
+            }
+            if (myInviteRef !== null && myInviteSnapshot?.exists && myInviteSnapshot.get("ownerId") === uid && myInviteSnapshot.get("status") === "pending") {
+              transaction.update(myInviteRef, {
+                status: "cancelled",
+                cancelledAt: now,
+              });
+            }
+            return {coupleId, reconciliationTriggered: true};
+          }
         }
 
-        const user1 = uid.localeCompare(ownerId) < 0 ? uid : ownerId;
-        const user2 = uid.localeCompare(ownerId) < 0 ? ownerId : uid;
+        // Finalizamos cualquier periodo de gracia pausado anterior para ambos usuarios
+        const [
+          oldPaused1, oldPaused2, oldPaused3, oldPaused4,
+          oldPaused5, oldPaused6, oldPaused7, oldPaused8,
+        ] = await Promise.all([
+          db.collection("couples_progress").where("user1Id", "==", uid).where("unlinkingState", "==", "paused").get(),
+          db.collection("couples_progress").where("user2Id", "==", uid).where("unlinkingState", "==", "paused").get(),
+          db.collection("couples_progress").where("user1", "==", uid).where("unlinkingState", "==", "paused").get(),
+          db.collection("couples_progress").where("user2", "==", uid).where("unlinkingState", "==", "paused").get(),
+          db.collection("couples_progress").where("user1Id", "==", ownerId).where("unlinkingState", "==", "paused").get(),
+          db.collection("couples_progress").where("user2Id", "==", ownerId).where("unlinkingState", "==", "paused").get(),
+          db.collection("couples_progress").where("user1", "==", ownerId).where("unlinkingState", "==", "paused").get(),
+          db.collection("couples_progress").where("user2", "==", ownerId).where("unlinkingState", "==", "paused").get(),
+        ]);
 
-        transaction.set(coupleRef, {
-          user1,
-          user2,
-          fechaVinculacion: FieldValue.serverTimestamp(),
-          xpPareja: 0,
-          nivelPareja: 1,
-          contractSignedUser1: false,
-          contractSignedUser2: false,
-        });
+        const oldDocMap = new Map();
+        [
+          ...oldPaused1.docs, ...oldPaused2.docs, ...oldPaused3.docs, ...oldPaused4.docs,
+          ...oldPaused5.docs, ...oldPaused6.docs, ...oldPaused7.docs, ...oldPaused8.docs,
+        ].forEach((doc) => oldDocMap.set(doc.id, doc));
+
+        const SevenDaysMillis = 7 * 24 * 60 * 60 * 1000;
+        const preservationEndTimestamp = Timestamp.fromMillis(now.toMillis() + SevenDaysMillis);
+
+        for (const oldDoc of oldDocMap.values()) {
+          if (oldDoc.id !== coupleId) {
+            transaction.update(oldDoc.ref, {
+              unlinkingState: "finalized",
+              recoveryWindowEnd: FieldValue.delete(),
+              preservationWindowEnd: preservationEndTimestamp,
+            });
+
+            const data = oldDoc.data();
+            const u1 = data.user1Id || data.user1;
+            const u2 = data.user2Id || data.user2;
+            const exPartnerId = (u1 === uid || u1 === ownerId) ? u2 : u1;
+            if (exPartnerId && exPartnerId !== uid && exPartnerId !== ownerId) {
+              const exUserRef = db.collection("users").doc(exPartnerId);
+              transaction.update(exUserRef, {partnerId: null});
+            }
+          }
+        }
+
+        const wasPaused = coupleSnapshot.exists && coupleSnapshot.get("unlinkingState") === "paused";
+
+        if (wasPaused) {
+          transaction.set(
+              coupleRef,
+              {
+                user1,
+                user2,
+                user1Id: user1,
+                user2Id: user2,
+                fechaVinculacion: FieldValue.serverTimestamp(),
+                xpPareja: coupleSnapshot.get("xpPareja") || 0,
+                nivelPareja: coupleSnapshot.get("nivelPareja") || 1,
+                contractSignedUser1: false,
+                contractSignedUser2: false,
+                unlinkingState: FieldValue.delete(),
+                unlinkedBy: FieldValue.delete(),
+                unlinkedAt: FieldValue.delete(),
+                recoveryWindowEnd: FieldValue.delete(),
+                preservationWindowEnd: FieldValue.delete(),
+                reconciliationStatus: FieldValue.delete(),
+                reconciliationRequestedBy: FieldValue.delete(),
+              },
+              {merge: true},
+          );
+        } else {
+          transaction.set(
+              coupleRef,
+              {
+                user1,
+                user2,
+                user1Id: user1,
+                user2Id: user2,
+                fechaVinculacion: FieldValue.serverTimestamp(),
+                xpPareja: 0,
+                nivelPareja: 1,
+                contractSignedUser1: false,
+                contractSignedUser2: false,
+              },
+          );
+        }
         transaction.update(myRef, {partnerId: ownerId});
         transaction.update(ownerUserRef, {partnerId: uid});
         transaction.update(inviteRef, {
@@ -278,8 +379,13 @@ exports.acceptPairInvitation = onCall(
           usedAt: FieldValue.serverTimestamp(),
           usedBy: uid,
         });
-        transaction.delete(ownerPointerRef);
-        transaction.delete(myPointerRef);
+        
+        if (ownerPointerRef) {
+            transaction.delete(ownerPointerRef);
+        }
+        if (myPointerSnapshot.exists) {
+            transaction.delete(myPointerRef);
+        }
 
         if (
           myInviteRef !== null &&

@@ -139,6 +139,7 @@ class _AdventureReviewScreenState extends State<AdventureReviewScreen> {
           'emoji': widget.adventureData['emoji'] ?? '✨',
           'id_adventure': adventureId.toString(),
           'coupleDocId': coupleDocId,
+          'isPersonal': false,
           'timestamp': FieldValue.serverTimestamp(),
           '${userPrefix}_rating': _rating,
           '${userPrefix}_review': _reviewController.text.trim(),

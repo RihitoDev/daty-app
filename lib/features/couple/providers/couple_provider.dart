@@ -34,9 +34,19 @@ class CoupleProvider with ChangeNotifier {
         : '${_currentPartnerId}_$myUid';
   }
 
+  bool get isUser1 {
+    if (_coupleData != null) {
+      final u1 = _coupleData?['user1Id'] ?? _coupleData?['user1'];
+      if (u1 != null) return u1 == myUid;
+    }
+    if (_currentPartnerId != null) {
+      return myUid.compareTo(_currentPartnerId!) < 0;
+    }
+    return false;
+  }
+
   bool get iSigned {
     if (_coupleData == null || _currentPartnerId == null) return false;
-    bool isUser1 = myUid.compareTo(_currentPartnerId!) < 0;
     return isUser1
         ? (_coupleData?['contractSignedUser1'] ?? false)
         : (_coupleData?['contractSignedUser2'] ?? false);
@@ -44,7 +54,6 @@ class CoupleProvider with ChangeNotifier {
 
   bool get partnerSigned {
     if (_coupleData == null || _currentPartnerId == null) return false;
-    bool isUser1 = myUid.compareTo(_currentPartnerId!) < 0;
     return isUser1
         ? (_coupleData?['contractSignedUser2'] ?? false)
         : (_coupleData?['contractSignedUser1'] ?? false);
@@ -82,6 +91,7 @@ class CoupleProvider with ChangeNotifier {
         ? '${myUid}_$partnerId'
         : '${partnerId}_$myUid';
 
+    _coupleSub?.cancel();
     _coupleSub = _firestore
         .collection('couples_progress')
         .doc(coupleDocId)
@@ -93,17 +103,14 @@ class CoupleProvider with ChangeNotifier {
         _retryTimer?.cancel();
         notifyListeners();
       } else {
-        _coupleData = null;
-        _isLoading = false;
-        notifyListeners();
-        _fetchCoupleDataWithRetry(coupleDocId);
+        _ensureCoupleDocExists(myUid, partnerId, coupleDocId);
       }
     }, onError: (e) {
-      _isLoading = false;
-      _coupleData = null;
-      notifyListeners();
+      debugPrint('Error listening to couple doc $coupleDocId: $e');
+      _ensureCoupleDocExists(myUid, partnerId, coupleDocId);
     });
 
+    _partnerSub?.cancel();
     _partnerSub =
         _firestore.collection('users').doc(partnerId).snapshots().listen(
       (snapshot) {
@@ -115,40 +122,32 @@ class CoupleProvider with ChangeNotifier {
     );
   }
 
-  void _fetchCoupleDataWithRetry(String docId) {
-    if (_coupleData != null) return;
-    _retryTimer?.cancel();
+  Future<void> _ensureCoupleDocExists(
+      String myUid, String partnerId, String coupleDocId) async {
+    try {
+      if (_currentPartnerId != partnerId) return;
+      final user1 = myUid.compareTo(partnerId) < 0 ? myUid : partnerId;
+      final user2 = myUid.compareTo(partnerId) < 0 ? partnerId : myUid;
+      final docRef = _firestore.collection('couples_progress').doc(coupleDocId);
 
-    int attempts = 0;
-    const maxAttempts = 3;
-
-    void attemptFetch() {
-      if (_coupleData != null ||
-          _currentPartnerId == null ||
-          attempts >= maxAttempts) {
-        return;
-      }
-      attempts++;
-      _retryTimer = Timer(Duration(seconds: attempts * 2), () async {
-        try {
-          final doc =
-              await _firestore.collection('couples_progress').doc(docId).get();
-          if (doc.exists && _coupleData == null) {
-            _coupleData = doc.data()!;
-            notifyListeners();
-          } else if (_coupleData == null) {
-            attemptFetch();
-          }
-        } catch (e) {
-          debugPrint('Retry fetch couple data attempt $attempts: $e');
-          if (_coupleData == null && attempts < maxAttempts) {
-            attemptFetch();
-          }
-        }
-      });
+      // Usar set con merge: true directamente sin hacer get() previo,
+      // para evitar que las reglas de lectura fallen si el documento aún no existe en Firestore.
+      await docRef.set({
+        'user1': user1,
+        'user2': user2,
+        'user1Id': user1,
+        'user2Id': user2,
+        'fechaVinculacion': FieldValue.serverTimestamp(),
+        'contractSignedUser1': false,
+        'contractSignedUser2': false,
+        'xpPareja': 0,
+        'nivelPareja': 1,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error ensuring couple doc exists: $e');
+      _isLoading = false;
+      notifyListeners();
     }
-
-    attemptFetch();
   }
 
   @override

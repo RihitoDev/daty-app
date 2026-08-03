@@ -9,6 +9,10 @@ import '../../../shared/widgets/custom_snackbar.dart';
 import '../providers/couple_provider.dart';
 import '../providers/pair_invitation_controller.dart';
 import '../services/pair_invitation_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../settings/providers/settings_provider.dart';
+import 'reconciliation_contract_dialog.dart';
 
 class PairingDialog extends StatefulWidget {
   const PairingDialog({
@@ -204,7 +208,24 @@ class _PairingDialogState extends State<PairingDialog> {
                       height: 1.35,
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 16),
+                  Builder(
+                    builder: (context) {
+                      final auth = context.watch<AuthProvider>();
+                      final settings = context.watch<SettingsProvider>();
+                      if (auth.user == null) return const SizedBox.shrink();
+
+                      return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>?>(
+                        stream: settings.getPausedCoupleStream(auth.user!.uid),
+                        builder: (context, snapshot) {
+                          final pausedDoc = snapshot.data;
+                          if (pausedDoc == null || !pausedDoc.exists) return const SizedBox.shrink();
+                          return _buildPausedRecoveryBanner(context, customTheme, pausedDoc.id, pausedDoc.data()!);
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 220),
                     child: _enteringCode
@@ -217,6 +238,32 @@ class _PairingDialogState extends State<PairingDialog> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPausedRecoveryBanner(
+      BuildContext context, AppCustomTheme customTheme, String docId, Map<String, dynamic> data) {
+    final auth = context.watch<AuthProvider>();
+    final myUid = auth.user?.uid;
+    final reconStatus = data['reconciliationStatus'];
+    final reconBy = data['reconciliationRequestedBy'];
+
+    String title = '¿Retomar vínculo anterior?';
+    String subtitle = 'Tienes un vínculo anterior en período de gracia. Puedes retomarlo directamente sin necesidad de código.';
+
+    if (reconStatus == 'pending' && reconBy == myUid) {
+      subtitle = 'Propuesta de reconstrucción enviada. Esperando a tu pareja.';
+    } else if (reconStatus == 'pending' && reconBy != myUid) {
+      subtitle = 'Tu pareja te envió el contrato de reconstrucción.';
+    }
+
+    return _DialogRecoveryAccordion(
+      title: title,
+      subtitle: subtitle,
+      docId: docId,
+      isProposing: reconStatus != 'pending' || reconBy != myUid,
+      customTheme: customTheme,
+      onClose: _close,
     );
   }
 
@@ -536,5 +583,128 @@ class _UpperCaseTextFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     return newValue.copyWith(text: newValue.text.toUpperCase());
+  }
+}
+
+class _DialogRecoveryAccordion extends StatefulWidget {
+  final String title;
+  final String subtitle;
+  final String docId;
+  final bool isProposing;
+  final AppCustomTheme customTheme;
+  final VoidCallback onClose;
+
+  const _DialogRecoveryAccordion({
+    required this.title,
+    required this.subtitle,
+    required this.docId,
+    required this.isProposing,
+    required this.customTheme,
+    required this.onClose,
+  });
+
+  @override
+  State<_DialogRecoveryAccordion> createState() =>
+      _DialogRecoveryAccordionState();
+}
+
+class _DialogRecoveryAccordionState extends State<_DialogRecoveryAccordion> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final customTheme = widget.customTheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: customTheme.softSurface.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: customTheme.text2.withValues(alpha: 0.15),
+          width: 1,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          onExpansionChanged: (expanded) =>
+              setState(() => _isExpanded = expanded),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          leading: Icon(
+            Icons.history_toggle_off_rounded,
+            color: customTheme.text2,
+            size: 18,
+          ),
+          title: Text(
+            widget.title,
+            style: TextStyle(
+              color: customTheme.text,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          trailing: Icon(
+            _isExpanded
+                ? Icons.keyboard_arrow_up_rounded
+                : Icons.keyboard_arrow_down_rounded,
+            color: customTheme.text2,
+            size: 18,
+          ),
+          children: [
+            Text(
+              widget.subtitle,
+              style: TextStyle(
+                color: customTheme.muted,
+                fontSize: 11.5,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 36,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: customTheme.text2.withValues(alpha: 0.25),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                icon: Icon(
+                  Icons.handshake_outlined,
+                  color: customTheme.text2,
+                  size: 16,
+                ),
+                label: Text(
+                  'Ver Contrato de Reconstrucción',
+                  style: TextStyle(
+                    color: customTheme.text2,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                onPressed: () {
+                  widget.onClose();
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => ReconciliationContractDialog(
+                      coupleDocId: widget.docId,
+                      isProposing: widget.isProposing,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

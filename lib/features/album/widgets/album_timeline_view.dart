@@ -385,7 +385,7 @@ class AlbumTimelineView extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 10),
                                       Text(
-                                        '${memory.emoji} ${memory.title}',
+                                        memory.title,
                                         style: TextStyle(
                                           color: t.text,
                                           fontSize: 16,
