@@ -189,8 +189,20 @@ class MemoryCard extends StatelessWidget {
                   errorWidget: (context, url, error) {
                     debugPrint('Error al cargar foto de portada [$url]: $error');
                     return Container(
-                      color: t.isDark ? const Color(0xFF1E1E24) : Colors.grey.shade300,
-                      child: Icon(Icons.broken_image_outlined, color: t.muted),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: t.adventureGradient(typeColor),
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white.withValues(alpha: 0.5),
+                          size: 32,
+                        ),
+                      ),
                     );
                   },
                 )

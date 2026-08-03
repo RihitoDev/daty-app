@@ -13,9 +13,11 @@ import '../../couple/widgets/reconciliation_contract_dialog.dart';
 import 'appearance_screen.dart';
 import 'delete_account_screen.dart';
 import 'edit_profile_screen.dart';
+import 'help_center_screen.dart';
 import 'notifications_screen.dart';
 import 'privacy_screen.dart';
 import 'security_screen.dart';
+import '../widgets/social_media_sheet.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -176,6 +178,36 @@ class _SettingsBody extends StatelessWidget {
               onTap: settings.isProcessing
                   ? null
                   : () => _confirmReset(context, settings),
+            ),
+          ]),
+          const SizedBox(height: 28),
+          _section('Soporte y comunidad', colors),
+          _card(colors, [
+            _tile(
+              context,
+              colors,
+              Icons.help_outline_rounded,
+              'Centro de ayuda',
+              'Preguntas frecuentes y soporte técnico',
+              const HelpCenterScreen(),
+            ),
+            _divider(colors),
+            ListTile(
+              leading: Icon(Icons.share_outlined, color: colors.primary),
+              title: Text('Redes sociales', style: TextStyle(color: colors.text)),
+              subtitle: Text(
+                'Síguenos e inspírate en nuestras comunidades',
+                style: TextStyle(color: colors.text2),
+              ),
+              trailing: Icon(Icons.chevron_right, color: colors.muted),
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  isScrollControlled: true,
+                  builder: (_) => const SocialMediaSheet(),
+                );
+              },
             ),
           ]),
           const SizedBox(height: 28),
