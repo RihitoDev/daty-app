@@ -3,45 +3,85 @@ import 'package:flutter/material.dart';
 class AchievementMapper {
   static IconData getIcon(String iconName) {
     switch (iconName) {
-      case 'waving_hand': return Icons.waving_hand;
-      case 'link': return Icons.link;
-      case 'star': return Icons.star;
-      case 'emoji_events': return Icons.emoji_events;
-      case 'backpack': return Icons.backpack;
-      case 'hiking': return Icons.hiking;
-      case 'explore': return Icons.explore;
-      case 'favorite': return Icons.favorite;
-      case 'history_edu': return Icons.history_edu;
-      case 'local_florist': return Icons.local_florist;
-      case 'volunteer_activism': return Icons.volunteer_activism;
-      case 'diamond': return Icons.diamond;
-      case 'groups': return Icons.groups;
-      case 'celebration': return Icons.celebration;
-      case 'party_mode': return Icons.party_mode;
+      case 'waving_hand':
+        return Icons.waving_hand;
+      case 'link':
+        return Icons.link;
+      case 'star':
+        return Icons.star;
+      case 'emoji_events':
+        return Icons.emoji_events;
+      case 'backpack':
+        return Icons.backpack;
+      case 'hiking':
+        return Icons.hiking;
+      case 'explore':
+        return Icons.explore;
+      case 'favorite':
+        return Icons.favorite;
+      case 'history_edu':
+        return Icons.history_edu;
+      case 'local_florist':
+        return Icons.local_florist;
+      case 'volunteer_activism':
+        return Icons.volunteer_activism;
+      case 'diamond':
+        return Icons.diamond;
+      case 'groups':
+        return Icons.groups;
+      case 'celebration':
+        return Icons.celebration;
+      case 'party_mode':
+        return Icons.party_mode;
+      case 'push_pin':
+        return Icons.push_pin;
+      case 'photo_library':
+        return Icons.photo_library;
+      case 'collections':
+        return Icons.collections;
+      case 'military_tech':
+        return Icons.military_tech;
+      case 'landscape':
+        return Icons.landscape;
+      case 'diversity_3':
+        return Icons.diversity_3;
       default:
         debugPrint('WARNING: Icono de logro no reconocido: "$iconName"');
-        return Icons.help_outline; 
+        return Icons.help_outline;
     }
   }
 
   static Color getColor(String colorName) {
     switch (colorName) {
-      case 'teal': return Colors.teal;
-      case 'pink': return Colors.pink;
-      case 'amber': return Colors.amber;
-      case 'deepPurple': return Colors.deepPurple;
-      case 'blue': return Colors.blue;
-      case 'indigo': return Colors.indigo;
-      case 'lightBlue': return Colors.lightBlue;
-      case 'red': return Colors.red;
-      case 'purple': return Colors.purple;
-      case 'deepOrange': return Colors.deepOrange;
-      case 'green': return Colors.green;
-      case 'lime': return Colors.lime;
-      case 'orange': return Colors.orange;
+      case 'teal':
+        return Colors.teal;
+      case 'pink':
+        return Colors.pink;
+      case 'amber':
+        return Colors.amber;
+      case 'deepPurple':
+        return Colors.deepPurple;
+      case 'blue':
+        return Colors.blue;
+      case 'indigo':
+        return Colors.indigo;
+      case 'lightBlue':
+        return Colors.lightBlue;
+      case 'red':
+        return Colors.red;
+      case 'purple':
+        return Colors.purple;
+      case 'deepOrange':
+        return Colors.deepOrange;
+      case 'green':
+        return Colors.green;
+      case 'lime':
+        return Colors.lime;
+      case 'orange':
+        return Colors.orange;
       default:
         debugPrint('WARNING: Color de logro no reconocido: "$colorName"');
-        return Colors.grey; 
+        return Colors.grey;
     }
   }
 }

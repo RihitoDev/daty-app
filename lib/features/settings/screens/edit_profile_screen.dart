@@ -16,19 +16,21 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
+  late final TextEditingController _statusController;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(
-      text: context.read<ProfileProvider>().userName,
-    );
+    final profile = context.read<ProfileProvider>();
+    _nameController = TextEditingController(text: profile.userName);
+    _statusController = TextEditingController(text: profile.statusMessage);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _statusController.dispose();
     super.dispose();
   }
 
@@ -106,6 +108,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          TextField(
+            controller: _statusController,
+            textCapitalization: TextCapitalization.sentences,
+            maxLength: 60,
+            decoration: const InputDecoration(
+              labelText: 'Frase o Estado personal',
+              prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
+              hintText: 'Ej: Coleccionando momentos especiales...',
+            ),
+          ),
+          const SizedBox(height: 12),
           TextFormField(
             initialValue: auth.user?.email ?? '',
             readOnly: true,
@@ -137,9 +150,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final error = await context
-        .read<ProfileProvider>()
-        .updateUserName(_nameController.text);
+    final profileProvider = context.read<ProfileProvider>();
+
+    await profileProvider.updateStatusMessage(_statusController.text);
+    final error = await profileProvider.updateUserName(_nameController.text);
+
     if (!mounted) return;
     setState(() => _saving = false);
 

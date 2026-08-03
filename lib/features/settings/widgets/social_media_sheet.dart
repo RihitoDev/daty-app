@@ -74,7 +74,6 @@ class SocialMediaSheet extends StatelessWidget {
             icon: Icons.support_agent_rounded,
             title: 'Soporte Personal',
             subtitle: 'Atención y ayuda personalizada por WhatsApp',
-            color: const Color(0xFF25D366),
             onTap: () => _openUrl(context, whatsappSupportUrl),
           ),
           const SizedBox(height: 12),
@@ -83,7 +82,6 @@ class SocialMediaSheet extends StatelessWidget {
             icon: Icons.groups_rounded,
             title: 'Comunidad de WhatsApp',
             subtitle: 'Ideas de citas e inspiración diaria',
-            color: const Color(0xFF128C7E),
             onTap: () => _openUrl(context, whatsappCommunityUrl),
           ),
           const SizedBox(height: 12),
@@ -92,7 +90,6 @@ class SocialMediaSheet extends StatelessWidget {
             icon: Icons.camera_alt_rounded,
             title: 'Instagram',
             subtitle: '@datyapp • Fotos, parejas y novedades',
-            color: const Color(0xFFE1306C),
             onTap: () => _openUrl(context, instagramUrl),
           ),
           const SizedBox(height: 12),
@@ -101,7 +98,6 @@ class SocialMediaSheet extends StatelessWidget {
             icon: Icons.music_note_rounded,
             title: 'TikTok',
             subtitle: '@datyggs • Videos e ideas de salidas',
-            color: const Color(0xFF00F2FE),
             onTap: () => _openUrl(context, tiktokUrl),
           ),
           const SizedBox(height: 24),
@@ -115,7 +111,6 @@ class SocialMediaSheet extends StatelessWidget {
     required IconData icon,
     required String title,
     required String subtitle,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -134,10 +129,10 @@ class SocialMediaSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
+                  color: colors.primary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 22),
+                child: Icon(icon, color: colors.primary, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(

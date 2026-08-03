@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/data/achievements_data.dart';
 import '../../../core/models/achievement_definition.dart';
+import '../../../core/providers/theme_provider.dart';
 import '../../../core/utils/achievement_mapper.dart';
-import '../providers/profile_provider.dart';
-import 'package:provider/provider.dart';
 import '../../../shared/widgets/custom_snackbar.dart';
+import '../providers/profile_provider.dart';
 
 class AchievementsList extends StatelessWidget {
   final AchievementMode mode;
@@ -13,6 +14,7 @@ class AchievementsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.watch<ThemeProvider>().currentTheme;
     final profileProvider = Provider.of<ProfileProvider>(context);
     final achievements = AchievementsData.getByMode(mode);
 
@@ -21,59 +23,187 @@ class AchievementsList extends StatelessWidget {
       itemCount: achievements.length,
       itemBuilder: (context, index) {
         final ach = achievements[index];
-        
-        // Revisamos cuánto lleva del logro y si ya lo desbloqueó o lo tiene equipado
+
         final currentValue = profileProvider.getCurrentValue(ach);
         final isUnlocked = currentValue >= ach.requiredValue;
         final isEquipped = profileProvider.equippedPins.contains(ach.id);
 
-        // Traducimos los nombres que vienen en los datos a íconos y colores reales
-        final achColor = AchievementMapper.getColor(ach.colorName);
+        final achColor = isUnlocked
+            ? AchievementMapper.getColor(ach.colorName)
+            : colors.muted;
         final achIcon = AchievementMapper.getIcon(ach.iconName);
 
         return GestureDetector(
-          // Al tocar, intentamos equipar el pin, pero si ya tiene 3, le avisamos que no puede
-          onTap: isUnlocked ? () {
-            if (!isEquipped && profileProvider.equippedPins.length >= 3) {
-              CustomSnackBar.showWarning(context, 'Máximo 3 pines equipados');
-              return;
-            }
-            profileProvider.togglePin(ach.id, isEquipped);
-          } : null,
+          onTap: isUnlocked
+              ? () {
+                  if (!isEquipped && profileProvider.equippedPins.length >= 3) {
+                    CustomSnackBar.showWarning(
+                      context,
+                      'Máximo 3 pines equipados',
+                    );
+                    return;
+                  }
+                  profileProvider.togglePin(ach.id, isEquipped);
+                }
+              : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            // Cambiamos el color y borde según si está equipado, desbloqueado o bloqueado
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: isEquipped ? achColor.withValues(alpha: 0.1) : (isUnlocked ? Colors.grey.shade50 : Colors.grey.shade100),
-              borderRadius: BorderRadius.circular(15),
+              color: isEquipped
+                  ? colors.primary.withValues(alpha: 0.12)
+                  : (isUnlocked ? colors.bg : colors.bg.withValues(alpha: 0.5)),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isEquipped ? achColor.withValues(alpha: 0.5) : (isUnlocked ? Colors.grey.shade200 : Colors.grey.shade300),
-                width: isEquipped ? 2 : 1
-              )
-            ),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: isUnlocked ? achColor.withValues(alpha: 0.15) : Colors.grey.shade300, shape: BoxShape.circle),
-                child: Icon(achIcon, color: isUnlocked ? achColor : Colors.grey.shade500, size: 22)
+                color: isEquipped
+                    ? colors.primary.withValues(alpha: 0.6)
+                    : (isUnlocked
+                        ? colors.muted.withValues(alpha: 0.2)
+                        : colors.muted.withValues(alpha: 0.1)),
+                width: isEquipped ? 2 : 1,
               ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(ach.title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isUnlocked ? Colors.black87 : Colors.grey)),
-                  Text(ach.description, style: TextStyle(color: isUnlocked ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 12)),
-                  // Mostramos el progreso si está bloqueado, o si está equipado si ya lo desbloqueó
-                  if (!isUnlocked) Padding(padding: const EdgeInsets.only(top: 4), child: Text('$currentValue / ${ach.requiredValue}', style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)))
-                  else if (isEquipped) const Padding(padding: EdgeInsets.only(top: 4), child: Text('Equipado como pin', style: TextStyle(color: Color(0xFF9C27B0), fontSize: 11, fontWeight: FontWeight.bold)))
-                ]
-              )),
-              // Ícono de la derecha indicando el estado visual rápido
-              if (isEquipped) const Icon(Icons.push_pin, color: Color(0xFF9C27B0), size: 20)
-              else if (isUnlocked) const Icon(Icons.check_circle_outline, color: Colors.green, size: 20)
-              else const Icon(Icons.lock_outline, color: Colors.grey, size: 20)
-            ]),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isUnlocked
+                        ? achColor.withValues(alpha: 0.15)
+                        : colors.muted.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    achIcon,
+                    color: isUnlocked ? achColor : colors.muted,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              ach.title,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: isUnlocked ? colors.text : colors.muted,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              ach.rarityLabel,
+                              style: TextStyle(
+                                color: colors.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        ach.description,
+                        style: TextStyle(
+                          color: isUnlocked ? colors.text2 : colors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            '${ach.unlockPercentage}% de usuarios',
+                            style: TextStyle(
+                              color: colors.muted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '•  ${ach.categoryTag}',
+                            style: TextStyle(
+                              color: colors.muted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (!isUnlocked)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: (currentValue / ach.requiredValue)
+                                        .clamp(0.0, 1.0),
+                                    minHeight: 4,
+                                    backgroundColor:
+                                        colors.muted.withValues(alpha: 0.2),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      colors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '$currentValue / ${ach.requiredValue}',
+                                style: TextStyle(
+                                  color: colors.muted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (isEquipped)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Equipado como pin',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (isEquipped)
+                  Icon(Icons.push_pin, color: colors.primary, size: 20)
+                else if (isUnlocked)
+                  const Icon(Icons.check_circle_outline,
+                      color: Colors.green, size: 20)
+                else
+                  Icon(Icons.lock_outline, color: colors.muted, size: 20),
+              ],
+            ),
           ),
         );
       },
