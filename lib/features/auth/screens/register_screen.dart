@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/email_validation.dart';
+import '../utils/username_rules.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -459,8 +460,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       inputFormatters: [
         if (isPassword)
           FilteringTextInputFormatter.deny(RegExp(r'\s'))
-        else if (!isEmail)
-          _singleSpaceFormatter,
+        else if (!isEmail) ...[
+          LengthLimitingTextInputFormatter(UsernameRules.maxLength),
+          _threeSpacesFormatter,
+        ],
       ],
       style: TextStyle(color: customTheme.text),
       onChanged: (value) {
@@ -473,10 +476,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           return 'Campo obligatorio';
         }
 
-        if (!isEmail &&
-            !isPassword &&
-            RegExp(r'\s').allMatches(value.trim()).length > 1) {
-          return 'Solo puedes usar un espacio';
+        if (!isEmail && !isPassword) {
+          return UsernameRules.validationMessage(value);
         }
 
         if (isPassword && value.contains(RegExp(r'\s'))) {
@@ -595,11 +596,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  static final TextInputFormatter _singleSpaceFormatter =
+  static final TextInputFormatter _threeSpacesFormatter =
       TextInputFormatter.withFunction((oldValue, newValue) {
     final normalizedText = newValue.text.replaceAll(RegExp(r'\s'), ' ');
 
-    if (RegExp(' ').allMatches(normalizedText).length > 1) {
+    if (RegExp(' ').allMatches(normalizedText).length > 3) {
       return oldValue;
     }
 

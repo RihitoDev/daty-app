@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../services/email_verification_code_service.dart';
+import '../utils/username_rules.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -282,19 +283,12 @@ class AuthProvider extends ChangeNotifier {
     try {
       final cleanUsername = username.trim();
 
-      if (cleanUsername.isEmpty ||
-          RegExp(r'\s').allMatches(cleanUsername).length > 1) {
+      if (!UsernameRules.isValid(cleanUsername)) {
         return 'invalid-username';
       }
 
       if (password.contains(RegExp(r'\s'))) {
         return 'invalid-password';
-      }
-
-      final usernameTaken = await isUsernameTaken(cleanUsername);
-
-      if (usernameTaken) {
-        return 'username-taken';
       }
 
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -522,14 +516,77 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> addPasswordToGoogleAccount(String password) async {
+    _setLoading(true);
+
+    try {
+      final currentUser = _auth.currentUser;
+      final email = currentUser?.email?.trim();
+
+      if (currentUser == null || email == null || email.isEmpty) {
+        return 'no-user';
+      }
+
+      final providers = currentUser.providerData
+          .map((provider) => provider.providerId)
+          .toSet();
+
+      if (!providers.contains('google.com')) {
+        return 'google-required';
+      }
+
+      if (providers.contains('password')) {
+        return 'provider-already-linked';
+      }
+
+      if (password.length < 6) {
+        return 'weak-password';
+      }
+
+      if (password.contains(RegExp(r'\s'))) {
+        return 'invalid-password';
+      }
+
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return 'cancelled';
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final googleCredential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await currentUser.reauthenticateWithCredential(googleCredential);
+
+      final passwordCredential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+      await currentUser.linkWithCredential(passwordCredential);
+      await currentUser.reload();
+
+      _user = _auth.currentUser;
+      notifyListeners();
+      return null;
+    } on FirebaseAuthException catch (error) {
+      return error.code;
+    } catch (error) {
+      debugPrint('No se pudo agregar la contraseña a la cuenta: $error');
+      return 'error';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<String?> completeProfile(String username) async {
     try {
       final currentUser = _auth.currentUser;
       if (currentUser == null) return 'no-user';
 
       final cleanUsername = username.trim();
-      if (cleanUsername.isEmpty ||
-          RegExp(r'\s').allMatches(cleanUsername).length > 3) {
+      if (!UsernameRules.isValid(cleanUsername)) {
         return 'invalid-username';
       }
 

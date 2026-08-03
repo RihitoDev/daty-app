@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/theme_provider.dart';
+import '../../../shared/widgets/custom_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../profile/providers/profile_provider.dart';
-import '../../../shared/widgets/custom_snackbar.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -39,102 +39,180 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final colors = context.watch<ThemeProvider>().currentTheme;
     final profile = context.watch<ProfileProvider>();
     final auth = context.watch<AuthProvider>();
-    ImageProvider? avatarImage;
+    ImageProvider? avatar;
     if (profile.selectedImageBytes != null) {
-      avatarImage = MemoryImage(profile.selectedImageBytes!);
+      avatar = MemoryImage(profile.selectedImageBytes!);
     } else if (profile.photoUrl != null) {
-      avatarImage = CachedNetworkImageProvider(profile.photoUrl!);
+      avatar = CachedNetworkImageProvider(profile.photoUrl!);
     }
 
     return Scaffold(
       backgroundColor: colors.bg,
       appBar: AppBar(
-        title: Text('Editar perfil', style: TextStyle(color: colors.text)),
+        title: Text('Perfil', style: TextStyle(color: colors.text)),
         backgroundColor: colors.card,
         iconTheme: IconThemeData(color: colors.text),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 40),
         children: [
           Center(
-            child: Stack(
+            child: Column(
               children: [
-                CircleAvatar(
-                  radius: 58,
-                  backgroundColor: colors.primaryLight,
-                  backgroundImage: avatarImage,
-                  child: profile.photoUrl == null &&
-                          profile.selectedImageBytes == null
-                      ? Text(
-                          profile.initials,
-                          style: TextStyle(
-                            color: colors.primary,
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: IconButton.filled(
-                    onPressed: profile.isUploadingPhoto
-                        ? null
-                        : () => profile.pickAndUploadImage(context),
-                    icon: profile.isUploadingPhoto
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [colors.primary, colors.accent],
+                    ),
+                  ),
+                  child: CircleAvatar(
+                    radius: 62,
+                    backgroundColor: colors.primaryLight,
+                    backgroundImage: avatar,
+                    child: avatar == null
+                        ? Text(
+                            profile.initials,
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 31,
+                              fontWeight: FontWeight.bold,
                             ),
                           )
-                        : const Icon(Icons.camera_alt_outlined),
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                FilledButton.tonalIcon(
+                  onPressed: profile.isUploadingPhoto
+                      ? null
+                      : () => profile.pickAndUploadImage(context),
+                  icon: profile.isUploadingPhoto
+                      ? const SizedBox.square(
+                          dimension: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.photo_camera_outlined),
+                  label: Text(
+                    profile.isUploadingPhoto ? 'Subiendo...' : 'Cambiar foto',
+                  ),
+                ),
+                const SizedBox(height: 7),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nombre de usuario',
+                  style: TextStyle(
+                    color: colors.text,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  maxLength: 40,
+                  style: TextStyle(color: colors.text),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                    hintText: 'Tu nombre en Daty',
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
-          TextField(
-            controller: _nameController,
-            textCapitalization: TextCapitalization.words,
-            maxLength: 40,
-            decoration: const InputDecoration(
-              labelText: 'Nombre',
-              prefixIcon: Icon(Icons.person_outline),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Estado personal',
+                  style: TextStyle(
+                    color: colors.text,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _statusController,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 60,
+                  style: TextStyle(color: colors.text),
+                  decoration: const InputDecoration(
+                    hintText: 'Ej: Coleccionando momentos especiales...',
+                    prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _statusController,
-            textCapitalization: TextCapitalization.sentences,
-            maxLength: 60,
-            decoration: const InputDecoration(
-              labelText: 'Frase o Estado personal',
-              prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
-              hintText: 'Ej: Coleccionando momentos especiales...',
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(22),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            initialValue: auth.user?.email ?? '',
-            readOnly: true,
-            decoration: const InputDecoration(
-              labelText: 'Correo',
-              prefixIcon: Icon(Icons.email_outlined),
-              helperText: 'El correo no se puede cambiar desde aquí.',
+            child: Row(
+              children: [
+                Icon(Icons.email_outlined, color: colors.primary),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Correo de la cuenta',
+                        style: TextStyle(color: colors.text2, fontSize: 12),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        auth.user?.email ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.text,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  auth.user?.emailVerified == true
+                      ? Icons.verified_rounded
+                      : Icons.info_outline_rounded,
+                  color: auth.user?.emailVerified == true
+                      ? Colors.green
+                      : colors.muted,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 28),
           FilledButton.icon(
             onPressed: _saving ? null : _save,
             icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
+                ? const SizedBox.square(
+                    dimension: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: Colors.white,
@@ -149,26 +227,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _save() async {
+    final nameText = _nameController.text.trim();
+    if (nameText.length < 2 || nameText.length > 40) {
+      CustomSnackBar.showError(
+        context,
+        'El nombre debe tener entre 2 y 40 caracteres',
+      );
+      return;
+    }
     setState(() => _saving = true);
     final profileProvider = context.read<ProfileProvider>();
 
     await profileProvider.updateStatusMessage(_statusController.text);
-    final error = await profileProvider.updateUserName(_nameController.text);
+    final error = await profileProvider.updateUserName(nameText);
 
     if (!mounted) return;
     setState(() => _saving = false);
 
-    switch (error) {
-      case null:
-        CustomSnackBar.showSuccess(context, 'Perfil actualizado');
-        Navigator.pop(context);
-      case 'invalid-name':
-        CustomSnackBar.showError(
-            context, 'El nombre debe tener entre 2 y 40 caracteres');
-      case 'username-taken':
-        CustomSnackBar.showError(context, 'Ese nombre ya está en uso');
-      default:
-        CustomSnackBar.showError(context, 'No se pudo actualizar el perfil');
+    if (error == null) {
+      CustomSnackBar.showSuccess(context, 'Perfil actualizado');
+      Navigator.pop(context);
+    } else if (error == 'username-taken') {
+      CustomSnackBar.showError(context, 'Ese nombre ya está en uso');
+    } else {
+      CustomSnackBar.showError(context, 'No se pudo actualizar el nombre');
     }
   }
 }

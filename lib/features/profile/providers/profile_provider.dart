@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/models/achievement_definition.dart';
@@ -6,6 +7,21 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../../../core/services/image_upload_service.dart';
 import 'dart:async';
+import '../../auth/utils/username_rules.dart';
+
+class UsernameChangeStatus {
+  final bool enabled;
+  final bool eventActive;
+  final int remainingChanges;
+  final DateTime? endsAt;
+
+  const UsernameChangeStatus({
+    required this.enabled,
+    required this.eventActive,
+    required this.remainingChanges,
+    this.endsAt,
+  });
+}
 
 class ProfileProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
@@ -240,71 +256,50 @@ class ProfileProvider extends ChangeNotifier {
 
   Future<String?> updateUserName(String value) async {
     final user = _authProvider.user;
-    final currentData = _authProvider.userData;
-    if (user == null || currentData == null) return 'no-user';
-
-    final newName = value.trim().replaceAll(RegExp(r'\s+'), ' ');
-    if (newName.length < 2 || newName.length > 40) return 'invalid-name';
-
-    String normalize(String name) => name
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll('/', '-');
-
-    final oldName = (currentData['username'] as String?)?.trim() ?? '';
-    final oldNormalized = normalize(oldName);
-    final newNormalized = normalize(newName);
-    if (oldNormalized == newNormalized) return null;
-
-    final firestore = FirebaseFirestore.instance;
-    final userRef = firestore.collection('users').doc(user.uid);
-    final newNameRef = firestore.collection('usernames').doc(newNormalized);
-    final oldNameRef = oldNormalized.isEmpty
-        ? null
-        : firestore.collection('usernames').doc(oldNormalized);
+    if (user == null) return 'no-user';
+    final newName = UsernameRules.clean(value);
+    if (!UsernameRules.isValid(newName)) return 'invalid-name';
+    if (newName == _userName) return null;
 
     try {
-      await firestore.runTransaction((transaction) async {
-        final newNameDoc = await transaction.get(newNameRef);
-        final oldNameDoc =
-            oldNameRef == null ? null : await transaction.get(oldNameRef);
-
-        if (newNameDoc.exists && newNameDoc.data()?['uid'] != user.uid) {
-          throw FirebaseException(
-            plugin: 'cloud_firestore',
-            code: 'username-taken',
-          );
-        }
-
-        transaction.set(newNameRef, {
-          'uid': user.uid,
-          'username': newName,
-          'email': user.email ?? '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        transaction.update(userRef, {
-          'username': newName,
-          'usernameNormalized': newNormalized,
-        });
-
-        if (oldNameRef != null &&
-            oldNameRef.path != newNameRef.path &&
-            oldNameDoc?.data()?['uid'] == user.uid) {
-          transaction.delete(oldNameRef);
-        }
-      });
-
-      await user.updateDisplayName(newName);
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('changeUsernameDuringEvent');
+      await callable.call<void>({'username': newName});
       _userName = newName;
       _updateInitials();
       notifyListeners();
       return null;
-    } on FirebaseException catch (error) {
-      if (error.code == 'username-taken') return 'username-taken';
-      return 'firestore-error';
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'already-exists') return 'username-taken';
+      if (error.code == 'failed-precondition') return 'event-inactive';
+      if (error.code == 'resource-exhausted') return 'event-limit-reached';
+      return 'server-error';
     } catch (_) {
       return 'unknown-error';
+    }
+  }
+
+  Future<UsernameChangeStatus> getUsernameChangeStatus() async {
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('getUsernameChangeStatus');
+      final response = await callable.call<Map<String, dynamic>>();
+      final data = response.data;
+      final endsAtMillis = data['endsAtMillis'] as int?;
+      return UsernameChangeStatus(
+        enabled: data['enabled'] == true,
+        eventActive: data['eventActive'] == true,
+        remainingChanges: (data['remainingChanges'] as num?)?.toInt() ?? 0,
+        endsAt: endsAtMillis == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(endsAtMillis),
+      );
+    } catch (_) {
+      return const UsernameChangeStatus(
+        enabled: false,
+        eventActive: false,
+        remainingChanges: 0,
+      );
     }
   }
 

@@ -7,8 +7,10 @@ class PairLinkProvider extends ChangeNotifier {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _subscription;
   String? _pendingCode;
+  bool _loginRequested = false;
 
   String? get pendingCode => _pendingCode;
+  bool get loginRequested => _loginRequested;
 
   Future<void> initialize() async {
     _handleUri(await _appLinks.getInitialLink());
@@ -26,8 +28,19 @@ class PairLinkProvider extends ChangeNotifier {
     return code;
   }
 
+  void consumeLoginRequest() {
+    _loginRequested = false;
+  }
+
   void _handleUri(Uri? uri) {
     if (uri == null) return;
+
+    if (uri.scheme == 'daty' && uri.host == 'login') {
+      if (_loginRequested) return;
+      _loginRequested = true;
+      notifyListeners();
+      return;
+    }
 
     String? code;
     if (uri.scheme == 'daty' && uri.host == 'pair') {
