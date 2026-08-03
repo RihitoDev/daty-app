@@ -34,18 +34,27 @@ class _ContractDialogState extends State<ContractDialog> {
   Future<void> _signContract() async {
     setState(() => _isProcessing = true);
 
-    // Mantenemos la regla del orden alfabético para saber exactamente qué campo del contrato nos toca actualizar
-    String fieldToUpdate = widget.myUid.compareTo(widget.partnerUid) < 0
-        ? 'contractSignedUser1'
-        : 'contractSignedUser2';
-
     try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final coupleRef = FirebaseFirestore.instance
-            .collection('couples_progress')
-            .doc(widget.coupleDocId);
-        transaction.update(coupleRef, {fieldToUpdate: true});
-      });
+      final coupleRef = FirebaseFirestore.instance
+          .collection('couples_progress')
+          .doc(widget.coupleDocId);
+
+      final docSnap = await coupleRef.get();
+      String fieldToUpdate = widget.myUid.compareTo(widget.partnerUid) < 0
+          ? 'contractSignedUser1'
+          : 'contractSignedUser2';
+
+      if (docSnap.exists) {
+        final data = docSnap.data()!;
+        final user1 = data['user1Id'] ?? data['user1'];
+        if (user1 != null) {
+          fieldToUpdate = (user1 == widget.myUid)
+              ? 'contractSignedUser1'
+              : 'contractSignedUser2';
+        }
+      }
+
+      await coupleRef.set({fieldToUpdate: true}, SetOptions(merge: true));
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -59,7 +68,11 @@ class _ContractDialogState extends State<ContractDialog> {
   Future<void> _rejectAndUnlink() async {
     setState(() => _isProcessing = true);
     try {
-      // Usamos WriteBatch porque si falla la desvinculación a la mitad, dejaría la base de datos inconsistente. Es todo o nada.
+      final coupleRef = FirebaseFirestore.instance
+          .collection('couples_progress')
+          .doc(widget.coupleDocId);
+      final docSnap = await coupleRef.get();
+
       WriteBatch batch = FirebaseFirestore.instance.batch();
 
       batch.update(
@@ -68,9 +81,26 @@ class _ContractDialogState extends State<ContractDialog> {
       batch.update(
           FirebaseFirestore.instance.collection('users').doc(widget.partnerUid),
           {'partnerId': null});
-      batch.delete(FirebaseFirestore.instance
-          .collection('couples_progress')
-          .doc(widget.coupleDocId));
+
+      if (docSnap.exists) {
+        final data = docSnap.data();
+        if (data != null &&
+            (data['unlinkingState'] != null ||
+                data['unlinkedAt'] != null ||
+                data['preservationWindowEnd'] != null)) {
+          // Si es un vínculo con historial pasado o en pausa, NO eliminamos el documento para no perder los recuerdos.
+          batch.update(coupleRef, {
+            'contractSignedUser1': false,
+            'contractSignedUser2': false,
+            'reconciliationStatus': FieldValue.delete(),
+            'reconciliationRequestedBy': FieldValue.delete(),
+            'reconciliationSignedUser1': FieldValue.delete(),
+            'reconciliationSignedUser2': FieldValue.delete(),
+          });
+        } else {
+          batch.delete(coupleRef);
+        }
+      }
 
       await batch.commit();
       if (mounted) Navigator.pop(context);

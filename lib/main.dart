@@ -11,6 +11,7 @@ import 'features/profile/providers/profile_provider.dart';
 import 'features/album/providers/album_provider.dart';
 import 'features/couple/providers/couple_provider.dart';
 import 'features/couple/providers/pair_link_provider.dart';
+import 'features/settings/providers/settings_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/email_verification_screen.dart';
 import 'features/auth/screens/username_setup_screen.dart';
@@ -55,6 +56,13 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (context) {
             return CoupleProvider(
+              context.read<AuthProvider>(),
+            );
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) {
+            return SettingsProvider(
               context.read<AuthProvider>(),
             );
           },

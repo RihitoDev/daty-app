@@ -17,51 +17,39 @@ class CoupleAdventureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final coupleProvider = context.watch<CoupleProvider>();
 
-    // Si aún no se vincula con nadie, mostramos el botón para abrir el buscador de usuarios
+    // Si aún no se vincula con nadie, mostramos siempre la tarjeta estándar para invitar o ingresar código
     if (!coupleProvider.hasPartner) {
       return _buildPremiumCard(
         title: 'Aventura en pareja',
         subtitle: 'Vinculate con alguien',
         gradientColors: const [Color(0xFFF48FB1), Color(0xFFD81B60)],
         icon: Icons.favorite_border_rounded,
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          backgroundColor: Colors.transparent,
-          constraints: const BoxConstraints(maxWidth: 680),
-          builder: (_) => const PairingDialog(),
-        ),
+        onTap: () async {
+          final result = await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            backgroundColor: Colors.transparent,
+            constraints: const BoxConstraints(maxWidth: 680),
+            builder: (_) => const PairingDialog(),
+          );
+          if (result == true && context.mounted) {
+            final latestCouple = context.read<CoupleProvider>();
+            _showContractDialog(context, latestCouple);
+          }
+        },
       );
     }
 
-    // Mientras esperamos respuesta de la base de datos, bloqueamos los toques
-    if (coupleProvider.isLoading) {
+    // Mientras se sincronizan los datos de la pareja en la base de datos
+    if (coupleProvider.isLoading || coupleProvider.coupleData == null) {
       return _buildPremiumCard(
-          title: 'Cargando...',
-          subtitle: '',
-          gradientColors: [Colors.grey, Colors.grey.shade700],
-          icon: Icons.hourglass_empty,
-          onTap: null);
-    }
-
-    // Si hubo un fallo raro o se quedaron a medias en la vinculación
-    if (coupleProvider.coupleData == null) {
-      if (!coupleProvider.isLoading) {
-        return _buildPremiumCard(
-            title: 'Error de Datos',
-            subtitle: 'Ve a Ajustes y desvinculate para reiniciar',
-            gradientColors: const [Colors.redAccent, Colors.red],
-            icon: Icons.error_outline,
-            onTap: null);
-      }
-
-      return _buildPremiumCard(
-          title: 'Sincronizando...',
-          subtitle: 'Conectando con tu pareja',
-          gradientColors: const [Colors.orange, Colors.deepOrange],
-          icon: Icons.sync,
-          onTap: null);
+        title: 'Sincronizando...',
+        subtitle: 'Conectando con ${coupleProvider.partnerName}',
+        gradientColors: const [Color(0xFFFFB74D), Color(0xFFF57C00)],
+        icon: Icons.sync_rounded,
+        onTap: null,
+      );
     }
 
     // El usuario actual todavía no acepta las reglas de la app
@@ -121,16 +109,28 @@ class CoupleAdventureCard extends StatelessWidget {
                     ))));
   }
 
-  void _showContractDialog(
-      BuildContext context, CoupleProvider coupleProvider) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => ContractDialog(
-          myUid: coupleProvider.myUid,
-          partnerUid: coupleProvider.partnerId!,
-          coupleDocId: coupleProvider.coupleDocId!),
-    );
+  Future<void> _showContractDialog(
+      BuildContext context, CoupleProvider coupleProvider) async {
+    for (var attempt = 0; attempt < 20; attempt += 1) {
+      if (!context.mounted) return;
+      final provider = context.read<CoupleProvider>();
+      if (provider.hasPartner &&
+          !provider.isLoading &&
+          provider.partnerId != null &&
+          provider.coupleDocId != null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ContractDialog(
+            myUid: provider.myUid,
+            partnerUid: provider.partnerId!,
+            coupleDocId: provider.coupleDocId!,
+          ),
+        );
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
   }
 
   // Plantilla base para dibujar las tarjetas sin repetir la configuración visual 5 veces

@@ -15,7 +15,10 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isAuthenticated();
       allow create: if isOwner(uid);
-      allow update: if isOwner(uid);
+      allow update: if isOwner(uid) || (
+        isAuthenticated() &&
+        resource.data.partnerId == request.auth.uid
+      );
       allow delete: if false;
     }
 
@@ -34,13 +37,21 @@ service cloud.firestore {
 
     // 4. Progreso y Contrato de Pareja (/couples_progress/{coupleId})
     match /couples_progress/{coupleId} {
-      allow read: if isAuthenticated() &&
-        (request.auth.uid == resource.data.user1 || request.auth.uid == resource.data.user2);
+      allow read: if isAuthenticated();
       
-      allow create, update: if isAuthenticated() &&
-        (request.resource.data.user1 == request.auth.uid || request.resource.data.user2 == request.auth.uid);
+      allow create, update: if isAuthenticated() && (
+        request.resource.data.get('user1Id', null) == request.auth.uid ||
+        request.resource.data.get('user2Id', null) == request.auth.uid ||
+        request.resource.data.get('user1', null) == request.auth.uid ||
+        request.resource.data.get('user2', null) == request.auth.uid
+      );
         
-      allow delete: if false;
+      allow delete: if isAuthenticated() && (
+        resource.data.get('user1Id', null) == request.auth.uid ||
+        resource.data.get('user2Id', null) == request.auth.uid ||
+        resource.data.get('user1', null) == request.auth.uid ||
+        resource.data.get('user2', null) == request.auth.uid
+      );
     }
 
     // 5. Catálogo de Aventuras (/adventures/{adventureId})
