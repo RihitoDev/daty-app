@@ -39,22 +39,25 @@ class SettingsProvider with ChangeNotifier {
       }
 
       // Reiniciamos el mapa marcando las aventuras previamente completadas
-      await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).set({
-        'activeAdventureNumber': FieldValue.delete(),
-        'adventurePath': [],
-        'previouslyCompletedIds': prevCompletedIds,
-        'isReplayed': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).set(
+        {
+          'activeAdventureNumber': FieldValue.delete(),
+          'adventurePath': [],
+          'previouslyCompletedIds': prevCompletedIds,
+          'isReplayed': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
       _isProcessing = false;
       notifyListeners();
       return null;
-    } catch (e) {
-      debugPrint('Error al reiniciar mapa solitario: $e');
+    } catch (e, stack) {
+      debugPrint('Error al reiniciar mapa solitario: $e\n$stack');
       _isProcessing = false;
       notifyListeners();
-      return 'Error al reiniciar el mapa. Inténtalo de nuevo.';
+      return 'Error al reiniciar el mapa: $e';
     }
   }
 
@@ -66,37 +69,70 @@ class SettingsProvider with ChangeNotifier {
     try {
       final myUid = _authProvider.user!.uid;
 
-      // Borramos el documento del mapa
-      await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).delete();
-
-      // Borramos todos los recuerdos del Álbum Solitario
-      final memoriesQuery = await FirebaseFirestore.instance
-          .collection('solo_memories')
-          .where('userId', isEqualTo: myUid)
-          .get();
-
-      if (memoriesQuery.docs.isNotEmpty) {
-        WriteBatch batch = FirebaseFirestore.instance.batch();
-        for (var doc in memoriesQuery.docs) {
-          batch.delete(doc.reference);
-        }
-        await batch.commit();
+      // 1. Borramos el documento del mapa
+      try {
+        await FirebaseFirestore.instance.collection('solo_progress').doc(myUid).delete();
+      } catch (e) {
+        debugPrint('Error borrando solo_progress: $e');
       }
 
-      // Restablecemos XP y contador en el perfil del usuario
-      await FirebaseFirestore.instance.collection('users').doc(myUid).set({
-        'exp': 0,
-        'soloDatesCompleted': 0,
-      }, SetOptions(merge: true));
+      // 2. Borramos todos los recuerdos del Álbum Solitario (solo_memories y recuerdos personales/solitarios)
+      try {
+        final List<DocumentReference> refsToDelete = [];
+
+        final allSoloSnap = await FirebaseFirestore.instance.collection('solo_memories').get();
+        for (final doc in allSoloSnap.docs) {
+          final data = doc.data();
+          final uId = data['userId'] ?? data['user1Id'] ?? data['uid'] ?? data['ownerId'];
+          if (uId == myUid || doc.id.startsWith(myUid) || doc.id.contains(myUid)) {
+            refsToDelete.add(doc.reference);
+          }
+        }
+
+        final memoriesSnap = await FirebaseFirestore.instance.collection('memories').get();
+        for (final doc in memoriesSnap.docs) {
+          final data = doc.data();
+          final uId = data['userId'] ?? data['user1Id'] ?? data['ownerId'];
+          final isPersonal = data['isPersonal'] == true;
+          final mode = data['mode'];
+          if (uId == myUid && (isPersonal || mode == 'solo')) {
+            refsToDelete.add(doc.reference);
+          }
+        }
+
+        for (int i = 0; i < refsToDelete.length; i += 400) {
+          final chunk = refsToDelete.sublist(
+            i,
+            i + 400 > refsToDelete.length ? refsToDelete.length : i + 400,
+          );
+          final batch = FirebaseFirestore.instance.batch();
+          for (final ref in chunk) {
+            batch.delete(ref);
+          }
+          await batch.commit();
+        }
+      } catch (e) {
+        debugPrint('Error borrando recuerdos en resetSoloFactory: $e');
+      }
+
+      // 3. Restablecemos XP y contador en el perfil del usuario
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(myUid).set({
+          'exp': 0,
+          'soloDatesCompleted': 0,
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Error reseteando perfil en users: $e');
+      }
 
       _isProcessing = false;
       notifyListeners();
       return null;
-    } catch (e) {
-      debugPrint('Error al borrar progreso completo: $e');
+    } catch (e, stack) {
+      debugPrint('Error al borrar progreso completo: $e\n$stack');
       _isProcessing = false;
       notifyListeners();
-      return 'Error al realizar el borrado de fábrica. Inténtalo de nuevo.';
+      return 'Error al realizar el borrado de fábrica: $e';
     }
   }
 
@@ -182,6 +218,8 @@ class SettingsProvider with ChangeNotifier {
     try {
       final myUid = _authProvider.user!.uid;
 
+      String? targetPartnerId;
+
       final result = await FirebaseFirestore.instance.runTransaction((transaction) async {
         final coupleRef = FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId);
         final coupleDoc = await transaction.get(coupleRef);
@@ -195,9 +233,21 @@ class SettingsProvider with ChangeNotifier {
           return 'recovery_expired';
         }
 
-        final user1Id = data['user1Id'] as String;
-        final user2Id = data['user2Id'] as String;
+        final String? rawUser1 = data['user1Id'] ?? data['user1'];
+        final String? rawUser2 = data['user2Id'] ?? data['user2'];
+        String user1Id = rawUser1 ?? '';
+        String user2Id = rawUser2 ?? '';
+
+        if (user1Id.isEmpty || user2Id.isEmpty) {
+          final parts = coupleDocId.split('_');
+          if (parts.length == 2) {
+            user1Id = parts[0];
+            user2Id = parts[1];
+          }
+        }
+
         final partnerId = myUid == user1Id ? user2Id : user1Id;
+        targetPartnerId = partnerId;
 
         final myDocRef = FirebaseFirestore.instance.collection('users').doc(myUid);
         final partnerDocRef = FirebaseFirestore.instance.collection('users').doc(partnerId);
@@ -205,15 +255,19 @@ class SettingsProvider with ChangeNotifier {
         final myDoc = await transaction.get(myDocRef);
         final partnerDoc = await transaction.get(partnerDocRef);
 
-        // Si alguno ya se vinculó con otra persona, se cancela la recuperación
-        if (myDoc.data()?['partnerId'] != null || partnerDoc.data()?['partnerId'] != null) {
+        // Si alguno ya se vinculó con UNA TERCERA PERSONA, se cancela la recuperación
+        final myCurrentPartner = myDoc.data()?['partnerId'];
+        final partnerCurrentPartner = partnerDoc.data()?['partnerId'];
+        if ((myCurrentPartner != null && myCurrentPartner != partnerId) ||
+            (partnerCurrentPartner != null && partnerCurrentPartner != myUid)) {
           return 'already_relinked_with_someone_else';
         }
 
-        // Restauramos el vínculo en ambos usuarios y reactivamos la pareja
+        // Restauramos mi vínculo y reactivamos la pareja con firmas en true
         transaction.update(myDocRef, {'partnerId': partnerId});
-        transaction.update(partnerDocRef, {'partnerId': myUid});
         transaction.update(coupleRef, {
+          'contractSignedUser1': true,
+          'contractSignedUser2': true,
           'unlinkingState': FieldValue.delete(),
           'unlinkedBy': FieldValue.delete(),
           'unlinkedAt': FieldValue.delete(),
@@ -231,6 +285,13 @@ class SettingsProvider with ChangeNotifier {
 
       _isProcessing = false;
       notifyListeners();
+
+      if (result == null && targetPartnerId != null) {
+        // Intentamos actualizar la pareja si las reglas del servidor lo permiten
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(targetPartnerId).update({'partnerId': myUid});
+        } catch (_) {}
+      }
 
       if (result == 'recovery_expired') {
         return 'El periodo de 72 horas para recuperar el vínculo ha expirado.';
@@ -259,11 +320,11 @@ class SettingsProvider with ChangeNotifier {
       }
 
       return null;
-    } catch (e) {
-      debugPrint('Error al recuperar vínculo: $e');
+    } catch (e, stack) {
+      debugPrint('Error al recuperar vínculo: $e\n$stack');
       _isProcessing = false;
       notifyListeners();
-      return 'Error al recuperar el vínculo. Inténtalo de nuevo.';
+      return 'Error al recuperar el vínculo: $e';
     }
   }
   Future<String?> requestReconciliation(String coupleDocId) async {
@@ -275,7 +336,13 @@ class SettingsProvider with ChangeNotifier {
       final docRef = FirebaseFirestore.instance.collection('couples_progress').doc(coupleDocId);
       final docSnap = await docRef.get();
       final data = docSnap.data();
-      final isUser1 = myUid == data?['user1Id'];
+      final String? rawUser1 = data?['user1Id'] ?? data?['user1'];
+      String u1 = rawUser1 ?? '';
+      if (u1.isEmpty) {
+        final parts = coupleDocId.split('_');
+        if (parts.isNotEmpty) u1 = parts[0];
+      }
+      final isUser1 = myUid == u1;
 
       await docRef.set({
         'reconciliationStatus': 'pending',
@@ -359,7 +426,10 @@ class SettingsProvider with ChangeNotifier {
         }
       }
 
-      if (mapDocs.isEmpty) return null;
+      if (mapDocs.isEmpty) {
+        _checkAndAutoLinkRestoredCouple(myUid);
+        return null;
+      }
 
       final now = DateTime.now();
 
@@ -466,5 +536,43 @@ class SettingsProvider with ChangeNotifier {
         'reconciliationRequestedAt': FieldValue.delete(),
       });
     } catch (_) {}
+  }
+
+  void _checkAndAutoLinkRestoredCouple(String myUid) {
+    if (_authProvider.userData?['partnerId'] != null) return;
+
+    FirebaseFirestore.instance
+        .collection('couples_progress')
+        .where('user1Id', isEqualTo: myUid)
+        .get()
+        .then((snap) => _syncRestoredDocs(myUid, snap.docs));
+
+    FirebaseFirestore.instance
+        .collection('couples_progress')
+        .where('user2Id', isEqualTo: myUid)
+        .get()
+        .then((snap) => _syncRestoredDocs(myUid, snap.docs));
+  }
+
+  void _syncRestoredDocs(String myUid, List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    if (_authProvider.userData?['partnerId'] != null) return;
+    for (final doc in docs) {
+      final data = doc.data();
+      final unlinkingState = data['unlinkingState'];
+      final c1 = data['contractSignedUser1'] == true;
+      final c2 = data['contractSignedUser2'] == true;
+      if (unlinkingState == null && c1 && c2) {
+        final u1 = (data['user1Id'] ?? data['user1']) as String?;
+        final u2 = (data['user2Id'] ?? data['user2']) as String?;
+        final partnerId = myUid == u1 ? u2 : u1;
+        if (partnerId != null && partnerId.isNotEmpty) {
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(myUid)
+              .update({'partnerId': partnerId});
+          break;
+        }
+      }
+    }
   }
 }
