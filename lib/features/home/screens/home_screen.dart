@@ -549,13 +549,25 @@ class _HomeContentState extends State<HomeContent> {
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.2)),
                     const SizedBox(height: 2),
-                    Text('Hola, $userName',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900)),
+                    Text('Hola,',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.82),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 1),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(userName,
+                            maxLines: 1,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900)),
+                      ),
+                    ),
                   ])),
               const SizedBox(width: 10),
               GestureDetector(
@@ -574,7 +586,8 @@ class _HomeContentState extends State<HomeContent> {
                     backgroundImage: photoUrl != null && photoUrl.isNotEmpty
                         ? CachedNetworkImageProvider(photoUrl)
                         : null,
-                    onBackgroundImageError: photoUrl != null && photoUrl.isNotEmpty
+                    onBackgroundImageError: photoUrl != null &&
+                            photoUrl.isNotEmpty
                         ? (exception, stackTrace) {
                             debugPrint('Fallo al cargar avatar: $exception');
                           }
@@ -672,8 +685,7 @@ class _HomeContentState extends State<HomeContent> {
           final adventures = snapshot.data!;
           _adventuresCount = adventures.length;
 
-          final visibleCount =
-              adventures.length > 5 ? 5 : adventures.length;
+          final visibleCount = adventures.length > 5 ? 5 : adventures.length;
           final realIndex = _currentPage % adventures.length;
           final activeDotIndex = realIndex % visibleCount;
 

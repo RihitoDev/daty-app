@@ -15,9 +15,15 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isAuthenticated();
       allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || (
+      allow update: if (
+        isOwner(uid) &&
+        request.resource.data.get('username', '') == resource.data.get('username', '') &&
+        request.resource.data.get('usernameNormalized', '') == resource.data.get('usernameNormalized', '')
+      ) || (
         isAuthenticated() &&
-        resource.data.partnerId == request.auth.uid
+        resource.data.partnerId == request.auth.uid &&
+        request.resource.data.get('username', '') == resource.data.get('username', '') &&
+        request.resource.data.get('usernameNormalized', '') == resource.data.get('usernameNormalized', '')
       );
       allow delete: if false;
     }
@@ -26,8 +32,12 @@ service cloud.firestore {
     match /usernames/{usernameNormalized} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
-      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      // Los cambios de username se realizan únicamente mediante Cloud Functions.
+      allow update: if false;
+      // Solo una reserva de un registro todavía incompleto puede liberarse desde el cliente.
+      allow delete: if isAuthenticated() &&
+        resource.data.uid == request.auth.uid &&
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     // 3. Progreso en Solitario (/solo_progress/{uid})

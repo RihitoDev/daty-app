@@ -91,13 +91,42 @@ class DatyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isHandlingLoginLink = false;
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final linkProvider = context.watch<PairLinkProvider>();
     final user = authProvider.user;
+
+    if (linkProvider.loginRequested && !_isHandlingLoginLink) {
+      _isHandlingLoginLink = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        linkProvider.consumeLoginRequest();
+        await context.read<AuthProvider>().signOut();
+
+        if (mounted) {
+          setState(() => _isHandlingLoginLink = false);
+        }
+      });
+    }
+
+    if (_isHandlingLoginLink) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     if (authProvider.isInitializing) {
       return const Scaffold(
