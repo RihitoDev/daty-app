@@ -160,19 +160,14 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             ...filteredCategories.map((cat) => _buildCategoryCard(cat, colors)),
 
           const SizedBox(height: 12),
-          // Tarjeta de soporte directo por WhatsApp
+          // Tarjeta de soporte directo integrada al tema
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF25D366).withValues(alpha: 0.15),
-                  colors.card,
-                ],
-              ),
+              color: colors.card,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFF25D366).withValues(alpha: 0.3),
+                color: colors.primary.withValues(alpha: 0.25),
               ),
             ),
             child: Column(
@@ -182,13 +177,13 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF25D366),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.support_agent_rounded,
-                        color: Colors.white,
+                        color: colors.primary,
                         size: 24,
                       ),
                     ),
@@ -207,7 +202,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Atención y ayuda directa vía WhatsApp',
+                            'Atención y ayuda directa por WhatsApp',
                             style: TextStyle(
                               color: colors.text2,
                               fontSize: 12,
@@ -232,7 +227,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF25D366),
+                      backgroundColor: colors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

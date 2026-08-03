@@ -1,12 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/theme_provider.dart';
 import '../../../shared/widgets/custom_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/utils/username_rules.dart';
 import '../../profile/providers/profile_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -18,7 +16,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
-  late Future<UsernameChangeStatus> _changeStatus;
+  late final TextEditingController _statusController;
   bool _saving = false;
 
   @override
@@ -26,12 +24,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final profile = context.read<ProfileProvider>();
     _nameController = TextEditingController(text: profile.userName);
-    _changeStatus = profile.getUsernameChangeStatus();
+    _statusController = TextEditingController(text: profile.statusMessage);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _statusController.dispose();
     super.dispose();
   }
 
@@ -104,93 +103,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
           const SizedBox(height: 30),
-          FutureBuilder<UsernameChangeStatus>(
-            future: _changeStatus,
-            builder: (context, snapshot) {
-              final status = snapshot.data;
-              final loading =
-                  snapshot.connectionState == ConnectionState.waiting;
-              final canChange = status?.enabled == true;
-              return Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(22),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nombre de usuario',
+                  style: TextStyle(
+                    color: colors.text,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Nombre en Daty',
-                      style: TextStyle(
-                        color: colors.text,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _nameController,
-                      readOnly: !canChange,
-                      textCapitalization: TextCapitalization.words,
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(
-                          UsernameRules.maxLength,
-                        ),
-                      ],
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.alternate_email_rounded),
-                        suffixIcon: loading
-                            ? const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(
-                                canChange
-                                    ? Icons.celebration_outlined
-                                    : Icons.lock_outline_rounded,
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      canChange
-                          ? 'Evento activo: tienes ${status?.remainingChanges ?? 0} cambio disponible.'
-                          : status?.eventActive == true
-                              ? 'Ya utilizaste el cambio disponible de este evento.'
-                              : 'El nombre solo puede modificarse durante eventos especiales.',
-                      style: TextStyle(
-                        color: canChange ? colors.primary : colors.text2,
-                        fontSize: 13,
-                        height: 1.35,
-                        fontWeight:
-                            canChange ? FontWeight.w700 : FontWeight.normal,
-                      ),
-                    ),
-                    if (canChange) ...[
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: _saving ? null : _save,
-                          icon: _saving
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.check_rounded),
-                          label: const Text('Guardar nuevo nombre'),
-                        ),
-                      ),
-                    ],
-                  ],
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  maxLength: 40,
+                  style: TextStyle(color: colors.text),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                    hintText: 'Tu nombre en Daty',
+                  ),
                 ),
-              );
-            },
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Estado personal',
+                  style: TextStyle(
+                    color: colors.text,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _statusController,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 60,
+                  style: TextStyle(color: colors.text),
+                  decoration: const InputDecoration(
+                    hintText: 'Ej: Coleccionando momentos especiales...',
+                    prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Container(
@@ -235,34 +207,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 28),
+          FilledButton.icon(
+            onPressed: _saving ? null : _save,
+            icon: _saving
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.check_rounded),
+            label: const Text('Guardar cambios'),
+          ),
         ],
       ),
     );
   }
 
   Future<void> _save() async {
-    final validation = UsernameRules.validationMessage(_nameController.text);
-    if (validation != null) {
-      CustomSnackBar.showError(context, validation);
+    final nameText = _nameController.text.trim();
+    if (nameText.length < 2 || nameText.length > 40) {
+      CustomSnackBar.showError(
+        context,
+        'El nombre debe tener entre 2 y 40 caracteres',
+      );
       return;
     }
     setState(() => _saving = true);
-    final error = await context
-        .read<ProfileProvider>()
-        .updateUserName(_nameController.text);
+    final profileProvider = context.read<ProfileProvider>();
+
+    await profileProvider.updateStatusMessage(_statusController.text);
+    final error = await profileProvider.updateUserName(nameText);
+
     if (!mounted) return;
     setState(() => _saving = false);
 
     if (error == null) {
-      CustomSnackBar.showSuccess(context, 'Nombre actualizado');
-      setState(() {
-        _changeStatus =
-            context.read<ProfileProvider>().getUsernameChangeStatus();
-      });
+      CustomSnackBar.showSuccess(context, 'Perfil actualizado');
+      Navigator.pop(context);
     } else if (error == 'username-taken') {
       CustomSnackBar.showError(context, 'Ese nombre ya está en uso');
-    } else if (error == 'event-limit-reached' || error == 'event-inactive') {
-      CustomSnackBar.showError(context, 'El evento ya no está disponible');
     } else {
       CustomSnackBar.showError(context, 'No se pudo actualizar el nombre');
     }

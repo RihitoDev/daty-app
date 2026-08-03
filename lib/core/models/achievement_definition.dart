@@ -1,17 +1,20 @@
 // Las categorías en las que se dividen los logros
 enum AchievementMode { solo, couple, group, general }
 
+// El grado de rareza o dificultad del logro
+enum AchievementRarity { common, rare, epic, legendary }
+
 class AchievementDefinition {
   final String id;
   final String title;
   final String description;
-  
-  // Guardamos los nombres como texto y luego los convertimos en íconos y colores reales usando el AchievementMapper
   final String iconName;
-  final String colorName; 
-  
+  final String colorName;
   final AchievementMode mode;
-  final int requiredValue; // La meta que hay que alcanzar para desbloquear el logro
+  final AchievementRarity rarity;
+  final int unlockPercentage; // Porcentaje global de jugadores que tienen el logro
+  final String categoryTag; // Etiqueta descriptiva (ej: Fotografía, Progreso, Social)
+  final int requiredValue;
 
   const AchievementDefinition({
     required this.id,
@@ -20,6 +23,22 @@ class AchievementDefinition {
     required this.iconName,
     required this.colorName,
     required this.mode,
+    required this.rarity,
+    required this.unlockPercentage,
+    required this.categoryTag,
     required this.requiredValue,
   });
+
+  String get rarityLabel {
+    switch (rarity) {
+      case AchievementRarity.common:
+        return 'Común';
+      case AchievementRarity.rare:
+        return 'Raro';
+      case AchievementRarity.epic:
+        return 'Épico';
+      case AchievementRarity.legendary:
+        return 'Legendario';
+    }
+  }
 }
