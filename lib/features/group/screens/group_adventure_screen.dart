@@ -12,7 +12,11 @@ class GroupAdventureScreen extends StatefulWidget {
   final String groupCode;
   final List<String> members;
 
-  const GroupAdventureScreen({super.key, required this.adventureData, required this.groupCode, required this.members});
+  const GroupAdventureScreen(
+      {super.key,
+      required this.adventureData,
+      required this.groupCode,
+      required this.members});
 
   @override
   State<GroupAdventureScreen> createState() => _GroupAdventureScreenState();
@@ -31,7 +35,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
   int _currentTipIndex = 0;
   Timer? _tipTimer;
   bool _isSubmitting = false;
-  bool _isDetailExpanded = false; 
+  bool _isDetailExpanded = false;
 
   @override
   void initState() {
@@ -42,7 +46,8 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
   void _startTipTimer() {
     _tipTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted) {
-        setState(() => _currentTipIndex = (_currentTipIndex + 1) % _groupTips.length);
+        setState(() =>
+            _currentTipIndex = (_currentTipIndex + 1) % _groupTips.length);
       }
     });
   }
@@ -53,18 +58,23 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
     try {
       final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
-      
-      final groupRef = FirebaseFirestore.instance.collection('groups').doc(widget.groupCode);
-      String memoryDocId = '${widget.groupCode}_${widget.adventureData['number']}';
-      DocumentReference memoryRef = FirebaseFirestore.instance.collection('group_memories').doc(memoryDocId);
-      DocumentReference myUserRef = FirebaseFirestore.instance.collection('users').doc(myUid);
+
+      final groupRef =
+          FirebaseFirestore.instance.collection('groups').doc(widget.groupCode);
+      String memoryDocId =
+          '${widget.groupCode}_${widget.adventureData['number']}';
+      DocumentReference memoryRef = FirebaseFirestore.instance
+          .collection('group_memories')
+          .doc(memoryDocId);
+      DocumentReference myUserRef =
+          FirebaseFirestore.instance.collection('users').doc(myUid);
 
       int expEarned = widget.adventureData['xpBase'] ?? 50;
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final groupSnap = await transaction.get(groupRef);
-        
-        if (!groupSnap.exists) return; 
+
+        if (!groupSnap.exists) return;
         List<dynamic> completedBy = [];
         if (groupSnap.data()!.containsKey('completedBy')) {
           completedBy = List<dynamic>.from(groupSnap.data()!['completedBy']);
@@ -72,15 +82,13 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
         if (!completedBy.contains(myUid)) {
           transaction.update(myUserRef, {
-            'exp': FieldValue.increment(expEarned), 
+            'exp': FieldValue.increment(expEarned),
             'groupOutingsCompleted': FieldValue.increment(1)
           });
-          
+
           completedBy.add(myUid);
-          transaction.update(groupRef, {
-            'status': 'completed',
-            'completedBy': completedBy
-          });
+          transaction.update(
+              groupRef, {'status': 'completed', 'completedBy': completedBy});
         }
 
         final memorySnap = await transaction.get(memoryRef);
@@ -97,14 +105,17 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
       });
 
       if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GroupPhotoUploadScreen(
-          groupCode: widget.groupCode, 
-          adventureData: widget.adventureData, 
-          members: widget.members,
-        )));
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (_) => GroupPhotoUploadScreen(
+                      groupCode: widget.groupCode,
+                      adventureData: widget.adventureData,
+                      members: widget.members,
+                    )));
       }
     } catch (e) {
-      if(mounted) {
+      if (mounted) {
         debugPrint('Fallo al completar la expedición del grupo: $e');
         CustomSnackBar.showError(context, 'Error al finalizar la expedición');
         setState(() => _isSubmitting = false);
@@ -120,15 +131,16 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String adventureTitle = (widget.adventureData['title'] ?? 'AVENTURA').toUpperCase();
+    final String adventureTitle =
+        (widget.adventureData['title'] ?? 'AVENTURA').toUpperCase();
     final String adventureEmoji = widget.adventureData['emoji'] ?? '👥';
     final String challenge = widget.adventureData['challenge'] ?? '';
     final String description = widget.adventureData['description'] ?? '';
-    final String location = widget.adventureData['location'] ?? ''; 
-    
+    final String location = widget.adventureData['location'] ?? '';
+
     const Color primaryColor = Color(0xFF8E24AA);
-    const Color darkBgColor = Color(0xFF12061E); 
-    const Color midBgColor = Color(0xFF2A0D3F); 
+    const Color darkBgColor = Color(0xFF12061E);
+    const Color midBgColor = Color(0xFF2A0D3F);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -139,12 +151,13 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
         centerTitle: true,
         automaticallyImplyLeading: false,
         title: FittedBox(
-          fit: BoxFit.scaleDown, 
-          child: Text(
-            'Código: ${widget.groupCode}', 
-            style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 1.5)
-          )
-        ),
+            fit: BoxFit.scaleDown,
+            child: Text('Código: ${widget.groupCode}',
+                style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5))),
         actions: [
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white70),
@@ -153,7 +166,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
         ],
       ),
       body: Container(
-        width: double.infinity, 
+        width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -169,15 +182,16 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
             top: MediaQuery.of(context).padding.top + kToolbarHeight,
-            left: 30.0,
-            right: 30.0,
+            left: MediaQuery.sizeOf(context).width <= 360 ? 16 : 30,
+            right: MediaQuery.sizeOf(context).width <= 360 ? 16 : 30,
             bottom: MediaQuery.of(context).padding.bottom + 40,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: primaryColor.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(20),
@@ -191,8 +205,8 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                     Text(
                       'EXPEDICIÓN EN CURSO',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9), 
-                        fontWeight: FontWeight.bold, 
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.bold,
                         fontSize: 12,
                         letterSpacing: 1.5,
                       ),
@@ -200,26 +214,20 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-              
               Text(adventureEmoji, style: const TextStyle(fontSize: 80)),
               const SizedBox(height: 15),
-              Text(
-                adventureTitle, 
-                style: const TextStyle(
-                  color: Colors.white, 
-                  fontSize: 26, 
-                  fontWeight: FontWeight.w900, 
-                  letterSpacing: 1.2
-                ), 
-                textAlign: TextAlign.center
-              ),
-
+              Text(adventureTitle,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2),
+                  textAlign: TextAlign.center),
               const SizedBox(height: 30),
-
               GestureDetector(
-                onTap: () => setState(() => _isDetailExpanded = !_isDetailExpanded),
+                onTap: () =>
+                    setState(() => _isDetailExpanded = !_isDetailExpanded),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: BackdropFilter(
@@ -231,7 +239,10 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _isDetailExpanded ? primaryColor.withOpacity(0.8) : Colors.white.withOpacity(0.15)),
+                        border: Border.all(
+                            color: _isDetailExpanded
+                                ? primaryColor.withOpacity(0.8)
+                                : Colors.white.withOpacity(0.15)),
                       ),
                       child: Column(
                         children: [
@@ -240,18 +251,21 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                             children: [
                               const Row(
                                 children: [
-                                  Icon(Icons.menu_book_outlined, color: primaryColor, size: 20),
+                                  Icon(Icons.menu_book_outlined,
+                                      color: primaryColor, size: 20),
                                   SizedBox(width: 10),
-                                  Text(
-                                    "Detalles y Reto", 
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
-                                  ),
+                                  Text("Detalles y Reto",
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
                                 ],
                               ),
                               AnimatedRotation(
                                 duration: const Duration(milliseconds: 300),
                                 turns: _isDetailExpanded ? 0.5 : 0,
-                                child: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+                                child: const Icon(Icons.keyboard_arrow_down,
+                                    color: Colors.white70),
                               ),
                             ],
                           ),
@@ -259,32 +273,45 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                             duration: const Duration(milliseconds: 300),
                             curve: Curves.easeInOut,
                             alignment: Alignment.topCenter,
-                            child: _isDetailExpanded 
-                              ? Container(
-                                  width: double.infinity,
-                                  margin: const EdgeInsets.only(top: 20),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      _DetailRow(icon: Icons.groups_rounded, text: "Grupo: ${widget.members.length} miembros", color: primaryColor),
-                                      const SizedBox(height: 15),
-                                      if (location.isNotEmpty) ...[
-                                        _DetailRow(icon: Icons.location_on_outlined, text: location, color: primaryColor),
+                            child: _isDetailExpanded
+                                ? Container(
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.only(top: 20),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _DetailRow(
+                                            icon: Icons.groups_rounded,
+                                            text:
+                                                "Grupo: ${widget.members.length} miembros",
+                                            color: primaryColor),
                                         const SizedBox(height: 15),
+                                        if (location.isNotEmpty) ...[
+                                          _DetailRow(
+                                              icon: Icons.location_on_outlined,
+                                              text: location,
+                                              color: primaryColor),
+                                          const SizedBox(height: 15),
+                                        ],
+                                        if (challenge.isNotEmpty) ...[
+                                          _DetailRow(
+                                              icon: Icons.flag_outlined,
+                                              text: "Reto: $challenge",
+                                              color: primaryColor),
+                                          const SizedBox(height: 15),
+                                        ],
+                                        if (description.isNotEmpty)
+                                          Text(description,
+                                              style: TextStyle(
+                                                  color: Colors.white
+                                                      .withOpacity(0.7),
+                                                  fontSize: 14,
+                                                  height: 1.5)),
                                       ],
-                                      if (challenge.isNotEmpty) ...[
-                                        _DetailRow(icon: Icons.flag_outlined, text: "Reto: $challenge", color: primaryColor),
-                                        const SizedBox(height: 15),
-                                      ],
-                                      if (description.isNotEmpty)
-                                        Text(
-                                          description, 
-                                          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14, height: 1.5)
-                                        ),
-                                    ],
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
                           ),
                         ],
                       ),
@@ -292,9 +319,7 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
-
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 600),
                 child: ClipRRect(
@@ -305,38 +330,35 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(25),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08), 
-                        borderRadius: BorderRadius.circular(20), 
-                        border: Border.all(color: primaryColor.withOpacity(0.3))
-                      ),
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border:
+                              Border.all(color: primaryColor.withOpacity(0.3))),
                       child: Column(
                         children: [
-                          const Icon(Icons.lightbulb_outline, color: primaryColor, size: 28),
+                          const Icon(Icons.lightbulb_outline,
+                              color: primaryColor, size: 28),
                           const SizedBox(height: 15),
-                          Text(
-                            _groupTips[_currentTipIndex], 
-                            textAlign: TextAlign.center, 
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9), 
-                              fontSize: 17, 
-                              fontStyle: FontStyle.italic,
-                              height: 1.4,
-                            )
-                          ),
+                          Text(_groupTips[_currentTipIndex],
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 17,
+                                fontStyle: FontStyle.italic,
+                                height: 1.4,
+                              )),
                         ],
                       ),
                     ),
                   ),
                 ),
               ),
-
               const SizedBox(height: 50),
-
               SizedBox(
-                width: double.infinity, 
+                width: double.infinity,
                 height: 55,
                 child: Opacity(
-                  opacity: _isSubmitting ? 0.7 : 1.0, 
+                  opacity: _isSubmitting ? 0.7 : 1.0,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -359,15 +381,25 @@ class _GroupAdventureScreenState extends State<GroupAdventureScreen> {
                         backgroundColor: Colors.transparent,
                         disabledBackgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                       ),
-                      icon: _isSubmitting 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.check_circle_outline, color: Colors.white),
+                      icon: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.check_circle_outline,
+                              color: Colors.white),
                       label: Text(
-                        _isSubmitting ? 'Guardando...' : 'Finalizar Expedición', 
-                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
-                      ),
+                          _isSubmitting
+                              ? 'Guardando...'
+                              : 'Finalizar Expedición',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),
@@ -385,7 +417,8 @@ class _DetailRow extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _DetailRow({required this.icon, required this.text, required this.color});
+  const _DetailRow(
+      {required this.icon, required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +430,8 @@ class _DetailRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -413,7 +447,8 @@ class _PulsingDot extends StatefulWidget {
   State<_PulsingDot> createState() => _PulsingDotState();
 }
 
-class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -439,15 +474,14 @@ class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderState
         width: 8,
         height: 8,
         decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: widget.color.withOpacity(0.6),
-              blurRadius: 4,
-            )
-          ]
-        ),
+            color: widget.color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withOpacity(0.6),
+                blurRadius: 4,
+              )
+            ]),
       ),
     );
   }

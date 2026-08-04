@@ -27,8 +27,10 @@ class AlbumScreen extends StatefulWidget {
 }
 
 class _AlbumScreenState extends State<AlbumScreen> {
-  String _selectedCategory = 'TODOS'; // 'TODOS', 'SOLO', 'PAREJA', 'GRUPO', 'PERSONAL'
-  String _viewMode = 'grid'; // 'grid' (Pinterest Masonry) o 'timeline' (Línea de Tiempo)
+  String _selectedCategory =
+      'TODOS'; // 'TODOS', 'SOLO', 'PAREJA', 'GRUPO', 'PERSONAL'
+  String _viewMode =
+      'grid'; // 'grid' (Pinterest Masonry) o 'timeline' (Línea de Tiempo)
   bool _isPersonalUnlocked = false;
 
   Stream<List<AlbumMemory>> _getCategoryStream(AlbumProvider provider) {
@@ -58,7 +60,8 @@ class _AlbumScreenState extends State<AlbumScreen> {
     if (myUid == null) return;
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(myUid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(myUid).get();
       final pin = doc.data()?['personalVaultPin'] as String?;
 
       if (!mounted) return;
@@ -188,7 +191,8 @@ class _AlbumScreenState extends State<AlbumScreen> {
                         child: SelectableText(
                           'Error al cargar recuerdos:\n${snapshot.error}',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red, fontSize: 13),
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 13),
                         ),
                       ),
                     );
@@ -280,25 +284,30 @@ class _AlbumScreenState extends State<AlbumScreen> {
                               else
                                 (_viewMode == 'timeline'
                                     ? AlbumTimelineView(memories: memories)
-                                    : _buildStaggeredGrid(memories, customTheme)),
-
+                                    : _buildStaggeredGrid(
+                                        memories, customTheme)),
                               if (_selectedCategory == 'PAREJA')
                                 StreamBuilder<List<PausedCoupleGroup>>(
                                   stream: provider.pausedCoupleGroupsStream,
                                   builder: (context, pausedSnap) {
                                     final groups = pausedSnap.data ?? [];
-                                    if (groups.isEmpty) return const SizedBox.shrink();
+                                    if (groups.isEmpty) {
+                                      return const SizedBox.shrink();
+                                    }
                                     return Column(
                                       children: groups.map((group) {
                                         return _PausedCoupleAccordion(
                                           partnerName: group.partnerName,
                                           memories: group.memories,
-                                          preservationEnd: group.preservationWindowEnd,
+                                          preservationEnd:
+                                              group.preservationWindowEnd,
                                           theme: customTheme,
                                           onDownloadAll: (m) =>
-                                              _downloadAllCoupleMemories(context, m),
+                                              _downloadAllCoupleMemories(
+                                                  context, m),
                                           onMoveAllToPersonal: (m) =>
-                                              _moveAllCoupleMemoriesToPersonal(context, m),
+                                              _moveAllCoupleMemoriesToPersonal(
+                                                  context, m),
                                         );
                                       }).toList(),
                                     );
@@ -437,8 +446,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
     );
   }
 
-  Widget _buildStaggeredGrid(
-      List<AlbumMemory> memories, AppCustomTheme t) {
+  Widget _buildStaggeredGrid(List<AlbumMemory> memories, AppCustomTheme t) {
     final leftColumnMemories = <_IndexedMemory>[];
     final rightColumnMemories = <_IndexedMemory>[];
 
@@ -503,27 +511,32 @@ class _AlbumScreenState extends State<AlbumScreen> {
       };
 
   String _getEmptyMessage(String category) => switch (category) {
-        'SOLO' => 'Aún no tienes aventuras solitarias.\n¡Explora por tu cuenta!',
+        'SOLO' =>
+          'Aún no tienes aventuras solitarias.\n¡Explora por tu cuenta!',
         'PAREJA' => 'Aún no tienen aventuras juntos.\n¡Planeen una cita!',
         'GRUPO' => 'Aún no hay expediciones grupales.\n¡Arma un grupo!',
-        'PERSONAL' => 'Tu sección Personal está vacía.\nMueve recuerdos aquí con el menú de 3 puntos (⋮).',
+        'PERSONAL' =>
+          'Tu sección Personal está vacía.\nMueve recuerdos aquí con el menú de 3 puntos (⋮).',
         _ => 'Aún no tienes recuerdos guardados.\n¡Completa una aventura!',
       };
-
-
 
   Future<void> _moveAllCoupleMemoriesToPersonal(
     BuildContext context,
     List<AlbumMemory> coupleMemories,
   ) async {
     if (coupleMemories.isEmpty) {
-      CustomSnackBar.showError(context, 'No hay recuerdos de pareja pendientes por guardar.');
+      CustomSnackBar.showError(
+          context, 'No hay recuerdos de pareja pendientes por guardar.');
       return;
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsOverflowButtonSpacing: 6,
         title: const Text('¿Mover Todo a Personal?'),
         content: Text(
           'Se moverán ${coupleMemories.length} recuerdos de pareja a tu sección Personal. Quedarán protegidos con tu PIN y se conservarán para siempre.',
@@ -548,13 +561,17 @@ class _AlbumScreenState extends State<AlbumScreen> {
     try {
       final batch = FirebaseFirestore.instance.batch();
       for (final memory in coupleMemories) {
-        final docRef = FirebaseFirestore.instance.collection('memories').doc(memory.id);
-        batch.set(docRef, {
-          'isPersonal': true,
-          'originalType': 'Pareja',
-          'userId': myUid,
-          'isExCoupleConserved': true,
-        }, SetOptions(merge: true));
+        final docRef =
+            FirebaseFirestore.instance.collection('memories').doc(memory.id);
+        batch.set(
+            docRef,
+            {
+              'isPersonal': true,
+              'originalType': 'Pareja',
+              'userId': myUid,
+              'isExCoupleConserved': true,
+            },
+            SetOptions(merge: true));
       }
       await batch.commit();
 
@@ -597,14 +614,16 @@ class _AlbumScreenState extends State<AlbumScreen> {
       for (int i = 0; i < allPhotoUrls.length; i++) {
         final response = await http.get(Uri.parse(allPhotoUrls[i]));
         if (response.statusCode == 200) {
-          final file = File('${tempDir.path}/recuerdo_pareja_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          final file = File(
+              '${tempDir.path}/recuerdo_pareja_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg');
           await file.writeAsBytes(response.bodyBytes);
           xFiles.add(XFile(file.path));
         }
       }
 
       if (xFiles.isNotEmpty) {
-        await Share.shareXFiles(xFiles, text: 'Recuerdos de pareja descargados desde Daty');
+        await Share.shareXFiles(xFiles,
+            text: 'Recuerdos de pareja descargados desde Daty');
       }
     } catch (e) {
       if (context.mounted) {
@@ -649,7 +668,8 @@ class _PausedCoupleAccordionState extends State<_PausedCoupleAccordion> {
   Widget build(BuildContext context) {
     if (widget.memories.isEmpty) return const SizedBox.shrink();
 
-    final preservationEnd = widget.preservationEnd ?? widget.memories.first.preservationWindowEnd;
+    final preservationEnd =
+        widget.preservationEnd ?? widget.memories.first.preservationWindowEnd;
     final now = DateTime.now();
 
     String timeStr = '';
@@ -740,7 +760,8 @@ class _PausedCoupleAccordionState extends State<_PausedCoupleAccordion> {
                 children: [
                   Text(
                     'Fotos de tu relación anterior en periodo de resguardo. Mantenlas a salvo en Personal antes de que venza el plazo.',
-                    style: TextStyle(color: t.text2, fontSize: 12, height: 1.35),
+                    style:
+                        TextStyle(color: t.text2, fontSize: 12, height: 1.35),
                   ),
                   const SizedBox(height: 14),
                   Row(
@@ -750,14 +771,20 @@ class _PausedCoupleAccordionState extends State<_PausedCoupleAccordion> {
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             side: BorderSide(color: t.primary),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
-                          icon: Icon(Icons.download_rounded, size: 16, color: t.primary),
+                          icon: Icon(Icons.download_rounded,
+                              size: 16, color: t.primary),
                           label: Text(
                             'Descargar Todo',
-                            style: TextStyle(color: t.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: t.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold),
                           ),
-                          onPressed: () => widget.onDownloadAll(widget.memories),
+                          onPressed: () =>
+                              widget.onDownloadAll(widget.memories),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -766,14 +793,20 @@ class _PausedCoupleAccordionState extends State<_PausedCoupleAccordion> {
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             backgroundColor: t.primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
-                          icon: const Icon(Icons.lock_outline_rounded, size: 16, color: Colors.white),
+                          icon: const Icon(Icons.lock_outline_rounded,
+                              size: 16, color: Colors.white),
                           label: const Text(
                             'Mover Todo a Personal',
-                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold),
                           ),
-                          onPressed: () => widget.onMoveAllToPersonal(widget.memories),
+                          onPressed: () =>
+                              widget.onMoveAllToPersonal(widget.memories),
                         ),
                       ),
                     ],
@@ -784,7 +817,8 @@ class _PausedCoupleAccordionState extends State<_PausedCoupleAccordion> {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,

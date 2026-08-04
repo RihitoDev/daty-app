@@ -189,8 +189,8 @@ class _AdventureInProgressScreenState extends State<AdventureInProgressScreen> {
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
             top: MediaQuery.of(context).padding.top + kToolbarHeight,
-            left: 30.0,
-            right: 30.0,
+            left: MediaQuery.sizeOf(context).width <= 360 ? 16 : 30,
+            right: MediaQuery.sizeOf(context).width <= 360 ? 16 : 30,
             bottom: MediaQuery.of(context).padding.bottom + 40,
           ),
           child: Column(

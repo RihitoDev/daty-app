@@ -73,6 +73,10 @@ class _ReconciliationContractDialogState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsOverflowButtonSpacing: 6,
         title: const Text('¿Rechazar propuesta?'),
         content: const Text(
           'Si rechazas la propuesta, la relación continuará en proceso de separación.',
@@ -98,7 +102,8 @@ class _ReconciliationContractDialogState
     await settings.cancelReconciliation(widget.coupleDocId);
 
     if (mounted) {
-      CustomSnackBar.showInfo(context, 'Propuesta de reconciliación rechazada.');
+      CustomSnackBar.showInfo(
+          context, 'Propuesta de reconciliación rechazada.');
       Navigator.pop(context, false);
     }
   }
@@ -147,24 +152,30 @@ class _ReconciliationContractDialogState
                         const SizedBox(height: 16),
                         ContractRuleTile(
                           value: _rule1Checked,
-                          text: 'Escuchar de forma activa y sincera ante cualquier desacuerdo.',
+                          text:
+                              'Escuchar de forma activa y sincera ante cualquier desacuerdo.',
                           accent: const Color(0xFFE91E63),
                           textColor: customTheme.text,
-                          onChanged: (val) => setState(() => _rule1Checked = val),
+                          onChanged: (val) =>
+                              setState(() => _rule1Checked = val),
                         ),
                         ContractRuleTile(
                           value: _rule2Checked,
-                          text: 'Disposición para sanar el pasado y renovar la confianza día a día.',
+                          text:
+                              'Disposición para sanar el pasado y renovar la confianza día a día.',
                           accent: const Color(0xFFE91E63),
                           textColor: customTheme.text,
-                          onChanged: (val) => setState(() => _rule2Checked = val),
+                          onChanged: (val) =>
+                              setState(() => _rule2Checked = val),
                         ),
                         ContractRuleTile(
                           value: _rule3Checked,
-                          text: 'Preservar nuestro mapa de aventuras y construir nuevos recuerdos juntos.',
+                          text:
+                              'Preservar nuestro mapa de aventuras y construir nuevos recuerdos juntos.',
                           accent: const Color(0xFFE91E63),
                           textColor: customTheme.text,
-                          onChanged: (val) => setState(() => _rule3Checked = val),
+                          onChanged: (val) =>
+                              setState(() => _rule3Checked = val),
                         ),
                       ],
                     ),
@@ -203,8 +214,8 @@ class _ReconciliationContractDialogState
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               backgroundColor: const Color(0xFFE91E63),
-                              disabledBackgroundColor:
-                                  const Color(0xFFE91E63).withValues(alpha: 0.4),
+                              disabledBackgroundColor: const Color(0xFFE91E63)
+                                  .withValues(alpha: 0.4),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
