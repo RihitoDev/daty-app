@@ -51,6 +51,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Column(
@@ -75,8 +77,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 6,
               children: [
                 Container(
                   padding:
@@ -94,7 +98,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -136,6 +139,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         actionsAlignment: MainAxisAlignment.center,
+        actionsOverflowAlignment: OverflowBarAlignment.center,
+        actionsOverflowButtonSpacing: 6,
         actions: [
           TextButton.icon(
             onPressed: () {
@@ -196,12 +201,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         iconTheme: IconThemeData(color: colors.text),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding:
+            EdgeInsets.all(MediaQuery.sizeOf(context).width <= 360 ? 12 : 20),
         child: Column(
           children: [
             // 1. Cabecera con Avatar, Nombre, Nivel y Rango
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 20),
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                vertical: 25,
+                horizontal: MediaQuery.sizeOf(context).width <= 360 ? 14 : 20,
+              ),
               decoration: BoxDecoration(
                 color: colors.card,
                 borderRadius: BorderRadius.circular(25),
@@ -308,6 +318,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 15),
                   Text(
                     provider.userName,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -328,6 +341,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                   const SizedBox(height: 8),
                   Container(
+                    constraints:
+                        const BoxConstraints(maxWidth: double.infinity),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
@@ -336,6 +351,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: Text(
                       'Nivel ${provider.level} • ${provider.rankTitle}',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
                       style: TextStyle(
                         fontSize: 13,
                         color: colors.primary,
@@ -455,31 +472,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatCard(
-                        'Solitario',
-                        provider.soloDates,
-                        Icons.person,
-                        colors.primary,
-                        colors,
+                      Expanded(
+                        child: _buildStatCard(
+                          'Solitario',
+                          provider.soloDates,
+                          Icons.person,
+                          colors.primary,
+                          colors,
+                        ),
                       ),
-                      _buildStatCard(
-                        'Grupo',
-                        provider.groupOutings,
-                        Icons.group,
-                        colors.primary,
-                        colors,
+                      Expanded(
+                        child: _buildStatCard(
+                          'Grupo',
+                          provider.groupOutings,
+                          Icons.group,
+                          colors.primary,
+                          colors,
+                        ),
                       ),
-                      _buildStatCard(
-                        'Fotos',
-                        provider.totalPhotosCount,
-                        Icons.photo_library_rounded,
-                        colors.primary,
-                        colors,
+                      Expanded(
+                        child: _buildStatCard(
+                          'Fotos',
+                          provider.totalPhotosCount,
+                          Icons.photo_library_rounded,
+                          colors.primary,
+                          colors,
+                        ),
                       ),
                     ],
                   ),
                   if (provider.equippedPins.isNotEmpty) ...[
-                    Divider(height: 30, color: colors.muted.withValues(alpha: 0.2)),
+                    Divider(
+                        height: 30, color: colors.muted.withValues(alpha: 0.2)),
                     Text(
                       'Mis Pines Equipados (Toca para ver detalle)',
                       style: TextStyle(
@@ -489,18 +513,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 10,
                       children: provider.equippedPins.map((pinId) {
                         final ach = _getAchById(pinId);
                         if (ach == null) return const SizedBox.shrink();
-                        final achColor = AchievementMapper.getColor(ach.colorName);
+                        final achColor =
+                            AchievementMapper.getColor(ach.colorName);
                         final icon = AchievementMapper.getIcon(ach.iconName);
                         return InkWell(
-                          onTap: () => _showPinDetailModal(context, ach, colors),
+                          onTap: () =>
+                              _showPinDetailModal(context, ach, colors),
                           borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                          child: SizedBox(
+                            width: 82,
                             child: Column(
                               children: [
                                 Container(
@@ -518,6 +546,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   ach.title,
+                                  maxLines: 2,
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -575,7 +605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(
-                      height: 320,
+                      height: 360,
                       child: TabBarView(
                         children: [
                           AchievementsList(mode: AchievementMode.general),
@@ -623,6 +653,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         Text(
           title,
+          maxLines: 2,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 11,
             color: colors.text2,

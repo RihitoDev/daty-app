@@ -200,7 +200,8 @@ class _SettingsBody extends StatelessWidget {
             _divider(colors),
             ListTile(
               leading: Icon(Icons.share_outlined, color: colors.primary),
-              title: Text('Redes sociales', style: TextStyle(color: colors.text)),
+              title:
+                  Text('Redes sociales', style: TextStyle(color: colors.text)),
               subtitle: Text(
                 'Síguenos e inspírate en nuestras comunidades',
                 style: TextStyle(color: colors.text2),
@@ -842,6 +843,10 @@ class _SettingsBody extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsOverflowButtonSpacing: 6,
         title: const Text('Cerrar sesión'),
         content: const Text('¿Quieres salir de tu cuenta?'),
         actions: [

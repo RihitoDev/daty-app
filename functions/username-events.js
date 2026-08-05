@@ -3,7 +3,7 @@ const {getAuth} = require("firebase-admin/auth");
 const {getFirestore, FieldValue, Timestamp} = require("firebase-admin/firestore");
 
 const REGION = "us-central1";
-const CONFIG_PATH = "app_config/usernameChanges";
+const COOLDOWN_MONTHS = 4;
 
 function requireUid(request) {
   const uid = request.auth?.uid;
@@ -25,20 +25,43 @@ function isValidUsername(value) {
   return username.length >= 2 && username.length <= 20 && spaces <= 3;
 }
 
-function eventState(data, now = Date.now()) {
-  const startsAt = data?.startsAt;
-  const endsAt = data?.endsAt;
-  const enabled = data?.enabled === true;
-  const withinDates = startsAt instanceof Timestamp &&
-    endsAt instanceof Timestamp &&
-    startsAt.toMillis() <= now && endsAt.toMillis() >= now;
+function addCalendarMonths(date, months) {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + months;
+  const targetYear = year + Math.floor(month / 12);
+  const targetMonth = ((month % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0))
+      .getUTCDate();
+
+  return new Date(Date.UTC(
+      targetYear,
+      targetMonth,
+      Math.min(date.getUTCDate(), lastDay),
+      date.getUTCHours(),
+      date.getUTCMinutes(),
+      date.getUTCSeconds(),
+      date.getUTCMilliseconds(),
+  ));
+}
+
+function authCreationTimestamp(authUser) {
+  const creationTime = Date.parse(authUser.metadata.creationTime);
+  return Number.isFinite(creationTime) ? Timestamp.fromMillis(creationTime) : null;
+}
+
+function cooldownState(user, fallbackCreatedAt, now = Date.now()) {
+  const baseline = user?.usernameChangedAt instanceof Timestamp ?
+    user.usernameChangedAt :
+    user?.createdAt instanceof Timestamp ? user.createdAt : fallbackCreatedAt;
+
+  if (!(baseline instanceof Timestamp)) {
+    return {enabled: false, nextChangeAtMillis: null};
+  }
+
+  const nextChangeAt = addCalendarMonths(baseline.toDate(), COOLDOWN_MONTHS);
   return {
-    active: enabled && withinDates && typeof data?.eventId === "string",
-    eventId: data?.eventId ?? null,
-    startsAtMillis: startsAt instanceof Timestamp ? startsAt.toMillis() : null,
-    endsAtMillis: endsAt instanceof Timestamp ? endsAt.toMillis() : null,
-    maxChanges: Number.isInteger(data?.maxChangesPerUser) ?
-      data.maxChangesPerUser : 1,
+    enabled: now >= nextChangeAt.getTime(),
+    nextChangeAtMillis: nextChangeAt.getTime(),
   };
 }
 
@@ -47,21 +70,19 @@ exports.getUsernameChangeStatus = onCall(
     async (request) => {
       const uid = requireUid(request);
       const db = getFirestore();
-      const [configSnapshot, userSnapshot] = await Promise.all([
-        db.doc(CONFIG_PATH).get(),
+      const [userSnapshot, authUser] = await Promise.all([
         db.collection("users").doc(uid).get(),
+        getAuth().getUser(uid),
       ]);
-      const state = eventState(configSnapshot.data());
-      const user = userSnapshot.data();
-      const used = user?.usernameChangeEventId === state.eventId ?
-        Number(user?.usernameChangesInEvent ?? 0) : 0;
 
-      return {
-        enabled: state.active && used < state.maxChanges,
-        eventActive: state.active,
-        remainingChanges: Math.max(0, state.maxChanges - used),
-        endsAtMillis: state.endsAtMillis,
-      };
+      if (!userSnapshot.exists) {
+        throw new HttpsError("not-found", "Perfil no encontrado.");
+      }
+
+      return cooldownState(
+          userSnapshot.data(),
+          authCreationTimestamp(authUser),
+      );
     },
 );
 
@@ -75,38 +96,37 @@ exports.changeUsernameDuringEvent = onCall(
       }
 
       const db = getFirestore();
-      await db.runTransaction(async (transaction) => {
-        const configRef = db.doc(CONFIG_PATH);
+      const authUser = await getAuth().getUser(uid);
+      const fallbackCreatedAt = authCreationTimestamp(authUser);
+
+      const changed = await db.runTransaction(async (transaction) => {
         const userRef = db.collection("users").doc(uid);
         const newUsernameRef = db.collection("usernames")
             .doc(normalizeUsername(username));
-
-        const configSnapshot = await transaction.get(configRef);
         const userSnapshot = await transaction.get(userRef);
         const newUsernameSnapshot = await transaction.get(newUsernameRef);
+
         if (!userSnapshot.exists) {
           throw new HttpsError("not-found", "Perfil no encontrado.");
         }
 
-        const state = eventState(configSnapshot.data());
-        if (!state.active) {
+        const user = userSnapshot.data();
+        if (normalizeUsername(user.username) === normalizeUsername(username)) {
+          return false;
+        }
+
+        const state = cooldownState(user, fallbackCreatedAt);
+        if (!state.enabled) {
           throw new HttpsError(
               "failed-precondition",
-              "No hay un evento de cambio de username activo.",
-              {reason: "event-inactive"},
+              "El nombre solo puede cambiarse cada cuatro meses.",
+              {
+                reason: "cooldown-active",
+                nextChangeAtMillis: state.nextChangeAtMillis,
+              },
           );
         }
 
-        const user = userSnapshot.data();
-        const used = user.usernameChangeEventId === state.eventId ?
-          Number(user.usernameChangesInEvent ?? 0) : 0;
-        if (used >= state.maxChanges) {
-          throw new HttpsError(
-              "resource-exhausted",
-              "Ya utilizaste los cambios disponibles para este evento.",
-              {reason: "event-limit-reached"},
-          );
-        }
         if (newUsernameSnapshot.exists &&
             newUsernameSnapshot.get("uid") !== uid) {
           throw new HttpsError("already-exists", "Ese username ya está en uso.");
@@ -129,18 +149,21 @@ exports.changeUsernameDuringEvent = onCall(
         transaction.update(userRef, {
           username,
           usernameNormalized: normalizeUsername(username),
-          usernameChangeEventId: state.eventId,
-          usernameChangesInEvent: used + 1,
           usernameChangedAt: FieldValue.serverTimestamp(),
         });
+
         if (oldUsernameRef !== null &&
             oldUsernameSnapshot?.exists &&
             oldUsernameSnapshot.get("uid") === uid) {
           transaction.delete(oldUsernameRef);
         }
+
+        return true;
       });
 
-      await getAuth().updateUser(uid, {displayName: username});
+      if (changed) {
+        await getAuth().updateUser(uid, {displayName: username});
+      }
       return {username};
     },
 );

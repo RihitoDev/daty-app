@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../shared/widgets/custom_snackbar.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/utils/username_rules.dart';
 import '../../profile/providers/profile_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -17,6 +18,8 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _statusController;
+  UsernameChangeStatus? _usernameChangeStatus;
+  bool _loadingUsernameStatus = true;
   bool _saving = false;
 
   @override
@@ -25,6 +28,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final profile = context.read<ProfileProvider>();
     _nameController = TextEditingController(text: profile.userName);
     _statusController = TextEditingController(text: profile.statusMessage);
+    _loadUsernameChangeStatus();
   }
 
   @override
@@ -39,6 +43,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final colors = context.watch<ThemeProvider>().currentTheme;
     final profile = context.watch<ProfileProvider>();
     final auth = context.watch<AuthProvider>();
+    final canChangeUsername = _usernameChangeStatus?.enabled == true;
     ImageProvider? avatar;
     if (profile.selectedImageBytes != null) {
       avatar = MemoryImage(profile.selectedImageBytes!);
@@ -122,12 +127,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _nameController,
+                  readOnly: !canChangeUsername,
+                  enableInteractiveSelection: canChangeUsername,
                   textCapitalization: TextCapitalization.words,
-                  maxLength: 40,
+                  maxLength: 20,
                   style: TextStyle(color: colors.text),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.person_outline_rounded),
+                    suffixIcon: canChangeUsername
+                        ? const Icon(Icons.edit_outlined)
+                        : const Icon(Icons.lock_clock_outlined),
                     hintText: 'Tu nombre en Daty',
+                    helperText: _usernameHelperText(),
+                    helperMaxLines: 2,
                   ),
                 ),
               ],
@@ -228,10 +240,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _save() async {
     final nameText = _nameController.text.trim();
-    if (nameText.length < 2 || nameText.length > 40) {
+    final canChangeUsername = _usernameChangeStatus?.enabled == true;
+    final validationError =
+        canChangeUsername ? UsernameRules.validationMessage(nameText) : null;
+    if (validationError != null) {
       CustomSnackBar.showError(
         context,
-        'El nombre debe tener entre 2 y 40 caracteres',
+        validationError,
       );
       return;
     }
@@ -239,7 +254,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final profileProvider = context.read<ProfileProvider>();
 
     await profileProvider.updateStatusMessage(_statusController.text);
-    final error = await profileProvider.updateUserName(nameText);
+    final error = canChangeUsername
+        ? await profileProvider.updateUserName(nameText)
+        : null;
 
     if (!mounted) return;
     setState(() => _saving = false);
@@ -249,8 +266,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       Navigator.pop(context);
     } else if (error == 'username-taken') {
       CustomSnackBar.showError(context, 'Ese nombre ya está en uso');
+    } else if (error == 'cooldown-active') {
+      CustomSnackBar.showError(
+        context,
+        'El nombre solo puede cambiarse cada cuatro meses',
+      );
     } else {
       CustomSnackBar.showError(context, 'No se pudo actualizar el nombre');
     }
+  }
+
+  Future<void> _loadUsernameChangeStatus() async {
+    final status =
+        await context.read<ProfileProvider>().getUsernameChangeStatus();
+    if (!mounted) return;
+    setState(() {
+      _usernameChangeStatus = status;
+      _loadingUsernameStatus = false;
+    });
+  }
+
+  String _usernameHelperText() {
+    if (_loadingUsernameStatus) {
+      return 'Verificando cuándo puedes cambiar tu nombre…';
+    }
+
+    final status = _usernameChangeStatus;
+    if (status?.enabled == true) {
+      return 'Puedes cambiarlo ahora. Después deberás esperar cuatro meses.';
+    }
+
+    final date = status?.nextChangeAt?.toLocal();
+    if (date == null) {
+      return 'El nombre solo puede cambiarse cada cuatro meses.';
+    }
+
+    return 'Podrás cambiarlo a partir del '
+        '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/${date.year}.';
   }
 }

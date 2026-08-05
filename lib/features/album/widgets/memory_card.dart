@@ -55,7 +55,9 @@ class MemoryCard extends StatelessWidget {
 
   static IconData _getVectorIconForMemory(AlbumMemory memory) {
     final title = memory.title.toLowerCase();
-    if (title.contains('cena') || title.contains('comida') || title.contains('angostura')) {
+    if (title.contains('cena') ||
+        title.contains('comida') ||
+        title.contains('angostura')) {
       return Icons.restaurant_rounded;
     }
     if (title.contains('café') || title.contains('cafe')) {
@@ -64,13 +66,20 @@ class MemoryCard extends StatelessWidget {
     if (title.contains('lectura') || title.contains('libro')) {
       return Icons.menu_book_rounded;
     }
-    if (title.contains('arte') || title.contains('dibujo') || title.contains('pintura')) {
+    if (title.contains('arte') ||
+        title.contains('dibujo') ||
+        title.contains('pintura')) {
       return Icons.palette_rounded;
     }
-    if (title.contains('caminata') || title.contains('mirador') || title.contains('apote') || title.contains('naturaleza')) {
+    if (title.contains('caminata') ||
+        title.contains('mirador') ||
+        title.contains('apote') ||
+        title.contains('naturaleza')) {
       return Icons.hiking_rounded;
     }
-    if (title.contains('cine') || title.contains('película') || title.contains('pelicula')) {
+    if (title.contains('cine') ||
+        title.contains('película') ||
+        title.contains('pelicula')) {
       return Icons.movie_rounded;
     }
     if (title.contains('bicicleta') || title.contains('tunari')) {
@@ -115,8 +124,18 @@ class MemoryCard extends StatelessWidget {
 
   String _formatDateShort(DateTime d) {
     const months = [
-      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic'
     ];
     final day = d.day.toString().padLeft(2, '0');
     final month = months[d.month - 1];
@@ -178,7 +197,9 @@ class MemoryCard extends StatelessWidget {
                   imageUrl: coverPhoto,
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
-                    color: t.isDark ? const Color(0xFF1E1E24) : Colors.grey.shade200,
+                    color: t.isDark
+                        ? const Color(0xFF1E1E24)
+                        : Colors.grey.shade200,
                     child: Center(
                       child: CircularProgressIndicator(
                         color: t.primary,
@@ -187,7 +208,8 @@ class MemoryCard extends StatelessWidget {
                     ),
                   ),
                   errorWidget: (context, url, error) {
-                    debugPrint('Error al cargar foto de portada [$url]: $error');
+                    debugPrint(
+                        'Error al cargar foto de portada [$url]: $error');
                     return Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -309,7 +331,6 @@ class MemoryCard extends StatelessWidget {
                         ),
                       ),
                     ),
-
                     if (memory.photoUrls.length > 1)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
@@ -345,8 +366,8 @@ class MemoryCard extends StatelessWidget {
                           ),
                         ),
                       ),
-
-                    if (memory.preservationWindowEnd != null && !memory.isPersonal)
+                    if (memory.preservationWindowEnd != null &&
+                        !memory.isPersonal)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: BackdropFilter(
@@ -355,7 +376,8 @@ class MemoryCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 5),
                             decoration: BoxDecoration(
-                              color: Colors.amber.shade900.withValues(alpha: 0.85),
+                              color:
+                                  Colors.amber.shade900.withValues(alpha: 0.85),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: Colors.amber.shade300,
@@ -364,10 +386,13 @@ class MemoryCard extends StatelessWidget {
                             ),
                             child: Builder(
                               builder: (_) {
-                                final diff = memory.preservationWindowEnd!.difference(DateTime.now());
+                                final diff = memory.preservationWindowEnd!
+                                    .difference(DateTime.now());
                                 final days = diff.inDays;
                                 final hours = diff.inHours % 24;
-                                final str = days > 0 ? '${days}d ${hours}h' : '${hours}h';
+                                final str = days > 0
+                                    ? '${days}d ${hours}h'
+                                    : '${hours}h';
                                 return Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -469,8 +494,18 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
 
   String _formatDate(DateTime d) {
     const months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre'
     ];
     return '${d.day} de ${months[d.month - 1]} de ${d.year}';
   }
@@ -539,7 +574,8 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
 
   Future<void> _downloadImage() async {
     if (widget.memory.photoUrls.isEmpty) {
-      CustomSnackBar.showError(context, 'Este recuerdo no contiene fotografías.');
+      CustomSnackBar.showError(
+          context, 'Este recuerdo no contiene fotografías.');
       return;
     }
 
@@ -560,7 +596,8 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
           final file = File(
               '${tempDir.path}/recuerdo_${DateTime.now().millisecondsSinceEpoch}.jpg');
           await file.writeAsBytes(response.bodyBytes);
-          await Share.shareXFiles([XFile(file.path)], text: 'Guardado desde Daty');
+          await Share.shareXFiles([XFile(file.path)],
+              text: 'Guardado desde Daty');
         }
         if (mounted) {
           CustomSnackBar.showSuccess(context, 'Imagen preparada para guardar');
@@ -581,7 +618,9 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
 
     try {
       String collectionName = 'solo_memories';
-      if (memory.type == 'Pareja' || memory.originalType == 'Pareja' || memory.rawData?['coupleDocId'] != null) {
+      if (memory.type == 'Pareja' ||
+          memory.originalType == 'Pareja' ||
+          memory.rawData?['coupleDocId'] != null) {
         collectionName = 'memories';
       } else if (memory.type == 'Grupo' || memory.originalType == 'Grupo') {
         collectionName = 'group_memories';
@@ -595,7 +634,8 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
           .doc(memory.id)
           .set({
         'isPersonal': true,
-        'originalType': memory.originalType.isNotEmpty ? memory.originalType : memory.type,
+        'originalType':
+            memory.originalType.isNotEmpty ? memory.originalType : memory.type,
         if (myUid != null) 'userId': myUid,
         if (isUnlinkedCouple) 'isExCoupleConserved': true,
       }, SetOptions(merge: true));
@@ -654,7 +694,9 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
     try {
       String collectionName = 'solo_memories';
       if (isCoupleMemory) collectionName = 'memories';
-      if (memory.originalType == 'Grupo' || memory.type == 'Grupo') collectionName = 'group_memories';
+      if (memory.originalType == 'Grupo' || memory.type == 'Grupo') {
+        collectionName = 'group_memories';
+      }
 
       await FirebaseFirestore.instance
           .collection(collectionName)
@@ -665,8 +707,8 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
       }, SetOptions(merge: true));
 
       if (mounted) {
-        CustomSnackBar.showSuccess(
-            context, 'Restaurado a ${memory.originalType.isNotEmpty ? memory.originalType : memory.type}');
+        CustomSnackBar.showSuccess(context,
+            'Restaurado a ${memory.originalType.isNotEmpty ? memory.originalType : memory.type}');
         Navigator.pop(context);
       }
     } catch (e) {
@@ -680,6 +722,10 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsOverflowButtonSpacing: 6,
         title: const Text('¿Eliminar recuerdo?'),
         content: const Text(
             'Esta acción eliminará el recuerdo de forma permanente. No se puede deshacer.'),
@@ -795,13 +841,15 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
                   )
                 else
                   IconButton(
-                    icon: Icon(Icons.share_outlined, color: t.primary, size: 20),
+                    icon:
+                        Icon(Icons.share_outlined, color: t.primary, size: 20),
                     onPressed: _share,
                   ),
 
                 // Menú de 3 Puntos (⋮)
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert_rounded, color: t.primary, size: 20),
+                  icon:
+                      Icon(Icons.more_vert_rounded, color: t.primary, size: 20),
                   color: t.card,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -819,9 +867,11 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
                         value: 'download',
                         child: Row(
                           children: [
-                            Icon(Icons.download_rounded, color: t.primary, size: 18),
+                            Icon(Icons.download_rounded,
+                                color: t.primary, size: 18),
                             const SizedBox(width: 10),
-                            Text('Descargar Imagen', style: TextStyle(color: t.text, fontSize: 13)),
+                            Text('Descargar Imagen',
+                                style: TextStyle(color: t.text, fontSize: 13)),
                           ],
                         ),
                       ),
@@ -830,9 +880,11 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
                         value: 'move_personal',
                         child: Row(
                           children: [
-                            Icon(Icons.lock_outline_rounded, color: t.primary, size: 18),
+                            Icon(Icons.lock_outline_rounded,
+                                color: t.primary, size: 18),
                             const SizedBox(width: 10),
-                            Text('Mover a PERSONAL', style: TextStyle(color: t.text, fontSize: 13)),
+                            Text('Mover a PERSONAL',
+                                style: TextStyle(color: t.text, fontSize: 13)),
                           ],
                         ),
                       )
@@ -841,9 +893,11 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
                         value: 'restore',
                         child: Row(
                           children: [
-                            Icon(Icons.unarchive_rounded, color: t.primary, size: 18),
+                            Icon(Icons.unarchive_rounded,
+                                color: t.primary, size: 18),
                             const SizedBox(width: 10),
-                            Text('Restaurar a ${memory.originalType}', style: TextStyle(color: t.text, fontSize: 13)),
+                            Text('Restaurar a ${memory.originalType}',
+                                style: TextStyle(color: t.text, fontSize: 13)),
                           ],
                         ),
                       ),
@@ -851,9 +905,11 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline_rounded, color: t.primary, size: 18),
+                          Icon(Icons.delete_outline_rounded,
+                              color: t.primary, size: 18),
                           const SizedBox(width: 10),
-                          Text('Eliminar Recuerdo', style: TextStyle(color: t.text, fontSize: 13)),
+                          Text('Eliminar Recuerdo',
+                              style: TextStyle(color: t.text, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -876,7 +932,8 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (memory.preservationWindowEnd != null && !memory.isPersonal) ...[
+                  if (memory.preservationWindowEnd != null &&
+                      !memory.isPersonal) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                       child: Container(
@@ -884,18 +941,23 @@ class _MemoryDetailSheetState extends State<_MemoryDetailSheet> {
                         decoration: BoxDecoration(
                           color: Colors.amber.shade900.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.amber.shade700, width: 1),
+                          border: Border.all(
+                              color: Colors.amber.shade700, width: 1),
                         ),
                         child: Builder(
                           builder: (_) {
-                            final diff = memory.preservationWindowEnd!.difference(DateTime.now());
+                            final diff = memory.preservationWindowEnd!
+                                .difference(DateTime.now());
                             final days = diff.inDays;
                             final hours = diff.inHours % 24;
-                            final timeStr = days > 0 ? '$days días y $hours horas' : '$hours horas';
+                            final timeStr = days > 0
+                                ? '$days días y $hours horas'
+                                : '$hours horas';
 
                             return Row(
                               children: [
-                                const Icon(Icons.timer_outlined, color: Colors.amber, size: 18),
+                                const Icon(Icons.timer_outlined,
+                                    color: Colors.amber, size: 18),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(

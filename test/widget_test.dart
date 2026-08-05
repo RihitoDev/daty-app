@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic_dates/shared/widgets/contract_rule_tile.dart';
 import 'package:magic_dates/shared/widgets/pressable_scale.dart';
+import 'package:magic_dates/shared/widgets/adventure_action_card.dart';
+import 'package:magic_dates/core/theme/app_theme.dart';
 
 void main() {
   testWidgets('ContractRuleTile alterna su estado al tocarlo', (tester) async {
@@ -53,4 +55,39 @@ void main() {
 
     expect(tapCount, 1);
   });
+
+  testWidgets(
+    'AdventureActionCard no desborda en una pantalla de 320 px',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 568));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(320, 568),
+            textScaler: TextScaler.linear(1.5),
+          ),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(12),
+                child: AdventureActionCard(
+                  theme: AppCustomTheme.light,
+                  title: 'Una aventura con un título bastante largo',
+                  subtitle:
+                      'Una descripción extensa que debe adaptarse sin salir del contenedor.',
+                  icon: Icons.explore_outlined,
+                  accent: Colors.purple,
+                  onTap: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

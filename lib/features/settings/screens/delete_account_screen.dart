@@ -105,6 +105,10 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        actionsOverflowAlignment: OverflowBarAlignment.end,
+        actionsOverflowButtonSpacing: 6,
         icon: const Icon(
           Icons.delete_forever_outlined,
           color: Colors.redAccent,

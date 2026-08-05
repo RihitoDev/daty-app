@@ -11,15 +11,11 @@ import '../../auth/utils/username_rules.dart';
 
 class UsernameChangeStatus {
   final bool enabled;
-  final bool eventActive;
-  final int remainingChanges;
-  final DateTime? endsAt;
+  final DateTime? nextChangeAt;
 
   const UsernameChangeStatus({
     required this.enabled,
-    required this.eventActive,
-    required this.remainingChanges,
-    this.endsAt,
+    this.nextChangeAt,
   });
 }
 
@@ -204,7 +200,8 @@ class ProfileProvider extends ChangeNotifier {
         final path = List<int>.from(data['adventurePath'] ?? []);
         _coupleDates = path.length;
 
-        final fechaVinculacion = (data['fechaVinculacion'] as Timestamp?)?.toDate();
+        final fechaVinculacion =
+            (data['fechaVinculacion'] as Timestamp?)?.toDate();
         if (fechaVinculacion != null) {
           _daysTogether = DateTime.now().difference(fechaVinculacion).inDays;
           if (_daysTogether < 0) _daysTogether = 0;
@@ -225,7 +222,8 @@ class ProfileProvider extends ChangeNotifier {
 
       int count = 0;
       for (final doc in querySnap.docs) {
-        final photos = List<String>.from(doc.data()['user1_photos'] ?? doc.data()['photos'] ?? []);
+        final photos = List<String>.from(
+            doc.data()['user1_photos'] ?? doc.data()['photos'] ?? []);
         count += photos.length;
       }
       _totalPhotosCount = count;
@@ -271,8 +269,7 @@ class ProfileProvider extends ChangeNotifier {
       return null;
     } on FirebaseFunctionsException catch (error) {
       if (error.code == 'already-exists') return 'username-taken';
-      if (error.code == 'failed-precondition') return 'event-inactive';
-      if (error.code == 'resource-exhausted') return 'event-limit-reached';
+      if (error.code == 'failed-precondition') return 'cooldown-active';
       return 'server-error';
     } catch (_) {
       return 'unknown-error';
@@ -285,20 +282,16 @@ class ProfileProvider extends ChangeNotifier {
           .httpsCallable('getUsernameChangeStatus');
       final response = await callable.call<Map<String, dynamic>>();
       final data = response.data;
-      final endsAtMillis = data['endsAtMillis'] as int?;
+      final nextChangeAtMillis = data['nextChangeAtMillis'] as int?;
       return UsernameChangeStatus(
         enabled: data['enabled'] == true,
-        eventActive: data['eventActive'] == true,
-        remainingChanges: (data['remainingChanges'] as num?)?.toInt() ?? 0,
-        endsAt: endsAtMillis == null
+        nextChangeAt: nextChangeAtMillis == null
             ? null
-            : DateTime.fromMillisecondsSinceEpoch(endsAtMillis),
+            : DateTime.fromMillisecondsSinceEpoch(nextChangeAtMillis),
       );
     } catch (_) {
       return const UsernameChangeStatus(
         enabled: false,
-        eventActive: false,
-        remainingChanges: 0,
       );
     }
   }

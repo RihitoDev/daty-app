@@ -48,7 +48,9 @@ class AchievementsList extends StatelessWidget {
               : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(
+              MediaQuery.sizeOf(context).width <= 360 ? 10 : 14,
+            ),
             decoration: BoxDecoration(
               color: isEquipped
                   ? colors.primary.withValues(alpha: 0.12)
@@ -80,40 +82,29 @@ class AchievementsList extends StatelessWidget {
                     size: 22,
                   ),
                 ),
-                const SizedBox(width: 14),
+                SizedBox(
+                  width: MediaQuery.sizeOf(context).width <= 360 ? 9 : 14,
+                ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Expanded(
-                            child: Text(
-                              ach.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: isUnlocked ? colors.text : colors.muted,
-                              ),
+                          Text(
+                            ach.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: isUnlocked ? colors.text : colors.muted,
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colors.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              ach.rarityLabel,
-                              style: TextStyle(
-                                color: colors.primary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          _RarityChip(
+                            label: ach.rarityLabel,
+                            color: colors.primary,
                           ),
                         ],
                       ),
@@ -126,7 +117,9 @@ class AchievementsList extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 3,
                         children: [
                           Text(
                             '${ach.unlockPercentage}% de usuarios',
@@ -136,7 +129,6 @@ class AchievementsList extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(width: 8),
                           Text(
                             '•  ${ach.categoryTag}',
                             style: TextStyle(
@@ -194,7 +186,7 @@ class AchievementsList extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 if (isEquipped)
                   Icon(Icons.push_pin, color: colors.primary, size: 20)
                 else if (isUnlocked)
@@ -207,6 +199,32 @@ class AchievementsList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _RarityChip extends StatelessWidget {
+  const _RarityChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }

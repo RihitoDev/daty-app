@@ -14,7 +14,11 @@ class GroupPhotoUploadScreen extends StatefulWidget {
   final Map<String, dynamic> adventureData;
   final List<String> members;
 
-  const GroupPhotoUploadScreen({super.key, required this.groupCode, required this.adventureData, required this.members});
+  const GroupPhotoUploadScreen(
+      {super.key,
+      required this.groupCode,
+      required this.adventureData,
+      required this.members});
 
   @override
   State<GroupPhotoUploadScreen> createState() => _GroupPhotoUploadScreenState();
@@ -46,7 +50,8 @@ class _GroupPhotoUploadScreenState extends State<GroupPhotoUploadScreen> {
 
   Future<void> _continue() async {
     if (_isUploading) {
-      CustomSnackBar.showWarning(context, 'Espera a que la foto termine de subir.');
+      CustomSnackBar.showWarning(
+          context, 'Espera a que la foto termine de subir.');
       return;
     }
 
@@ -54,18 +59,25 @@ class _GroupPhotoUploadScreenState extends State<GroupPhotoUploadScreen> {
       final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
 
       if (_uploadedPhotoUrl != null) {
-        String memoryDocId = '${widget.groupCode}_${widget.adventureData['number']}';
-        await FirebaseFirestore.instance.collection('group_memories').doc(memoryDocId).update({
+        String memoryDocId =
+            '${widget.groupCode}_${widget.adventureData['number']}';
+        await FirebaseFirestore.instance
+            .collection('group_memories')
+            .doc(memoryDocId)
+            .update({
           'photos.$myUid': _uploadedPhotoUrl,
         });
       }
 
       if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GroupMemoryBoardScreen(
-          groupCode: widget.groupCode,
-          adventureData: widget.adventureData,
-          members: widget.members,
-        )));
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (_) => GroupMemoryBoardScreen(
+                      groupCode: widget.groupCode,
+                      adventureData: widget.adventureData,
+                      members: widget.members,
+                    )));
       }
     } catch (e) {
       if (mounted) {
@@ -79,99 +91,154 @@ class _GroupPhotoUploadScreenState extends State<GroupPhotoUploadScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: const Text('Recuerdo Grupal', style: TextStyle(color: Colors.white)),
+        title: const Text('Recuerdo Grupal',
+            style: TextStyle(color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.black,
         automaticallyImplyLeading: false,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(30.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Tienes una foto de la aventura?', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            const Text('Es opcional, pero un recuerdo siempre es valioso', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 16)),
-            const SizedBox(height: 40),
-            GestureDetector(
-              onTap: () {
-                if (_uploadedPhotoUrl != null) {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImageViewer(imageUrl: _uploadedPhotoUrl!)));
-                } else {
-                  _pickPhoto();
-                }
-              },
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: Colors.white10,
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: const Color(0xFF8E24AA), width: 2),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth <= 360;
+          final padding = compact ? 16.0 : 30.0;
+          final photoSize = compact ? 150.0 : 180.0;
+
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(padding),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - (padding * 2),
+              ),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (_selectedImageBytes != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(23),
-                        child: Image.memory(_selectedImageBytes!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-                      )
-                    else
-                      const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_a_photo, color: Color(0xFF8E24AA), size: 50),
-                          SizedBox(height: 10),
-                          Text('Subir foto', style: TextStyle(color: Colors.white54, fontSize: 16)),
-                        ],
-                      ),
-                    if (_isUploading)
-                      Container(
-                        decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(23)),
-                        alignment: Alignment.center,
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                    const Text('Tienes una foto de la aventura?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    const Text(
+                        'Es opcional, pero un recuerdo siempre es valioso',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white54, fontSize: 16)),
+                    SizedBox(height: compact ? 24 : 40),
+                    GestureDetector(
+                      onTap: () {
+                        if (_uploadedPhotoUrl != null) {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => FullScreenImageViewer(
+                                      imageUrl: _uploadedPhotoUrl!)));
+                        } else {
+                          _pickPhoto();
+                        }
+                      },
+                      child: Container(
+                        width: photoSize,
+                        height: photoSize,
+                        decoration: BoxDecoration(
+                          color: Colors.white10,
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(
+                              color: const Color(0xFF8E24AA), width: 2),
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
-                            CircularProgressIndicator(color: Colors.white),
-                            SizedBox(height: 5),
-                            Text('Subiendo...', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            if (_selectedImageBytes != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(23),
+                                child: Image.memory(_selectedImageBytes!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity),
+                              )
+                            else
+                              const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo,
+                                      color: Color(0xFF8E24AA), size: 50),
+                                  SizedBox(height: 10),
+                                  Text('Subir foto',
+                                      style: TextStyle(
+                                          color: Colors.white54, fontSize: 16)),
+                                ],
+                              ),
+                            if (_isUploading)
+                              Container(
+                                decoration: BoxDecoration(
+                                    color: Colors.black45,
+                                    borderRadius: BorderRadius.circular(23)),
+                                alignment: Alignment.center,
+                                child: const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    CircularProgressIndicator(
+                                        color: Colors.white),
+                                    SizedBox(height: 5),
+                                    Text('Subiendo...',
+                                        style: TextStyle(
+                                            color: Colors.white, fontSize: 10)),
+                                  ],
+                                ),
+                              ),
+                            if (_uploadedPhotoUrl != null && !_isUploading)
+                              Positioned(
+                                top: 10,
+                                right: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle),
+                                  child: const Icon(Icons.check,
+                                      color: Colors.white, size: 16),
+                                ),
+                              ),
                           ],
                         ),
                       ),
-                    if (_uploadedPhotoUrl != null && !_isUploading)
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
-                          child: const Icon(Icons.check, color: Colors.white, size: 16),
+                    ),
+                    const Spacer(),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton.icon(
+                        onPressed: _isUploading ? null : _continue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8E24AA),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          disabledBackgroundColor: Colors.grey,
                         ),
+                        icon: _isUploading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : const Icon(Icons.arrow_forward,
+                                color: Colors.white),
+                        label: Text(
+                            _isUploading ? 'Subiendo foto...' : 'Continuar',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold)),
                       ),
+                    ),
                   ],
                 ),
               ),
             ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton.icon(
-                onPressed: _isUploading ? null : _continue,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8E24AA),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  disabledBackgroundColor: Colors.grey,
-                ),
-                icon: _isUploading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.arrow_forward, color: Colors.white),
-                label: Text(_isUploading ? 'Subiendo foto...' : 'Continuar', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
