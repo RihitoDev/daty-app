@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -60,7 +61,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    mapHeight = (widget.totalNodes * 100.0) + 300;
+    mapHeight = (widget.totalNodes * 155.0) + 350;
     
     _pulseController = AnimationController(
       vsync: this,
@@ -81,7 +82,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       'assets/images/deco_recoleta.png',
     ];
     
-    final List<double> possibleSizes = [210.0, 220.0, 240.0, 230.0, 215.0];
+    final List<double> possibleSizes = [210.0, 225.0, 235.0, 220.0, 230.0];
 
     _shuffledDecorationImages = List.from(allDecoImages)..shuffle();
     _shuffledDecorationSizes = List.from(possibleSizes)..shuffle();
@@ -102,31 +103,35 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       if (!mounted || !_scrollController.hasClients) return;
       
       try {
-        int targetIndex = _adventurePath.isEmpty ? 0 : _adventurePath.length - 1;
+        if (_adventurePath.isEmpty) return;
         
+        int targetIndex = _adventurePath.length - 1;
         if (activeAdventureNumber != null) {
           int activeIdx = _adventurePath.indexOf(activeAdventureNumber!);
-          if (activeIdx != -1) targetIndex = activeIdx; 
-        } else {
-          for (int i = 0; i < _adventurePath.length; i++) {
-            if (!_adventureRatings.containsKey(_adventurePath[i])) {
-              targetIndex = i;
-              break;
-            }
-          }
+          if (activeIdx != -1) targetIndex = activeIdx;
         }
 
-        if (targetIndex < 0) return;
+        targetIndex = targetIndex.clamp(0, widget.totalNodes - 1);
+
+        final double mapWidth = MediaQuery.of(context).size.width;
+        final pathPoints = _generatePathPoints(mapWidth);
         
-        double targetY = mapHeight - 150 - (100.0 * targetIndex);
+        if (targetIndex >= pathPoints.length) return;
+
+        double targetNodeY = pathPoints[targetIndex].dy;
         double viewportHeight = MediaQuery.of(context).size.height;
-        double targetScrollOffset = targetY - viewportHeight + 150; 
+        
+        double targetScrollOffset = targetNodeY - (viewportHeight / 2);
         
         double maxScroll = _scrollController.position.maxScrollExtent;
         double minScroll = _scrollController.position.minScrollExtent;
         targetScrollOffset = targetScrollOffset.clamp(minScroll, maxScroll);
         
-        _scrollController.animateTo(targetScrollOffset, duration: const Duration(milliseconds: 800), curve: Curves.easeInOut);
+        _scrollController.animateTo(
+          targetScrollOffset, 
+          duration: const Duration(milliseconds: 900), 
+          curve: Curves.easeOutCubic,
+        );
       } catch (e, st) {
         debugPrint('Error scrolling to node: $e\n$st');
       }
@@ -140,7 +145,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       _partnerId = authProvider.userData?['partnerId'] as String?;
       _coupleDocId = MapDataService.buildCoupleDocId(myUid, _partnerId);
 
-      // Escuchamos en tiempo real los cambios del progreso (unificado para solo y pareja)
       DocumentReference? progressRef = MapDataService.getProgressDocRef(
         mode: widget.mode, myUid: myUid, coupleDocId: _coupleDocId,
       );
@@ -168,7 +172,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         );
       }
 
-      // Descargamos todas las aventuras para la caché local
       _adventuresCache.addAll(await MapDataService.fetchAdventureCache(widget.mode));
 
     } catch (e, st) {
@@ -200,17 +203,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       
       if (mounted) {
         setState(() => _adventureRatings = tempRatings);
-        
-        // Si ya se calificó la última aventura, generamos la siguiente
-        if (_adventurePath.isNotEmpty && activeAdventureNumber == null && _adventurePath.length < widget.totalNodes) {
-          int lastAdventureId = _adventurePath.last;
-          if (tempRatings.containsKey(lastAdventureId)) {
-            await MapDataService.generateNextNode(
-              mode: widget.mode, myUid: myUid, coupleDocId: _coupleDocId,
-              adventuresCache: _adventuresCache, adventurePath: _adventurePath,
-            );
-          }
-        }
       }
     } catch (e) {
       debugPrint('Error fetching ratings: $e');
@@ -221,28 +213,48 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
 
   List<Offset> _generatePathPoints(double mapWidth) {
     List<Offset> points = [];
-    double y = mapHeight - 150; double stepY = -100.0; 
-    for (int i = 0; i < widget.totalNodes; i++) {
-      double x;
-      if (i % 4 == 0) { x = mapWidth * 0.15; }
-      else if (i % 4 == 1){ x = mapWidth * 0.5;}  
-      else if (i % 4 == 2){ x = mapWidth * 0.85;} 
-      else {x = mapWidth * 0.5; }
-      points.add(Offset(x, y));
-      y += stepY;
+    double startY = mapHeight - 140;
+    
+    double waveFreq = 1.20 / 110.0;
+    double amp = mapWidth * 0.33;
+    double centerX = mapWidth * 0.50;
+
+    Offset currentPos = Offset(centerX + amp * sin(0), startY);
+    points.add(currentPos);
+
+    const double targetDistance = 155.0; 
+    const double yStep = 1.0; 
+    double currentY = startY;
+
+    for (int i = 1; i < widget.totalNodes; i++) {
+      double accumulatedDist = 0.0;
+      while (accumulatedDist < targetDistance && currentY > 50) {
+        currentY -= yStep;
+        double t = startY - currentY;
+        double nextX = centerX + amp * sin(t * waveFreq);
+        Offset nextPos = Offset(nextX, currentY);
+        accumulatedDist += (nextPos - currentPos).distance;
+        currentPos = nextPos;
+      }
+      points.add(currentPos);
     }
     return points;
   }
 
   List<Offset> _generateDecorationPoints(List<Offset> pathPoints, double mapWidth) {
     List<Offset> points = [];
-    for (int i = 0; i < pathPoints.length; i++) {
-      if (i % 2 == 0) {
-        Offset p = pathPoints[i];
-        double pathXRatio = p.dx / mapWidth;
-        double decoX = pathXRatio < 0.35 ? mapWidth * 0.85 : (pathXRatio > 0.65 ? mapWidth * 0.15 : (i % 4 == 0 ? mapWidth * 0.1 : mapWidth * 0.9));
-        points.add(Offset(decoX, p.dy + 20));
-      }
+    double startY = mapHeight - 140;
+    double waveFreq = 1.20 / 110.0;
+
+    int k = 0;
+    while (true) {
+      double t = ((0.5 + k) * pi) / waveFreq;
+      double decoY = startY - t;
+      if (decoY < 150) break;
+      
+      double decoX = (k % 2 == 0) ? mapWidth * 0.16 : mapWidth * 0.84;
+      points.add(Offset(decoX, decoY));
+      k++;
     }
     return points;
   }
@@ -286,59 +298,111 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: SingleChildScrollView(
-                child: Container(
-                padding: const EdgeInsets.all(20.0),
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E).withOpacity(0.9),
-                  border: Border.all(color: widget.themeColor.withOpacity(0.5)),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.lightbulb_outline, color: widget.themeColor, size: 50),
-                    const SizedBox(height: 15),
-                    const Text('Consejos antes de salir', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                    const SizedBox(height: 15),
-                    Text(adventure['tips'] ?? 'Disfruta el momento.', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7))),
-                    const SizedBox(height: 25),
-                    Row(children: [
-                      Expanded(child: OutlinedButton(
-                        onPressed: () => Navigator.pop(dialogContext), 
-                        style: OutlinedButton.styleFrom(foregroundColor: Colors.white70, side: const BorderSide(color: Colors.white24)),
-                        child: const Text('Cancelar')
-                      )),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            Navigator.pop(dialogContext); 
-                            bool success = await MapDataService.setAdventureStatus(
-                              mode: widget.mode, myUid: Provider.of<AuthProvider>(context, listen: false).user!.uid,
-                              coupleDocId: _coupleDocId, adventureNumber: adventure['number'], isActive: true,
-                            ); 
-                            if (success && mounted) {
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventure, availableIds)));
-                            } else if (mounted) {
-                              CustomSnackBar.showError(context, 'Error de conexión al iniciar.');
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(backgroundColor: widget.themeColor, elevation: 5, shadowColor: widget.themeColor),
-                          child: const Text('Iniciar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ])
+                  color: const Color(0xFF1E1E2C).withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: widget.themeColor.withOpacity(0.4), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 20,
+                      spreadRadius: 4,
+                    ),
                   ],
                 ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: widget.themeColor.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.lightbulb_outline_rounded, color: widget.themeColor, size: 26),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Text(
+                            'Consejos para tu Cita',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      adventure['title'] ?? 'Cita Especial',
+                      style: TextStyle(
+                        color: widget.themeColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      adventure['tips'] != null && (adventure['tips'] as String).isNotEmpty
+                          ? adventure['tips']
+                          : 'Prepárense para disfrutar un momento único juntos. Mantengan la mente abierta y diviértanse al máximo.',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.themeColor,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 4,
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(dialogContext);
+                        final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
+                        bool success = await MapDataService.setAdventureStatus(
+                          mode: widget.mode,
+                          myUid: myUid,
+                          coupleDocId: _coupleDocId,
+                          adventureNumber: adventure['number'],
+                          isActive: true,
+                        ); 
+                        if (success && mounted) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => widget.onNavigateToProgress(adventure, availableIds)));
+                        } else if (mounted) {
+                          CustomSnackBar.showError(context, 'Error de conexión al iniciar.');
+                        }
+                      },
+                      child: const Text(
+                        'Entendido, ¡Comenzar!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        ); 
+        );
       },
     );
   }
@@ -353,13 +417,12 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     final myUid = Provider.of<AuthProvider>(context, listen: false).user!.uid;
 
     double mapProgress = _adventurePath.isEmpty ? 0.0 : _adventurePath.length / widget.totalNodes;
-    int completedDates = _adventurePath.length;
-
     double fogBottom;
     if (_adventurePath.isEmpty) {
       fogBottom = 0; 
     } else {
-      double fogTopY = pathPoints[_adventurePath.length - 1].dy - 100; 
+      int safeIdx = (_adventurePath.length - 1).clamp(0, pathPoints.length - 1);
+      double fogTopY = pathPoints[safeIdx].dy - 100; 
       fogBottom = (mapHeight - (fogTopY + 50)).clamp(0.0, mapHeight); 
     }
 
@@ -368,6 +431,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
         : [const Color(0xFF1A0515), const Color(0xFF3B0A30), const Color(0xFF2A0D3F)];
 
     final Color neonPathColor = widget.mode == 'solo' ? const Color(0xFF00E5FF) : const Color(0xFFFF4081);
+    final int percentVal = (mapProgress * 100).clamp(0, 100).toInt();
 
     return Scaffold(
       body: Stack(
@@ -401,30 +465,60 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
           ),
           
           Positioned(
-            top: MediaQuery.of(context).padding.top + 10, left: 10, right: 10,
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 12,
+            right: 12,
             child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(24),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                     child: Container(
-                      color: Colors.black.withOpacity(0.4),
-                      child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28), onPressed: () => Navigator.pop(context)),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.55),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: widget.themeColor.withOpacity(0.4),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: widget.themeColor.withOpacity(0.2),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+                        onPressed: () => Navigator.pop(context),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5), 
-                          border: Border.all(color: Colors.white24, width: 1)
+                          color: Colors.black.withOpacity(0.55), 
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: widget.themeColor.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.themeColor.withOpacity(0.15),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,19 +526,84 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(widget.headerTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                                Text('$completedDates/${widget.totalNodes}', style: TextStyle(color: widget.themeColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                                Text(
+                                  widget.headerTitle,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: widget.themeColor.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: widget.themeColor.withOpacity(0.5),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '$percentVal%',
+                                    style: TextStyle(
+                                      color: widget.themeColor,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: LinearProgressIndicator(
-                                value: mapProgress,
-                                backgroundColor: Colors.white24,
-                                valueColor: AlwaysStoppedAnimation<Color>(widget.themeColor),
-                                minHeight: 8,
-                              ),
+                            const SizedBox(height: 8),
+                            TweenAnimationBuilder<double>(
+                              tween: Tween<double>(begin: 0, end: mapProgress),
+                              duration: const Duration(milliseconds: 900),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, animValue, child) {
+                                return LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final double totalWidth = constraints.maxWidth;
+                                    final double currentWidth = totalWidth * animValue.clamp(0.0, 1.0);
+                                    return Container(
+                                      height: 10,
+                                      width: totalWidth,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Stack(
+                                        children: [
+                                          AnimatedContainer(
+                                            duration: const Duration(milliseconds: 300),
+                                            width: currentWidth,
+                                            height: 10,
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(10),
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  widget.themeColor.withOpacity(0.8),
+                                                  widget.themeColor,
+                                                  Colors.white.withOpacity(0.9),
+                                                ],
+                                                stops: const [0.0, 0.7, 1.0],
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: widget.themeColor.withOpacity(0.7),
+                                                  blurRadius: 8,
+                                                  spreadRadius: 1,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -487,8 +646,6 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
     int arrayIndex = displayNumber - 1; 
     bool isLocked = !isUnlocked; 
     bool isInProgress = activeAdventureNumber == adventureId;
-    bool isCompleted = isUnlocked && _adventureRatings.containsKey(adventureId) && !isInProgress;
-    bool isNextStep = isUnlocked && !isCompleted && !isInProgress;
 
     bool isUser1 = _partnerId != null && myUid.compareTo(_partnerId!) < 0;
     
@@ -502,6 +659,10 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       isWaitingForPartner = iReviewed && !partnerReviewed;
     }
 
+    bool isCompleted = isUnlocked && !isInProgress && (_adventureRatings.containsKey(adventureId) || (activeAdventureNumber != null && arrayIndex < _adventurePath.indexOf(activeAdventureNumber!)));
+    bool isNextStep = isUnlocked && !isCompleted && !isInProgress && !isWaitingForPartner;
+    bool isMilestone = displayNumber % 5 == 0;
+
     Color startColor; Color endColor; Widget iconChild;
     
     if (isWaitingForPartner) {
@@ -509,29 +670,55 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       iconChild = const Icon(Icons.hourglass_top, color: Colors.white, size: 28);
     } else if (isInProgress) {
       startColor = const Color(0xFFFFA000); endColor = const Color(0xFFFF6F00); 
-      iconChild = const Icon(Icons.adjust, color: Colors.white, size: 28);
+      iconChild = const Icon(Icons.adjust, color: Colors.white, size: 30);
     } else if (isCompleted) { 
-      startColor = const Color(0xFF00E676); endColor = const Color(0xFF00C853); 
-      iconChild = const Icon(Icons.check_circle, color: Colors.white, size: 28);
+      startColor = isMilestone ? const Color(0xFFFFD54F) : const Color(0xFF00E676); 
+      endColor = isMilestone ? const Color(0xFFFF8F00) : const Color(0xFF00C853); 
+      iconChild = Icon(
+        isMilestone ? Icons.emoji_events_rounded : Icons.check_circle,
+        color: Colors.white,
+        size: isMilestone ? 32 : 28,
+      );
     } else if (isNextStep) { 
-      startColor = widget.themeColor; endColor = widget.themeColor.withOpacity(0.8);
-      iconChild = Text(displayNumber.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20, shadows: [Shadow(color: Colors.black54, blurRadius: 2, offset: Offset(1, 1))]));
+      startColor = isMilestone ? const Color(0xFFFFB300) : widget.themeColor; 
+      endColor = isMilestone ? const Color(0xFFFF6F00) : widget.themeColor.withOpacity(0.8);
+      iconChild = Text(
+        displayNumber.toString(),
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: isMilestone ? 22 : 20,
+          shadows: const [Shadow(color: Colors.black54, blurRadius: 2, offset: Offset(1, 1))],
+        ),
+      );
     } else { 
       startColor = const Color(0xFF1E1E1E); endColor = const Color(0xFF2A2A2A); 
-      iconChild = const Icon(Icons.lock, color: Colors.white38, size: 24);
+      iconChild = Icon(
+        isMilestone ? Icons.military_tech_rounded : Icons.lock,
+        color: isMilestone ? Colors.amber.withOpacity(0.4) : Colors.white38,
+        size: isMilestone ? 30 : 24,
+      );
     }
 
-    double? rating = _adventureRatings[adventureId];
-    bool showRating = isCompleted && rating != null && rating > 0;
+    double circleSize = isMilestone ? 68.0 : 58.0;
 
     Widget nodeCircle = Container(
-      width: 60, height: 60, 
+      width: circleSize,
+      height: circleSize, 
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(colors: [startColor, endColor], center: Alignment.center, radius: 0.5),
-        border: Border.all(color: Colors.white.withOpacity(0.8), width: isInProgress ? 4 : 3), 
+        border: Border.all(
+          color: isMilestone ? Colors.amberAccent : Colors.white.withOpacity(0.85),
+          width: (isInProgress || isNextStep || isMilestone) ? 3.5 : 2.5,
+        ), 
         boxShadow: [
-          BoxShadow(color: startColor.withOpacity(0.8), blurRadius: isInProgress ? 18 : 10, spreadRadius: 2, offset: Offset.zero)
+          BoxShadow(
+            color: (isMilestone ? Colors.amber : startColor).withOpacity((isInProgress || isNextStep) ? 0.7 : 0.4),
+            blurRadius: (isInProgress || isNextStep || isMilestone) ? 14 : 6,
+            spreadRadius: 1.5,
+            offset: Offset.zero,
+          )
         ], 
       ),
       child: Center(
@@ -545,9 +732,61 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
       nodeCircle = ScaleTransition(scale: _pulseController, child: nodeCircle);
     }
 
+    double? ratingVal = _adventureRatings[adventureId];
+
+    Widget finalNodeContent = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        nodeCircle,
+        if (isCompleted)
+          Positioned(
+            bottom: -10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101828),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isMilestone ? const Color(0xFFFFD700) : const Color(0xFF00E676),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.6),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.star_rounded,
+                    color: isMilestone ? const Color(0xFFFFD700) : const Color(0xFF00E676),
+                    size: 13,
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    ratingVal != null ? ratingVal.toStringAsFixed(1) : '-',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+
     return Positioned(
-      left: x - 30, 
-      top: y - (showRating ? 42 : 30), 
+      left: x - (circleSize / 2), 
+      top: y - (circleSize / 2), 
       child: GestureDetector(
         onTap: isLocked || adventureData == null ? null : () {
           if (isWaitingForPartner) {
@@ -561,26 +800,7 @@ class _AdventureMapState extends State<AdventureMap> with SingleTickerProviderSt
             _showAdventureDetail(arrayIndex);
           }
         },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            nodeCircle,
-            if (showRating)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amberAccent.shade200.withOpacity(0.5)), boxShadow: const [BoxShadow(color: Colors.black87, blurRadius: 4, offset: Offset(0, 2))]),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.star, color: Colors.amberAccent, size: 14),
-                    const SizedBox(width: 2),
-                    Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ],
-                ),
-              ),
-          ],
-        ),
+        child: finalNodeContent,
       ),
     );
   }

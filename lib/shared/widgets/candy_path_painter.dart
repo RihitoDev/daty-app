@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class CandyPathPainter extends CustomPainter {
@@ -11,41 +12,53 @@ class CandyPathPainter extends CustomPainter {
     if (points.isEmpty) return;
     
     final path = Path()..moveTo(points[0].dx, points[0].dy);
-    for (int i = 0; i < points.length - 1; i++) {
-      final current = points[i]; 
-      final next = points[i + 1];
-      
-      // Curva de Bézier cúbica para darle ese flujo suave y orgánico al camino entre los nodos
-      path.cubicTo(
-        current.dx, current.dy + (next.dy - current.dy) * 0.8, 
-        next.dx, next.dy - (next.dy - current.dy) * 0.8, 
-        next.dx, next.dy
+    final int n = points.length;
+
+    // Algoritmo Catmull-Rom Spline continuo C1 estilo Candy Crush Soda Saga
+    for (int i = 0; i < n - 1; i++) {
+      final p0 = i > 0 ? points[i - 1] : points[i];
+      final p1 = points[i];
+      final p2 = points[i + 1];
+      final p3 = i < n - 2 ? points[i + 2] : p2;
+
+      const double smoothness = 0.22;
+
+      final cp1 = Offset(
+        p1.dx + (p2.dx - p0.dx) * smoothness,
+        p1.dy + (p2.dy - p0.dy) * smoothness,
       );
+
+      final cp2 = Offset(
+        p2.dx - (p3.dx - p1.dx) * smoothness,
+        p2.dy - (p3.dy - p1.dy) * smoothness,
+      );
+
+      path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p2.dx, p2.dy);
     }
 
     final glowPaintOuter = Paint()
-      ..color = pathColor.withOpacity(0.15)
-      ..strokeWidth = 40.0
+      ..color = pathColor.withOpacity(0.12)
+      ..strokeWidth = 36.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 
     final glowPaintInner = Paint()
-      ..color = pathColor.withOpacity(0.5)
-      ..strokeWidth = 20.0 
+      ..color = pathColor.withOpacity(0.4)
+      ..strokeWidth = 18.0 
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
 
     final corePaint = Paint()
       ..color = pathColor
-      ..strokeWidth = 12.0
+      ..strokeWidth = 10.0
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
     final highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.6)
-      ..strokeWidth = 3.0 
+      ..color = Colors.white.withOpacity(0.7)
+      ..strokeWidth = 2.5 
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
@@ -54,6 +67,22 @@ class CandyPathPainter extends CustomPainter {
     canvas.drawPath(path, glowPaintInner);
     canvas.drawPath(path, corePaint);
     canvas.drawPath(path, highlightPaint);
+
+    // Dibujamos micro-partículas de luz a lo largo del camino
+    final particlePaint = Paint()
+      ..color = Colors.white.withOpacity(0.85)
+      ..style = PaintingStyle.fill;
+
+    for (PathMetric metric in path.computeMetrics()) {
+      final double totalLength = metric.length;
+      const double step = 28.0;
+      for (double distance = 0.0; distance < totalLength; distance += step) {
+        final Tangent? tangent = metric.getTangentForOffset(distance);
+        if (tangent != null) {
+          canvas.drawCircle(tangent.position, 2.0, particlePaint);
+        }
+      }
+    }
   }
   
   @override
